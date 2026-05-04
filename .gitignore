@@ -1,0 +1,31 @@
+# macOS
+.DS_Store
+._*
+.AppleDouble
+.LSOverride
+
+# IDE / editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Local Claude state (per-user)
+.claude/settings.local.json
+.claude/state/
+.claude/logs/
+
+# Logs / temp
+*.log
+tmp/
+.cache/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# OS-specific
+Thumbs.db
+ehthumbs.db

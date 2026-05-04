@@ -1,0 +1,8 @@
+[submodule "auxi"]
+	path = auxi
+	url = https://github.com/ducga1998/auxi-mobile.git
+	branch = main
+[submodule "wardrobe-backend"]
+	path = wardrobe-backend
+	url = https://github.com/ducga1998/wardrobe-backend.git
+	branch = main
