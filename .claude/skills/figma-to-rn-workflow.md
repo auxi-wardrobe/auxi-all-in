@@ -1,6 +1,6 @@
 ---
 name: figma-to-rn-workflow
-description: Strict workflow for translating a Figma design into Auxi RN code. Use whenever the user provides a Figma URL or asks to implement a screen/component from design. Designer is the CEO — alignment, theme adherence, icon fidelity, and on-simulator verification are non-negotiable.
+description: REQUIRED second step (after figma-design-extraction) whenever the input is a Figma URL or the task involves implementing a screen/component from a Figma design. Strict workflow for translating Figma into Auxi RN code — theme tokens (no literal hex), per-icon SVG audit, alignment via flexbox, every variant/state implemented, and on-simulator side-by-side verification. Designer is the CEO; alignment, theme adherence, icon fidelity, and visual proof on the simulator are non-negotiable. Triggered automatically by mobile-dev when execution involves a Figma reference.
 ---
 
 # Figma → React Native (Auxi) Workflow

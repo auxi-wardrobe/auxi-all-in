@@ -1,6 +1,6 @@
 ---
 name: figma-design-extraction
-description: How to read a Figma file thoroughly and accurately via the Figma MCP — navigate the node tree, decode auto-layout, lift tokens/variables, enumerate variants, audit text and effect styles, and avoid common misreads. Use BEFORE figma-to-rn-workflow whenever the input is a Figma URL.
+description: REQUIRED first step whenever the input is a Figma URL or the task says "implement from design" / "match design" / "build this screen from Figma". Read the Figma file thoroughly via the Figma MCP — navigate the node tree, decode auto-layout, lift tokens/variables, enumerate variants, audit text and effect styles, and avoid common misreads. ALWAYS pair with figma-to-rn-workflow as the next step. Triggered automatically by mobile-dev when execution involves a Figma reference.
 ---
 
 # Reading Figma Files Well

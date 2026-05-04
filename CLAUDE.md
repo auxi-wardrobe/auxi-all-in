@@ -12,11 +12,19 @@ wardrobe_project/                      # ← this repo (umbrella)
 │   └── FastAPI + SQLAlchemy + Gemini
 └── .claude/
     ├── agents/                        # role-scoped agents
-    │   ├── mobile-dev.md              # works in auxi/ only
+    │   ├── mobile-dev.md              # works in auxi/ only · Figma-fluent
     │   ├── backend-dev.md             # works in wardrobe-backend/ only
     │   ├── tech-lead.md               # cross-repo, contracts & architecture
-    │   └── qa-mobile.md               # mobile QA on auxi/
+    │   ├── qa-mobile.md               # mobile QA on auxi/
+    │   └── pm.md                      # senior PM, owns Linear tickets
     └── skills/                        # role-specific workflows
+        ├── auxi-rn-patterns.md
+        ├── wardrobe-fastapi-patterns.md
+        ├── cross-repo-coordination.md
+        ├── auxi-qa-test.md
+        ├── figma-design-extraction.md # read Figma thoroughly
+        ├── figma-to-rn-workflow.md    # implement Figma → RN faithfully
+        └── linear-pm-workflow.md      # PM ticket lifecycle
 ```
 
 **Rule of thumb**: dev agents are sandboxed to their own repo. Cross-repo work
@@ -83,10 +91,16 @@ git commit -m "chore: bump submodules"
 
 | Agent | Scope | Use when |
 |---|---|---|
-| `mobile-dev` | `auxi/` only | RN screens, navigation, services, theme, i18n |
+| `mobile-dev` | `auxi/` only · Figma-fluent | RN screens from Figma, navigation, services, theme, i18n |
 | `backend-dev` | `wardrobe-backend/` only | FastAPI routers, services, repos, models, migrations |
 | `tech-lead` | both repos (read-mostly) | Contract changes, breaking migrations, design reviews, release coordination |
 | `qa-mobile` | `auxi/` (read + test runs) | iOS/Android smoke, regression, mobile-mcp UI verification |
+| `pm` | Linear board (project-wide) | New US, subtask splits, status sweeps, verified close |
+
+**Figma note**: the designer is the CEO. `mobile-dev` is wired for the
+Figma MCP and follows two skills together — `figma-design-extraction`
+(read the file thoroughly) and `figma-to-rn-workflow` (implement
+faithfully + verify on simulator). Don't shortcut these for visual work.
 
 The agents are NOT generic — they refuse work outside their scope and route
 to the right teammate. See each agent's frontmatter for hard boundaries.

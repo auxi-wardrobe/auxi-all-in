@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "permissions": {
+    "allow": [
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git submodule status)",
+      "Bash(git submodule update:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(grep:*)",
+      "Bash(find:*)",
+      "Bash(yarn lint)",
+      "Bash(yarn test)",
+      "Bash(yarn test:*)",
+      "Bash(yarn ios:sim)",
+      "Bash(npx tsc --noEmit)",
+      "Bash(pytest:*)",
+      "Bash(python test_server.py)",
+      "Bash(xcrun simctl list:*)",
+      "Bash(xcrun simctl io booted screenshot:*)"
+    ]
+  }
+}
