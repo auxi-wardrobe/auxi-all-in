@@ -143,6 +143,7 @@ This repo ships with role-scoped agents and skills under `.claude/`. See
 - `backend-dev` — works inside `wardrobe-backend/` only
 - `tech-lead` — cross-repo coordination, design review, release planning
 - `qa-mobile` — mobile testing and regression
+- `qa-ui` — visual fidelity QA (alignment, icons, typography, colors), sweep + Figma compare modes
 
 To dispatch an agent, ask Claude Code something like:
 
