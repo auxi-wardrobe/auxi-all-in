@@ -105,12 +105,15 @@ git commit -m "chore: bump submodules"
 | `backend-dev` | `wardrobe-backend/` only | FastAPI routers, services, repos, models, migrations |
 | `tech-lead` | both repos (read-mostly) | Contract changes, breaking migrations, design reviews, release coordination |
 | `qa-mobile` | `auxi/` (read + test runs) | iOS/Android smoke, regression, mobile-mcp UI verification |
+| `qa-ui` | `auxi/` (read-only on src) · Figma-fluent | Visual fidelity sweeps, Figma-vs-actual diff, alignment/icon/typography/color/overflow bugs |
 | `pm` | Linear board (project-wide) | New US, subtask splits, status sweeps, verified close |
 
 **Figma note**: the designer is the CEO. `mobile-dev` is wired for the
 Figma MCP and follows two skills together — `figma-design-extraction`
 (read the file thoroughly) and `figma-to-rn-workflow` (implement
-faithfully + verify on simulator). Don't shortcut these for visual work.
+faithfully + verify on simulator). `qa-ui` also has Figma MCP access
+for compare mode (design-vs-actual diff). Don't shortcut these for
+visual work.
 
 The agents are NOT generic — they refuse work outside their scope and route
 to the right teammate. See each agent's frontmatter for hard boundaries.
