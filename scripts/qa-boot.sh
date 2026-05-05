@@ -196,13 +196,54 @@ start_mobile() {
   cd "$REPO_ROOT"
 }
 
+# --- QA hand-off ---
+print_handoff() {
+  local backend_pid metro_pid
+  backend_pid=$(grep '^backend=' "$PIDS_FILE" | cut -d= -f2)
+  metro_pid=$(grep '^metro=' "$PIDS_FILE" | cut -d= -f2)
+
+  cat <<EOF
+
+${GREEN}✅ Wardrobe stack up${NC}
+
+Backend  : http://localhost:5001  (PID $backend_pid, log: logs/backend.log)
+Metro    : :8081                  (PID $metro_pid, log: logs/metro.log)
+iOS sim  : $SIM_NAME ($SIM_UDID)
+App      : $BUNDLE_ID installed and launched
+
+QA test account (already registered against local backend):
+  email    : qa-test@auxi.app
+  password : QaTest!2026
+
+──────────────────────────────────────
+QA regression checklist (auxi-qa-test.md)
+──────────────────────────────────────
+1. Auth        — login with the QA test account above → kill app → reopen →
+                 still logged in. (Use a different fake email for the *register*
+                 flow; this account already exists.)
+2. Onboarding  — Welcome → LocationPermission → preference → first home recommendation
+                  ⚠ confirm with mobile-dev which entry path is active (legacy vs new)
+3. Home        — recommendation loads, occasion/weather/time chips refetch,
+                 favorite + try-on hit backend
+4. Wardrobe    — 4-col grid, category filters, photo upload, item edit
+5. Body photos — upload, list, delete
+6. Settings    — daily reminders toggle, style direction edit, preference reset
+
+Bug reports → auxi/docs/qa-findings/YYYY-MM-DD-<slug>.md
+              (severity, repro rate, build SHA, sim spec)
+
+To stop: ./scripts/qa-stop.sh
+
+EOF
+}
+
 main() {
   preflight
   free_ports
   start_backend
   boot_simulator
   start_mobile
-  ok "All stages done — hand-off printout not yet implemented"
+  print_handoff
 }
 
 main "$@"
