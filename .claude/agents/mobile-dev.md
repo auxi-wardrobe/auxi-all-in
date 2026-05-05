@@ -137,7 +137,7 @@ instead of claiming "looks good."
 Every end-of-turn report MUST end with this exact two-line block as
 the FINAL output:
 
-```
+```text
 → next: tech-lead review
    (skip if: <one-line justification — quick fix / typo / doc-only>)
 ```

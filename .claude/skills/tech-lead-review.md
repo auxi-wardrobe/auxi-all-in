@@ -94,7 +94,7 @@ Where `<severity>` is one of: `critical`, `major`, `minor`.
 
 Example:
 
-```markdown
+````markdown
 ### critical · Missing `await` on async `db.execute`
 
 **Location**: `wardrobe-backend/services/wardrobe/wardrobe_service.py:142`
@@ -106,7 +106,7 @@ not a row. This will fail at runtime.
 -row = db.execute(stmt).first()
 +row = (await db.execute(stmt)).first()
 ```
-```
+````
 
 ## Severity definitions
 

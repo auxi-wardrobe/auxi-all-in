@@ -107,7 +107,7 @@ don't claim "verified" without running them.
 Every end-of-turn report MUST end with this exact two-line block as
 the FINAL output:
 
-```
+```text
 → next: tech-lead review
    (skip if: <one-line justification — quick fix / typo / doc-only>)
 ```

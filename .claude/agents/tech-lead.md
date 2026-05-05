@@ -139,7 +139,7 @@ deadlocked.
 
 `mobile-dev` and `backend-dev` end every turn with:
 
-```
+```text
 → next: tech-lead review
    (skip if: <one-line justification — quick fix / typo / doc-only>)
 ```
