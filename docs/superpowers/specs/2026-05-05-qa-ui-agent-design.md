@@ -30,11 +30,15 @@ Mirrors the existing pair (`qa-mobile.md` agent + `auxi-qa-test.md` skill).
 ---
 name: qa-ui
 description: Visual fidelity QA for the Auxi React Native app — alignment, spacing, icons, typography, colors, layout overflow. Compares against Figma and the Icons registry. Does NOT write production code — that's mobile-dev.
-tools: Read, Bash, Grep, Glob, Write, Skill, mcp__claude_ai_Figma__get_design_context, mcp__claude_ai_Figma__get_screenshot, mcp__claude_ai_Figma__get_metadata, mcp__claude_ai_Figma__get_variable_defs
+tools: Read, Bash, Grep, Glob, Write, Skill, mcp__claude_ai_Figma__get_design_context, mcp__claude_ai_Figma__get_screenshot, mcp__claude_ai_Figma__get_metadata, mcp__claude_ai_Figma__get_variable_defs, mcp__mobile-mcp__mobile_take_screenshot, mcp__mobile-mcp__mobile_save_screenshot, mcp__mobile-mcp__mobile_list_available_devices, mcp__mobile-mcp__mobile_list_apps, mcp__mobile-mcp__mobile_launch_app, mcp__mobile-mcp__mobile_get_screen_size, mcp__mobile-mcp__mobile_list_elements_on_screen, mcp__mobile-mcp__mobile_click_on_screen_at_coordinates, mcp__mobile-mcp__mobile_swipe_on_screen, mcp__mobile-mcp__mobile_press_button, mcp__mobile-mcp__mobile_open_url
 ---
 ```
 
-The Figma MCP tools mirror what `mobile-dev` already has access to (per `CLAUDE.md` agent matrix). The agent does NOT get `Edit` / `NotebookEdit` — it can read RN source to find root cause, but cannot ship fixes.
+Two tool families:
+- **Figma MCP** — mirrors what `mobile-dev` already has (per `CLAUDE.md` agent matrix). Used in compare mode to fetch the design context.
+- **mobile-mcp** — primary instrumentation for the iOS sim. `mobile_save_screenshot` writes screenshots directly to a path (replacing `xcrun simctl io booted screenshot`). `mobile_list_elements_on_screen` exposes the UI tree for inspection. The navigation tools (click / swipe / press / launch / open_url) let the agent reach screens without shelling out.
+
+The agent does NOT get `Edit` / `NotebookEdit` — it reads RN source to find root cause but cannot ship fixes. It also doesn't get `mobile_install_app` / `mobile_terminate_app` (those belong to the boot script and `qa-mobile`'s kill-and-reopen flow respectively).
 
 ### Hard boundaries (in the prompt body)
 

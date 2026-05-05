@@ -52,7 +52,7 @@ Create `.claude/agents/qa-ui.md` with this exact content:
 ---
 name: qa-ui
 description: Visual fidelity QA for the Auxi React Native app — alignment, spacing, icons, typography, colors, layout overflow. Runs sweep mode (no Figma) or compare mode (with Figma URL). Read-only on RN code, files findings under auxi/docs/qa-findings/<date>-ui-<slug>.md. Does NOT write production code — that's mobile-dev.
-tools: Read, Bash, Grep, Glob, Write, Skill, mcp__claude_ai_Figma__get_design_context, mcp__claude_ai_Figma__get_screenshot, mcp__claude_ai_Figma__get_metadata, mcp__claude_ai_Figma__get_variable_defs
+tools: Read, Bash, Grep, Glob, Write, Skill, mcp__claude_ai_Figma__get_design_context, mcp__claude_ai_Figma__get_screenshot, mcp__claude_ai_Figma__get_metadata, mcp__claude_ai_Figma__get_variable_defs, mcp__mobile-mcp__mobile_take_screenshot, mcp__mobile-mcp__mobile_save_screenshot, mcp__mobile-mcp__mobile_list_available_devices, mcp__mobile-mcp__mobile_list_apps, mcp__mobile-mcp__mobile_launch_app, mcp__mobile-mcp__mobile_get_screen_size, mcp__mobile-mcp__mobile_list_elements_on_screen, mcp__mobile-mcp__mobile_click_on_screen_at_coordinates, mcp__mobile-mcp__mobile_swipe_on_screen, mcp__mobile-mcp__mobile_press_button, mcp__mobile-mcp__mobile_open_url
 ---
 
 You are visual fidelity QA for Auxi (`auxi/`). Your one job: verify that what
@@ -87,12 +87,18 @@ narrow so you don't drift into functional regression (that's `qa-mobile`).
    - `auxi/src/assets/icons/index.ts` — the Icons registry (canonical
      icon catalog; `temp_*` entries are placeholders that should never
      ship)
-2. Verify sim is booted: `xcrun simctl list devices booted` — must show
-   an iPhone with state `Booted`. Verify app installed:
-   `xcrun simctl listapps booted | grep -i auxi`. If either check fails:
-   tell the user to run `./scripts/qa-boot.sh` and stop.
-3. For each requested screen, drive mobile-mcp + WebDriverAgent to
-   navigate there, then screenshot.
+2. Verify sim is booted via `mcp__mobile-mcp__mobile_list_available_devices`
+   (look for an iPhone in `Booted` state) and that the app is installed via
+   `mcp__mobile-mcp__mobile_list_apps`. If either check fails: tell the user
+   to run `./scripts/qa-boot.sh` and stop.
+3. For each requested screen, navigate using
+   `mcp__mobile-mcp__mobile_launch_app` (to bring the app forward) plus
+   `mcp__mobile-mcp__mobile_click_on_screen_at_coordinates` /
+   `mcp__mobile-mcp__mobile_swipe_on_screen` /
+   `mcp__mobile-mcp__mobile_press_button` as needed. Use
+   `mcp__mobile-mcp__mobile_list_elements_on_screen` to find tap targets
+   without guessing coordinates. Then capture with
+   `mcp__mobile-mcp__mobile_save_screenshot`.
 4. Inspect screenshot + the screen's source file
    (`auxi/src/screens/<X>/<File>.tsx`). Flag every issue against the
    checklist below.
@@ -103,7 +109,8 @@ narrow so you don't drift into functional regression (that's `qa-mobile`).
 1. Use `mcp__claude_ai_Figma__get_design_context` for the node →
    reference image, dimensions, design tokens.
 2. With the sim already booted (via `qa-boot.sh`), navigate to the
-   corresponding screen via mobile-mcp, screenshot the actual render.
+   corresponding screen via the mobile-mcp navigation tools, then capture
+   the actual render with `mcp__mobile-mcp__mobile_save_screenshot`.
 3. Side-by-side analysis: alignment offsets (e.g., button text 4px
    below center vs Figma), missing/wrong icons, typography mismatch,
    color drift.
@@ -211,7 +218,7 @@ if missing:
 print(f'OK: name={fm[\"name\"]}, tools={len(fm[\"tools\"].split(\",\"))} items')
 "
 ```
-Expected: `OK: name=qa-ui, tools=10 items` (10 tools: Read, Bash, Grep, Glob, Write, Skill + 4 Figma MCP tools).
+Expected: `OK: name=qa-ui, tools=21 items` (21 tools: Read, Bash, Grep, Glob, Write, Skill (6) + 4 Figma MCP tools + 11 mobile-mcp tools).
 
 - [ ] **Step 4: Verify required body sections are present**
 
@@ -265,22 +272,27 @@ layout overflow. Every finding must have a screenshot. No exceptions.
 The sim must already be booted with the app installed. You don't boot it —
 that's `./scripts/qa-boot.sh`'s job. Quick health check:
 
-```bash
-xcrun simctl list devices booted | grep -E "iPhone"
-xcrun simctl listapps booted | grep -i auxi
-```
+1. Call `mcp__mobile-mcp__mobile_list_available_devices` — at least one
+   iPhone must be in `Booted` state.
+2. Call `mcp__mobile-mcp__mobile_list_apps` — the auxi bundle id must be
+   present (resolved by `qa-boot.sh` to something like
+   `org.reactjs.native.example.auxi`).
 
-If either returns nothing, stop and tell the user:
+If either check fails, stop and tell the user:
 
 > The iOS sim isn't booted with the app installed. Run `./scripts/qa-boot.sh`
 > from the umbrella repo root first, then call me again.
 
-Make a screenshot directory for this session:
+Make a screenshot directory for this session (use Bash for the mkdir):
 
 ```bash
 SCREENSHOTS_DIR="auxi/docs/qa-findings/screenshots/$(date +%Y-%m-%d)"
 mkdir -p "$SCREENSHOTS_DIR"
 ```
+
+Then capture the screen size once with
+`mcp__mobile-mcp__mobile_get_screen_size` so you can reason about
+percentages and absolute pixel offsets in your findings.
 
 ## Visual sources of truth
 
@@ -315,15 +327,19 @@ When the user says "audit Home / Wardrobe / Settings" (no Figma URL):
    ```
    Read the main `.tsx` file to understand its layout.
 
-2. **Navigate via mobile-mcp**: drive WebDriverAgent to navigate to the
-   screen. (mobile-mcp commands depend on your harness — typically
-   `mobile_click_on_screen_at_coordinates`, `mobile_use_default_device`,
-   etc.)
+2. **Navigate via mobile-mcp**:
+   - `mcp__mobile-mcp__mobile_launch_app` — bring auxi to the foreground
+     if it's backgrounded
+   - `mcp__mobile-mcp__mobile_list_elements_on_screen` — find tap targets
+     by accessibility label / text instead of guessing coordinates
+   - `mcp__mobile-mcp__mobile_click_on_screen_at_coordinates` /
+     `mcp__mobile-mcp__mobile_swipe_on_screen` /
+     `mcp__mobile-mcp__mobile_press_button` for the actual interaction
+   - `mcp__mobile-mcp__mobile_open_url` if the screen has a deep link
 
-3. **Capture screenshot**:
-   ```bash
-   xcrun simctl io booted screenshot "$SCREENSHOTS_DIR/<screen-slug>-actual.png"
-   ```
+3. **Capture screenshot** with
+   `mcp__mobile-mcp__mobile_save_screenshot`, passing
+   `$SCREENSHOTS_DIR/<screen-slug>-actual.png` as the destination path.
 
 4. **Inspect** — open the screenshot, scan for issues against the
    checklist (alignment, spacing, icons, typography, colors, overflow).
@@ -344,16 +360,16 @@ When a Figma URL is given:
    the URL. This returns a reference image + design tokens (colors,
    spacing, typography that the designer specified).
 
-2. **Save the Figma reference image**:
+2. **Save the Figma reference image**: the Figma MCP tool returns an
+   image path; copy it next to the actual screenshot via Bash:
    ```bash
-   # The MCP tool returns an image path; copy it next to the actual.
    cp <returned-figma-image> "$SCREENSHOTS_DIR/<screen-slug>-figma.png"
    ```
 
-3. **Navigate sim + screenshot actual**:
-   ```bash
-   xcrun simctl io booted screenshot "$SCREENSHOTS_DIR/<screen-slug>-actual.png"
-   ```
+3. **Navigate sim + screenshot actual** using mobile-mcp navigation
+   tools (see Sweep mode procedure step 2 for the toolset), then
+   `mcp__mobile-mcp__mobile_save_screenshot` to
+   `$SCREENSHOTS_DIR/<screen-slug>-actual.png`.
 
 4. **Side-by-side analysis** — for each visual delta:
    - Measure offsets in the screenshot (eye-roll method is fine for an
@@ -617,7 +633,7 @@ Expected:
 ✓ .claude/skills/auxi-qa-ui.md: name=auxi-qa-ui
 ```
 
-- [ ] **Step 3: Agent's tools list is parseable and includes Figma MCP**
+- [ ] **Step 3: Agent's tools list is parseable and includes both MCP families**
 
 Run:
 ```bash
@@ -627,13 +643,23 @@ fm = yaml.safe_load(open('.claude/agents/qa-ui.md').read().split('---', 2)[1])
 tools = [t.strip() for t in fm['tools'].split(',')]
 print(f'tools count: {len(tools)}')
 figma = [t for t in tools if 'Figma' in t]
+mobile = [t for t in tools if 'mobile-mcp' in t]
 print(f'figma tools: {len(figma)}')
-assert len(tools) >= 6, 'expected at least 6 tools'
+print(f'mobile-mcp tools: {len(mobile)}')
 assert len(figma) == 4, f'expected exactly 4 Figma tools, got {len(figma)}'
+assert len(mobile) == 11, f'expected exactly 11 mobile-mcp tools, got {len(mobile)}'
+forbidden = [t for t in tools if t in ('Edit', 'NotebookEdit', 'mcp__mobile-mcp__mobile_install_app', 'mcp__mobile-mcp__mobile_terminate_app', 'mcp__mobile-mcp__mobile_uninstall_app')]
+assert not forbidden, f'forbidden tools present: {forbidden}'
 print('✓ tools list shape OK')
 "
 ```
-Expected: `tools count: 10`, `figma tools: 4`, `✓ tools list shape OK`.
+Expected:
+```
+tools count: 21
+figma tools: 4
+mobile-mcp tools: 11
+✓ tools list shape OK
+```
 
 - [ ] **Step 4: Cross-references resolve**
 
