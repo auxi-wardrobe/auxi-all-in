@@ -13,7 +13,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 LOG_DIR="$REPO_ROOT/logs"
 PIDS_FILE="$LOG_DIR/pids.txt"
-# shellcheck disable=SC2034
 BACKEND_LOG="$LOG_DIR/backend.log"
 # shellcheck disable=SC2034
 METRO_LOG="$LOG_DIR/metro.log"
@@ -69,10 +68,55 @@ free_ports() {
   ok "Ports free"
 }
 
+# --- backend ---
+start_backend() {
+  log "Starting backend..."
+  cd "$REPO_ROOT/wardrobe-backend"
+
+  local venv_dir=".venv"
+  if [[ ! -d "$venv_dir" ]]; then
+    log "Creating Python venv at $venv_dir (first run)..."
+    python3 -m venv "$venv_dir" || fail "venv creation failed (need python3 with venv module)"
+  fi
+
+  # shellcheck source=/dev/null
+  source "$venv_dir/bin/activate"
+
+  log "Installing backend deps (pip install -q -r requirements.txt)..."
+  if ! pip install -q -r requirements.txt; then
+    warn "pip install failed. Re-running verbose for diagnostics:"
+    pip install -r requirements.txt 2>&1 | tail -20 >&2
+    fail "Backend dep install failed"
+  fi
+
+  log "Launching uvicorn (python app.py)..."
+  nohup python app.py > "$BACKEND_LOG" 2>&1 &
+  local pid=$!
+  echo "backend=$pid" >> "$PIDS_FILE"
+  log "Backend PID=$pid, polling http://localhost:5001/docs (30s timeout)..."
+
+  local i
+  for i in $(seq 1 30); do
+    if curl -sf -o /dev/null "http://localhost:5001/docs"; then
+      ok "Backend healthy after ${i}s"
+      deactivate
+      cd "$REPO_ROOT"
+      return 0
+    fi
+    sleep 1
+  done
+
+  warn "Backend did not respond within 30s. Last 20 lines of $BACKEND_LOG:"
+  tail -20 "$BACKEND_LOG" >&2
+  kill "$pid" 2>/dev/null || true
+  fail "Backend failed to start"
+}
+
 main() {
   preflight
   free_ports
-  ok "preflight + ports done — backend/mobile not yet implemented"
+  start_backend
+  ok "preflight + ports + backend done — mobile not yet implemented"
 }
 
 main "$@"
