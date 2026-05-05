@@ -29,3 +29,7 @@ tmp/
 # OS-specific
 Thumbs.db
 ehthumbs.db
+
+# QA boot script artefacts
+logs/*
+!logs/.gitkeep
