@@ -218,7 +218,7 @@ if missing:
 print(f'OK: name={fm[\"name\"]}, tools={len(fm[\"tools\"].split(\",\"))} items')
 "
 ```
-Expected: `OK: name=qa-ui, tools=21 items` (21 tools: Read, Bash, Grep, Glob, Write, Skill (6) + 4 Figma MCP tools + 11 mobile-mcp tools).
+Expected: `OK: name=qa-ui, tools=22 items` (22 tools: Read, Bash, Grep, Glob, Write, Skill (6) + 4 Figma MCP tools + 12 mobile-mcp tools — `mobile_type_keys` was added post-spec to support reliable login per the qa-ui-must-drive-ui memory).
 
 - [ ] **Step 4: Verify required body sections are present**
 
@@ -647,7 +647,7 @@ mobile = [t for t in tools if 'mobile-mcp' in t]
 print(f'figma tools: {len(figma)}')
 print(f'mobile-mcp tools: {len(mobile)}')
 assert len(figma) == 4, f'expected exactly 4 Figma tools, got {len(figma)}'
-assert len(mobile) == 11, f'expected exactly 11 mobile-mcp tools, got {len(mobile)}'
+assert len(mobile) == 12, f'expected exactly 12 mobile-mcp tools, got {len(mobile)}'
 forbidden = [t for t in tools if t in ('Edit', 'NotebookEdit', 'mcp__mobile-mcp__mobile_install_app', 'mcp__mobile-mcp__mobile_terminate_app', 'mcp__mobile-mcp__mobile_uninstall_app')]
 assert not forbidden, f'forbidden tools present: {forbidden}'
 print('✓ tools list shape OK')
@@ -655,9 +655,9 @@ print('✓ tools list shape OK')
 ```
 Expected:
 ```
-tools count: 21
+tools count: 22
 figma tools: 4
-mobile-mcp tools: 11
+mobile-mcp tools: 12
 ✓ tools list shape OK
 ```
 

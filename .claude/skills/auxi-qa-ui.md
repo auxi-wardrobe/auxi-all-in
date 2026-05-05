@@ -36,6 +36,38 @@ Then capture the screen size once with
 `mcp__mobile-mcp__mobile_get_screen_size` so you can reason about
 percentages and absolute pixel offsets in your findings.
 
+## Login blocker recipe (read BEFORE you start)
+
+If the app boots into the Login screen, you MUST get past it before
+sweeping the post-login screens. Do NOT skip this and pivot to code
+inference — that produces findings without screenshots, which are not
+visual QA findings.
+
+Working approaches (try in order):
+
+1. **Per-character typing** — `mcp__mobile-mcp__mobile_type_keys` with
+   the credentials. This is the most reliable on iOS sim because it
+   bypasses iOS Paste autofill entirely.
+2. **Sign Up flow** — if Login is blocked, register a fresh fake
+   account via the Sign Up screen (use a `<timestamp>@auxi.app` style
+   email). Then proceed to the post-login surface.
+3. **QA test account** — the project ships a pre-registered local
+   account: `qa-test@auxi.app` / `QaTest!2026`. Use these creds with
+   the per-character typing approach above. (Source: user memory
+   `qa_test_account.md`.)
+
+Approaches that DO NOT work reliably (don't waste cycles on these):
+
+- **Clipboard paste via `pbcopy` / `pbsync`** — tap-Paste dismisses
+  the menu before the JS event fires, so the field stays empty.
+- **Hardware keyboard injection without explicit setup** — iOS sim
+  hardware keyboard can be flaky depending on host preferences.
+
+If all three working approaches fail, STOP and escalate to the user
+with the exact failure mode (screenshot of Login screen + the tools
+you tried). Do NOT pivot to code-only analysis. A "visual fidelity
+sweep" with no post-login screenshots is fake QA.
+
 ## Visual sources of truth
 
 Before inspecting any screen, refresh your memory of the project's tokens.
