@@ -130,8 +130,8 @@ escalates to the user. Examples:
   service the spec didn't include — why?)
 - Missing test coverage on changed business logic (50 lines of logic
   with 0 test lines is the default trigger)
-- Large DRY violation (4+ near-identical blocks where a helper would
-  clarify)
+- Large DRY violation (3+ near-identical blocks where a helper would
+  clarify; matches the checklist threshold)
 - Inconsistent with existing patterns in the same file/module
   (introducing a new error-handling style silently)
 
