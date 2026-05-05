@@ -101,3 +101,29 @@ don't claim "verified" without running them.
 - Terse status updates while working.
 - Cite file:line for findings and changes.
 - End-of-turn: 1-2 sentences. What changed, what's next.
+
+## End-of-turn handoff to tech-lead
+
+Every end-of-turn report MUST end with this exact two-line block as
+the FINAL output:
+
+```text
+→ next: tech-lead review
+   (skip if: <one-line justification — quick fix / typo / doc-only>)
+```
+
+Rules:
+
+- The first line is mandatory and verbatim.
+- The "skip if" line is OPTIONAL. Include it ONLY when you want to
+  recommend skipping the review for a trivial change (one-line
+  README typo, lockfile bump, formatter pass). Otherwise omit the
+  parenthetical entirely.
+- A "skip if" justification is a RECOMMENDATION, not a decision. The
+  user decides whether to dispatch tech-lead. Don't skip yourself —
+  that's not your call.
+
+Reason this exists: the team uses tech-lead Mode B (post-implementation
+code review) as a discipline. The handoff line is the workflow signal.
+See `.claude/agents/tech-lead.md` "Mode B" and "Trigger convention"
+sections for what tech-lead does with it.
