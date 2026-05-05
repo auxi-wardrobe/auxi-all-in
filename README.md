@@ -38,6 +38,24 @@ yarn install
 yarn ios:sim
 ```
 
+## QA boot (one-shot)
+
+For QA sessions that need both backend and mobile up at once:
+
+```bash
+./scripts/qa-boot.sh    # brings up backend, Metro, iOS sim, prints checklist
+./scripts/qa-stop.sh    # tears it down (sim stays open)
+```
+
+Logs land in `logs/backend.log` and `logs/metro.log` — attach them to any
+bug report per `auxi-qa-test.md`. PIDs are tracked in `logs/pids.txt`.
+
+First run takes ~2 minutes (creates the backend `.venv/` and runs `pip
+install`). Subsequent runs are ~30-60s.
+
+The script is idempotent — re-running kills any existing listeners on
+:5001 and :8081 before starting fresh.
+
 ## Working with submodules
 
 ```bash
