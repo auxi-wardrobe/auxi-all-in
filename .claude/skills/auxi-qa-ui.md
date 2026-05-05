@@ -42,12 +42,10 @@ Before inspecting any screen, refresh your memory of the project's tokens.
 You'll cite these in findings:
 
 ```bash
-# Theme tokens
-ls auxi/src/theme/
-cat auxi/src/theme/colors.ts | head -40        # adjust filename if it's
-                                                # palette.ts / tokens.ts
-cat auxi/src/theme/spacing.ts | head -30        # spacing scale
-cat auxi/src/theme/typography.ts | head -30     # font weights/sizes
+# Theme tokens — single file in this project
+ls auxi/src/theme/                              # confirms theme.ts is the only file
+cat auxi/src/theme/theme.ts                     # palette + spacing + typography all live here
+# (if the layout ever splits across files, ls above will show them)
 
 # Icons registry — the canonical icon catalog
 cat auxi/src/assets/icons/index.ts
