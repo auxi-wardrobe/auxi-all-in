@@ -14,8 +14,11 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 LOG_DIR="$REPO_ROOT/logs"
 PIDS_FILE="$LOG_DIR/pids.txt"
 BACKEND_LOG="$LOG_DIR/backend.log"
-# shellcheck disable=SC2034
 METRO_LOG="$LOG_DIR/metro.log"
+
+SIM_NAME=""
+SIM_UDID=""
+BUNDLE_ID=""
 
 # --- output helpers ---
 GREEN=$'\033[0;32m'
@@ -112,11 +115,94 @@ start_backend() {
   fail "Backend failed to start"
 }
 
+# --- iOS simulator ---
+boot_simulator() {
+  log "Checking iOS simulator state..."
+  local booted
+  booted=$(xcrun simctl list devices booted 2>/dev/null | grep -E "iPhone" || true)
+  if [[ -n "$booted" ]]; then
+    SIM_NAME=$(echo "$booted" | head -1 | sed -E 's/^[[:space:]]+//' | sed -E 's/ \(.*//')
+    SIM_UDID=$(echo "$booted" | head -1 | grep -oE '[0-9A-Fa-f-]{36}')
+    ok "Sim already booted: $SIM_NAME ($SIM_UDID)"
+    return 0
+  fi
+
+  log "No sim booted — picking first available iPhone..."
+  local pick
+  pick=$(xcrun simctl list devices available 2>/dev/null | grep -E "iPhone" | head -1 || true)
+  [[ -n "$pick" ]] || fail "No iPhone simulator available — install one in Xcode (Window → Devices and Simulators)"
+
+  SIM_NAME=$(echo "$pick" | sed -E 's/^[[:space:]]+//' | sed -E 's/ \(.*//')
+  SIM_UDID=$(echo "$pick" | grep -oE '[0-9A-Fa-f-]{36}')
+  log "Booting $SIM_NAME ($SIM_UDID)..."
+  xcrun simctl boot "$SIM_UDID" || fail "Failed to boot $SIM_NAME"
+  open -a Simulator
+  sleep 3
+  ok "Sim booted: $SIM_NAME"
+}
+
+# --- mobile (Metro + yarn ios) ---
+start_mobile() {
+  cd "$REPO_ROOT/auxi"
+
+  log "Starting Metro bundler..."
+  nohup yarn start > "$METRO_LOG" 2>&1 &
+  local pid=$!
+  echo "metro=$pid" >> "$PIDS_FILE"
+  log "Metro PID=$pid (giving it 5s to come up)..."
+  sleep 5
+
+  log "Building + installing app on $SIM_NAME (this takes ~1 minute)..."
+  if ! yarn ios --udid "$SIM_UDID"; then
+    warn "yarn ios failed. Last 40 lines of $METRO_LOG:"
+    tail -40 "$METRO_LOG" >&2
+    fail "Mobile build/install failed"
+  fi
+
+  local plist="$REPO_ROOT/auxi/ios/auxi/Info.plist"
+  [[ -f "$plist" ]] || fail "Info.plist not found at $plist"
+  BUNDLE_ID=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$plist") \
+    || fail "Could not read CFBundleIdentifier from $plist"
+
+  # Info.plist may contain an unresolved Xcode build variable (e.g. $(PRODUCT_BUNDLE_IDENTIFIER)).
+  # In that case, resolve the real bundle ID from the xcodeproj build settings.
+  # xcode_var holds the literal two-char sequence dollar+paren used by Xcode build vars.
+  local xcode_var
+  # shellcheck disable=SC2016
+  xcode_var='$('
+  if [[ "$BUNDLE_ID" == *"${xcode_var}"* ]]; then
+    local pbxproj="$REPO_ROOT/auxi/ios/auxi.xcodeproj/project.pbxproj"
+    local resolved
+    resolved=$(grep -m1 "PRODUCT_BUNDLE_IDENTIFIER" "$pbxproj" \
+      | grep -v 'org\.cocoapods' \
+      | sed -E 's/.*PRODUCT_BUNDLE_IDENTIFIER = "?([^";]+)"?;.*/\1/' \
+      || true)
+    # The pbxproj value may itself contain $(PRODUCT_NAME:rfc1034identifier);
+    # resolve PRODUCT_NAME as well.
+    if [[ "$resolved" == *"${xcode_var}"* ]]; then
+      local product_name
+      product_name=$(grep -m1 "PRODUCT_NAME = " "$pbxproj" \
+        | sed -E 's/.*PRODUCT_NAME = ([^;]+);.*/\1/' | xargs || true)
+      resolved="${resolved/\$(PRODUCT_NAME:rfc1034identifier)/$product_name}"
+    fi
+    [[ -n "$resolved" ]] || fail "Could not resolve PRODUCT_BUNDLE_IDENTIFIER from $pbxproj"
+    BUNDLE_ID="$resolved"
+  fi
+
+  if ! xcrun simctl listapps booted | grep -q "$BUNDLE_ID"; then
+    fail "Build succeeded but $BUNDLE_ID not on sim — check $METRO_LOG"
+  fi
+  ok "App $BUNDLE_ID installed on $SIM_NAME"
+  cd "$REPO_ROOT"
+}
+
 main() {
   preflight
   free_ports
   start_backend
-  ok "preflight + ports + backend done — mobile not yet implemented"
+  boot_simulator
+  start_mobile
+  ok "All stages done — hand-off printout not yet implemented"
 }
 
 main "$@"
