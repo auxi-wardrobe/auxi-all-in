@@ -330,7 +330,7 @@ Add the backend section. End-state of this task: script brings up backend, healt
 
 - [ ] **Step 1: Add `start_backend` function and call from main**
 
-Insert this function in `scripts/qa-boot.sh` between the `free_ports` function and the `main` function:
+Insert this function in `scripts/qa-boot.sh` between the `free_ports` function and the `main` function. It reuses an existing `.venv/` if present (the repo already ships one), otherwise creates `.venv/`. The leading-dot name is the existing convention in this repo:
 
 ```bash
 # --- backend ---
@@ -338,13 +338,14 @@ start_backend() {
   log "Starting backend..."
   cd "$REPO_ROOT/wardrobe-backend"
 
-  if [[ ! -d venv ]]; then
-    log "Creating Python venv (first run)..."
-    python3 -m venv venv || fail "venv creation failed (need python3 with venv module)"
+  local venv_dir=".venv"
+  if [[ ! -d "$venv_dir" ]]; then
+    log "Creating Python venv at $venv_dir (first run)..."
+    python3 -m venv "$venv_dir" || fail "venv creation failed (need python3 with venv module)"
   fi
 
   # shellcheck source=/dev/null
-  source venv/bin/activate
+  source "$venv_dir/bin/activate"
 
   log "Installing backend deps (pip install -q -r requirements.txt)..."
   if ! pip install -q -r requirements.txt; then
@@ -695,7 +696,9 @@ Final task — exercise the whole spec's acceptance criteria, fix anything weird
 
 ```bash
 ./scripts/qa-stop.sh   # ensure clean
-rm -rf wardrobe-backend/venv  # force venv recreation (optional — if you want to test the cold path)
+# (Optional) force venv recreation to test the cold path. ONLY do this if you have time —
+# pip install can take 30-90s. Skip if .venv/ already exists and is healthy.
+# rm -rf wardrobe-backend/.venv
 ./scripts/qa-boot.sh
 ```
 Expected: full happy path, ending with the green ✅ block. Both apps reachable.

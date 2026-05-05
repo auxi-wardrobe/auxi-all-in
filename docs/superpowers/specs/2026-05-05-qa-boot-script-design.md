@@ -47,8 +47,8 @@ Each step exits non-zero with a diagnostic on failure. No silent fallbacks. If a
 
 ### 3. Backend bring-up
 - `cd wardrobe-backend`.
-- If `venv/` missing: `python3 -m venv venv`.
-- `source venv/bin/activate`.
+- If `.venv/` missing: `python3 -m venv .venv` (the leading dot matches the existing convention in `wardrobe-backend/`).
+- `source .venv/bin/activate`.
 - `pip install -q -r requirements.txt` — idempotent. On failure: print last 20 lines of pip output, exit 1.
 - Start backend in background:
   ```bash
