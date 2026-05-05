@@ -9,7 +9,10 @@ wardrobe_project/                      # ← this repo (umbrella)
 ├── auxi/                              # submodule → ducga1998/auxi-mobile
 │   └── React Native 0.83 + TS 5 mobile app
 ├── wardrobe-backend/                  # submodule → ducga1998/wardrobe-backend
-│   └── FastAPI + SQLAlchemy + Gemini
+│   ├── FastAPI + SQLAlchemy + Gemini
+│   └── wardrobe-admin/                # internal admin SPA (NOT a submodule)
+│       └── React 19 + Vite + TS + Ant Design + Tailwind
+│       └── deployed to Cloudflare via Wrangler
 └── .claude/
     ├── agents/                        # role-scoped agents
     │   ├── mobile-dev.md              # works in auxi/ only · Figma-fluent
@@ -36,9 +39,16 @@ through `tech-lead`.
 The mobile app talks to the backend over a single HTTP boundary:
 
 ```
-auxi (RN)  ──► axios via src/services/apiClient.ts  ──►  wardrobe-backend FastAPI
-                                                          base: http://localhost:5001/api
+auxi (RN)            ──► axios (apiClient.ts)        ──►  wardrobe-backend FastAPI
+wardrobe-admin (SPA) ──► axios (services/*)          ──►       :5001/api    +     /admin/*
+                                                          (admin role enforced server-side)
 ```
+
+There are two clients hitting the same backend:
+- **`auxi/`** — public surface (`/api/*`), end-user mobile flows
+- **`wardrobe-backend/wardrobe-admin/`** — internal ops surface (`/admin/*`), admin role required, used by PM/ops to manage users + common items + ML config + recommendation experiments
+
+`auxi/` is the submodule under contract review. `wardrobe-admin/` is internal — its API (`routers/admin/*`) doesn't go through the same drift-prevention process as the public `/api`. When admin endpoints change, ping the admin's React maintainer directly; there's no auxi consumer to break.
 
 When backend endpoints change in `wardrobe-backend/routers/**/routes.py`:
 1. Backend dev updates `wardrobe-backend/API_DOCUMENTATION.md` (mandatory).
