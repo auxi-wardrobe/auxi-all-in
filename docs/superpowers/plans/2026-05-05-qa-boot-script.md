@@ -618,10 +618,16 @@ Metro    : :8081                  (PID $metro_pid, log: logs/metro.log)
 iOS sim  : $SIM_NAME ($SIM_UDID)
 App      : $BUNDLE_ID installed and launched
 
+QA test account (already registered against local backend):
+  email    : qa-test@auxi.app
+  password : QaTest!2026
+
 ──────────────────────────────────────
 QA regression checklist (auxi-qa-test.md)
 ──────────────────────────────────────
-1. Auth        — register → login → kill app → reopen → still logged in
+1. Auth        — login with the QA test account above → kill app → reopen →
+                 still logged in. (Use a different fake email for the *register*
+                 flow; this account already exists.)
 2. Onboarding  — Welcome → LocationPermission → preference → first home recommendation
                   ⚠ confirm with mobile-dev which entry path is active (legacy vs new)
 3. Home        — recommendation loads, occasion/weather/time chips refetch,
