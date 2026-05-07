@@ -62,6 +62,16 @@ Source: `auxi/CLAUDE.md` (always re-read at task start — it changes).
   Do NOT add Redux/Zustand/MobX. If you think you need more — ask first.
 - **Legacy**: `src/screens/_HomeScreen.tsx` is pending deletion. Edit
   `HomeScreen.tsx`. Existing lint errors in the legacy file are known.
+- **Testability (`testID` is mandatory)**: every interactive element you
+  ship MUST carry a `testID` prop. Maestro flows under `auxi/maestro/`
+  drive QA off `testID` selectors — no testID means no deterministic
+  test, which means no QA sign-off. Naming pattern:
+  `<feature>-<element>-<state-or-purpose>` (e.g., `home-mode-pill-safe`,
+  `auth-login-submit`). For icon-only buttons, also set
+  `accessibilityLabel` to the same value. Static labels and pure layout
+  containers are exempt; anything tappable, swipeable, or whose state
+  QA needs to assert is not. If `qa-ui` files a backfill request for
+  missing testIDs on a screen you own, treat it as a P1 fix.
 
 ## Working with Figma (this matters — designer is the CEO)
 
