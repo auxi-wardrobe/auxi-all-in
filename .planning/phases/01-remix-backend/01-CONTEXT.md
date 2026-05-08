@@ -129,11 +129,13 @@ Mock Redis (do NOT hit real Redis in unit tests). Use existing test fixtures in 
 - `wardrobe-backend/routers/recommendation.py:350` — `POST /api/recommendation/next` reference (V2 endpoint signature)
 
 ### V05 Destinations (where new code lands)
-- `wardrobe-backend/blueprints/recommendation/engine_v05.py` — add `next()` entry point
-- New: `wardrobe-backend/blueprints/recommendation/engine_v05_variation.py` — 4-axis handlers
+- New: `wardrobe-backend/blueprints/recommendation/engine_v05_variation.py` — 4-axis handlers (called by service)
 - New: `wardrobe-backend/utils/recommendation_session_v05.py` — Redis session manager
-- `wardrobe-backend/routers/v05_recommendation.py` — add `/next` route
+- `wardrobe-backend/services/recommendation_service.py` — add `next_recommendation()` method (dispatch table router → handler)
+- `wardrobe-backend/routers/v05_recommendation.py` — add `/next` route (delegates to service)
 - `wardrobe-backend/blueprints/recommendation/engine_v05_layers.py` — extend with `_pre_filter_for_anchor_v05`
+
+**Note:** `engine_v05.py` does NOT get a `next()` entry point — dispatch lives in the service layer per service-repository pattern. Engine remains the build-from-scratch primitive used by NEW_ANCHOR handler only.
 
 ### Codebase Map (read before planning architectural decisions)
 - `.planning/codebase/ARCHITECTURE.md` — backend layering, service-repository pattern
