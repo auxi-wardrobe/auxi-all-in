@@ -47,7 +47,11 @@ Decisions are logged in PROJECT.md Key Decisions table. Key decisions affecting 
 
 ### Pending Todos
 
-None tracked yet. Carried-over context lives in `docs/pm/inbox/`.
+1 pending — `/gsd-capture --list` to review.
+
+- 2026-05-08: Add system-test harness for V05 recommendation engine (testing) — captured after Wave 5 surfaced 3 latent bugs that escaped unit + initial integration tests.
+
+Carried-over context lives in `docs/pm/inbox/`.
 
 ### Blockers/Concerns
 
