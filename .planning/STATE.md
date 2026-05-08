@@ -1,41 +1,70 @@
-# STATE — Wardrobe project
+# Project State
 
 ## Project Reference
 
 See: `.planning/PROJECT.md` (updated 2026-05-08)
 
 **Core value:** Personalized + vibe-coherent outfit recommendations from user's actual wardrobe; Remix shifts one dimension at a time, never random.
-**Current focus:** v0.5 Remix Launch (target ship date 2026-05-15)
+**Current focus:** Phase 1 — Remix Backend (v0.5 Remix Launch, target ship 2026-05-15)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-05-08 — Milestone v0.5 started; PROJECT.md bootstrapped from existing artifacts
+Phase: 1 of 5 (Remix Backend)
+Plan: 0 of TBD in current phase
+Status: Ready to plan
+Last activity: 2026-05-08 — Roadmap created; 35 requirements mapped across 5 phases
+
+Progress: [░░░░░░░░░░] 0%
+
+## Performance Metrics
+
+**Velocity:**
+- Total plans completed: 0
+- Average duration: —
+- Total execution time: —
+
+**By Phase:**
+
+| Phase | Plans | Total | Avg/Plan |
+|-------|-------|-------|----------|
+| - | - | - | - |
+
+**Recent Trend:** No data yet
+
+*Updated after each plan completion*
 
 ## Accumulated Context
 
-**Repo layout:** Umbrella + 2 git submodules (`auxi/` RN mobile, `wardrobe-backend/` FastAPI) + nested admin SPA. No shared SDK.
+### Decisions
 
-**Active Linear epic:** AU-243 (V05 onboarding + recommendation). In-flight tickets: AU-251 BE Remix `/next` (Cycle 10), AU-250 ME Remix UI (Cycle 11), AU-245 BE V05 onboarding API, AU-72 ME Location/Weather, AU-244 V05 Phase 0 (PR #41 in review).
+Decisions are logged in PROJECT.md Key Decisions table. Key decisions affecting current work:
 
-**Codebase map:** `.planning/codebase/` — 7 docs (STACK, INTEGRATIONS, ARCHITECTURE, STRUCTURE, CONVENTIONS, TESTING, CONCERNS). Read CONCERNS.md before planning anything; it lists the tech debt entering this milestone.
+- 2026-05-08: Feature flag strategy — V05 flag stays OFF until both AU-251 (BE) and AU-250 (ME) merge; avoid half-launched state visible to users
+- 2026-05-08: 4-axis cycle locked: SILHOUETTE → LAYERING → COLOR → NEW_ANCHOR; anchor pin (BT frozen stages 1-3); single-layer-swap invariant hard-fails
+- 2026-05-08: Existing users first — AU-245 onboarding can slip to Cycle 11; does not block 2026-05-15 launch
+- 2026-05-08: Descope path if AU-251 slips: drop NEW_ANCHOR axis, ship 3-axis MVP
+- 2026-05-08: Descope path if AU-250 slips: ship auto-cycle Remix first, defer long-press picker + tooltip to post-launch patch
 
-**Designer authority:** Viet (vietdesign81) is CEO. Figma is source of truth for visuals. On-simulator verification mandatory for UI work.
+### Pending Todos
 
-**Pre-existing planning docs (consumed for bootstrap):**
-- `docs/pm/v05-launch-plan-2026-05-08.md` — daily timeline + dependencies
-- `docs/pm/remix-feature-plan.md` — full Remix spec (vision, flows, telemetry, UX)
-- `docs/pm/inbox/WAR-AU243-*.synced.md` — 6 Linear-synced specs
+None tracked yet. Carried-over context lives in `docs/pm/inbox/`.
 
-## Pending Todos
+### Blockers/Concerns
 
-None tracked yet (carried-over context lives in `docs/pm/inbox/`).
+- Phase 1: AU-251 must merge by 2026-05-10; tech-lead review of V05 `/next` contract design is same-day gate (5/8)
+- Phase 2: Viet design assets due 2026-05-09; if late, ship placeholder copy and unblock Phase 3
+- Phase 2: FOUND-05 (Location/Weather AU-72) has fallback — default temp if not ready; does not block launch
+- Cross-phase: PR #41 (Phase 0 inventory import AU-244) must merge before Phase 1 backend can seed SYSTEM items; currently in review
+
+## Deferred Items
+
+| Category | Item | Status | Deferred At |
+|----------|------|--------|-------------|
+| Onboarding | AU-245 V05 onboarding API (ONBD-01, ONBD-02) | Best-effort Phase 4 | 2026-05-08 |
+| V05 validation | Anchor pin + 4-axis cycle behavior | Pending post-launch | 2026-05-08 |
 
 ## Session Continuity
 
-No paused work.
-
----
-*Last updated: 2026-05-08 — milestone v0.5 initialized*
+Last session: 2026-05-08
+Stopped at: Roadmap written; REQUIREMENTS.md traceability filled; STATE.md initialized. Ready to run `/gsd:plan-phase 1`.
+Resume file: None

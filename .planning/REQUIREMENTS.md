@@ -95,23 +95,49 @@
 
 ## Traceability
 
-Filled by roadmapper after `/gsd:plan-phase` runs.
-
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| REMIX-BE-01 ... REMIX-BE-08 | TBD | Pending |
-| REMIX-ME-01 ... REMIX-ME-09 | TBD | Pending |
-| REMIX-TEL-01 ... REMIX-TEL-03 | TBD | Pending |
-| ONBD-01 ... ONBD-03 | TBD | Pending |
-| FOUND-01 ... FOUND-05 | TBD | Pending |
-| DESIGN-01 ... DESIGN-02 | TBD | Pending |
-| LAUNCH-01 ... LAUNCH-05 | TBD | Pending |
+| REMIX-BE-01 | Phase 1 | Pending |
+| REMIX-BE-02 | Phase 1 | Pending |
+| REMIX-BE-03 | Phase 1 | Pending |
+| REMIX-BE-04 | Phase 1 | Pending |
+| REMIX-BE-05 | Phase 1 | Pending |
+| REMIX-BE-06 | Phase 1 | Pending |
+| REMIX-BE-07 | Phase 1 | Pending |
+| REMIX-BE-08 | Phase 1 | Pending |
+| REMIX-ME-01 | Phase 3 | Pending |
+| REMIX-ME-02 | Phase 3 | Pending |
+| REMIX-ME-03 | Phase 3 | Pending |
+| REMIX-ME-04 | Phase 3 | Pending |
+| REMIX-ME-05 | Phase 3 | Pending |
+| REMIX-ME-06 | Phase 3 | Pending |
+| REMIX-ME-07 | Phase 3 | Pending |
+| REMIX-ME-08 | Phase 3 | Pending |
+| REMIX-ME-09 | Phase 3 | Pending |
+| REMIX-TEL-01 | Phase 3 | Pending |
+| REMIX-TEL-02 | Phase 3 | Pending |
+| REMIX-TEL-03 | Phase 3 | Pending |
+| ONBD-01 | Phase 4 | Pending |
+| ONBD-02 | Phase 4 | Pending |
+| ONBD-03 | Phase 4 | Pending |
+| FOUND-01 | Phase 2 | Pending |
+| FOUND-02 | Phase 2 | Pending |
+| FOUND-03 | Phase 2 | Pending |
+| FOUND-04 | Phase 2 | Pending |
+| FOUND-05 | Phase 2 | Pending |
+| DESIGN-01 | Phase 2 | Pending |
+| DESIGN-02 | Phase 2 | Pending |
+| LAUNCH-01 | Phase 5 | Pending |
+| LAUNCH-02 | Phase 5 | Pending |
+| LAUNCH-03 | Phase 5 | Pending |
+| LAUNCH-04 | Phase 5 | Pending |
+| LAUNCH-05 | Phase 5 | Pending |
 
 **Coverage:**
 - v1 requirements: 35 total
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 35 ⚠️ (will resolve in roadmap step)
+- Mapped to phases: 35/35
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-05-08*
-*Last updated: 2026-05-08 after bootstrap from PROJECT.md Active section*
+*Last updated: 2026-05-08 — traceability filled after roadmap creation*
