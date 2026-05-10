@@ -2,23 +2,30 @@
 id: WAR-AUDIT-002
 type: feature
 title: "[Home] Add Pin feature — pin item then mix"
-state: Backlog
+state: Shipped
 priority: P1
 labels: [audit, figma, area:mobile, role:mobile-dev]
 assignee: null
 parent: WAR-AUDIT-000
 created: 2026-05-05
+shipped: 2026-05-08
 figma_node: "1672:11783"
 figma_frame: "1711:17062"
 figma_file: "0nXXMAR4Arf1ZfjtQvtBh0"
 ---
+
+> **Status update (2026-05-08):** Pin behaviour shipped under AU-222.
+> `HomeScreen.tsx` now owns `pinnedItemId` state with splice-around-pinned
+> logic; `recommendationService.ts` threads `pinned_item_id` to the
+> recommendation call. Acceptance criteria below preserved for history.
 
 ## Context
 
 Designer specced a "pin" interaction on Home: user pins a favorite item,
 then the recommender mixes other items around the pinned one. Figma has
 both a sticky note explaining the behavior AND a dedicated frame showing
-the pinned-state UI. Code has neither.
+the pinned-state UI. Pin state + request threading have shipped (see
+`HomeScreen.tsx:238-378`, `recommendationService.ts:49-140`).
 
 ## Designer note (verbatim)
 

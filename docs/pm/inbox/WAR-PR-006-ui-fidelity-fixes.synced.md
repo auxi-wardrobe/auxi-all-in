@@ -17,7 +17,7 @@ created: 2026-05-05
 
 The 2026-05-05 visual fidelity sweep produced 20 findings across
 Wardrobe, Add-sheet, Home, Settings, Body, and Sidebar. This PR closes
-17 of them in 5 atomic commits. 3 minor findings deferred (H3, H4,
+15 of them in 5 atomic commits. 5 minor findings deferred (H3, H4,
 B1, D3, Sb3).
 
 ## Symptoms fixed (root cause from diff)

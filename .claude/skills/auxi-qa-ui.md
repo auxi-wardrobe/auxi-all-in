@@ -165,18 +165,22 @@ appId: ${MAESTRO_APP_ID}
 
 ### Cycle through options
 
+Mode-pill changes do NOT auto-refetch — the new mode is picked up by
+the next prefetch (or "Show another" tap that reaches the lookahead
+window). Assert the pill is tappable, then trigger the refetch
+explicitly via "Show another".
+
 ```yaml
 - assertVisible:
     id: home-mode-pill-safe
 - tapOn:
     id: home-mode-pill-power
 - assertVisible:
-    id: home-outfit-sheet-0
-    timeout: 10000   # mode change refetches recommendation
+    id: home-mode-pill-power   # still mounted; selection flipped via a11yState
 - tapOn:
-    id: home-mode-pill-creative
+    id: home-show-another      # trigger fetch; mode is now 'power'
 - assertVisible:
-    id: home-outfit-sheet-0
+    id: home-outfit-sheet-1
     timeout: 10000
 ```
 

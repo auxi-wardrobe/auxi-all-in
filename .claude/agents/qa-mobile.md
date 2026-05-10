@@ -167,9 +167,10 @@ selector. Do NOT modify the YAML to use a fragile fallback selector.
 
 - Author or edit Maestro YAML — that's `qa-ui`.
 - Edit `auxi/src/**` — that's `mobile-dev`.
-- Pixel-compare against Figma — that signal is gone from the QA loop;
-  if the user asks for a Figma diff, redirect them to `mobile-dev` doing
-  it as part of `figma-to-rn-workflow` during implementation, not QA.
+- Pixel-compare against Figma — that's `qa-ui`'s lane (Figma-fluent
+  visual fidelity sweeps). Redirect Figma-vs-actual diff requests to
+  `qa-ui`. `mobile-dev` only consumes Figma during implementation via
+  `figma-to-rn-workflow`, not as a QA verification step.
 - Take screenshots and reason about them. If a step needs a visual check,
   the flow is wrong and qa-ui needs to rewrite it as a state assertion.
 - Run flows on Android emulators in this project (iOS-only). If iOS isn't
