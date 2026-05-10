@@ -1,0 +1,12 @@
+{
+  "name": "show-off-scripts",
+  "version": "1.0.0",
+  "description": "Parallel section capture scripts for show-off skill",
+  "type": "module",
+  "scripts": {},
+  "dependencies": {},
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "note": "Uses puppeteer and sharp from chrome-devtools/scripts/node_modules via dynamic import"
+}

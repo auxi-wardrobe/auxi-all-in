@@ -1,0 +1,239 @@
+<h2>Where should the Remix button live?</h2>
+<p class="subtitle">Three placements for the primary Remix CTA + preview chip ("Next: New top"). All show the same phone screen — Home with one outfit visible.</p>
+
+<style>
+  .phone {
+    width: 240px;
+    height: 480px;
+    background: #fafafa;
+    border-radius: 32px;
+    border: 8px solid #1a1a1a;
+    margin: 0 auto;
+    position: relative;
+    overflow: hidden;
+    font-family: -apple-system, sans-serif;
+  }
+  .phone-header {
+    height: 32px;
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    font-size: 11px;
+    font-weight: 600;
+    border-bottom: 1px solid #eee;
+  }
+  .outfit-area {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+  .outfit-img {
+    width: 140px;
+    height: 200px;
+    background: linear-gradient(135deg, #d4c5b0 0%, #b8a890 50%, #a39078 100%);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 500;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
+  .outfit-meta {
+    text-align: center;
+    font-size: 11px;
+    color: #444;
+  }
+  .outfit-meta .vibe {
+    font-weight: 600;
+    color: #1a1a1a;
+    font-size: 13px;
+  }
+  .axis-chip {
+    display: inline-block;
+    background: #1a1a1a;
+    color: #fff;
+    font-size: 9px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    font-weight: 500;
+  }
+
+  /* A: FAB bottom-right */
+  .fab {
+    position: absolute;
+    bottom: 24px;
+    right: 16px;
+    width: 56px;
+    height: 56px;
+    background: #1a1a1a;
+    border-radius: 28px;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    font-size: 9px;
+    font-weight: 600;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+  }
+  .fab-preview {
+    position: absolute;
+    bottom: 88px;
+    right: 16px;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 12px;
+    padding: 6px 10px;
+    font-size: 9px;
+    color: #444;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+  }
+
+  /* B: Inline pill */
+  .inline-pill {
+    margin: 16px auto 0;
+    background: #1a1a1a;
+    color: #fff;
+    border-radius: 999px;
+    padding: 10px 20px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  }
+  .inline-pill .preview {
+    background: rgba(255,255,255,0.18);
+    color: #fff;
+    font-size: 9px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-weight: 500;
+  }
+
+  /* C: Sticky bottom bar */
+  .sticky-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #fff;
+    border-top: 1px solid #eee;
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    box-shadow: 0 -2px 12px rgba(0,0,0,0.06);
+  }
+  .sticky-bar .next-label {
+    font-size: 9px;
+    color: #888;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .sticky-bar .remix-btn {
+    background: #1a1a1a;
+    color: #fff;
+    border-radius: 12px;
+    padding: 12px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .sticky-bar .remix-btn .chip {
+    background: rgba(255,255,255,0.18);
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-weight: 500;
+  }
+</style>
+
+<div class="cards">
+
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding: 24px 0; background: #f5f5f5;">
+      <div class="phone">
+        <div class="phone-header"><span>9:41</span><span>Auxi</span></div>
+        <div class="outfit-area">
+          <div class="outfit-img">outfit image</div>
+          <div class="outfit-meta">
+            <div class="vibe">Minimal · Casual</div>
+            <div style="margin-top:4px"><span class="axis-chip">Today</span></div>
+          </div>
+        </div>
+        <div class="fab-preview">Next: New top ↑</div>
+        <div class="fab">⟲<br/>Remix</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — FAB bottom-right</h3>
+      <p>Standalone floating button. Preview tooltip appears above on hover/idle. Common pattern (Material).</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding: 24px 0; background: #f5f5f5;">
+      <div class="phone">
+        <div class="phone-header"><span>9:41</span><span>Auxi</span></div>
+        <div class="outfit-area">
+          <div class="outfit-img">outfit image</div>
+          <div class="outfit-meta">
+            <div class="vibe">Minimal · Casual</div>
+            <div style="margin-top:4px"><span class="axis-chip">Today</span></div>
+          </div>
+          <div class="inline-pill">⟲ Remix <span class="preview">Next: top</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Inline pill below outfit</h3>
+      <p>Replaces existing "Show another" pill. Inherits current UX pattern. Preview chip embedded inside the button.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding: 24px 0; background: #f5f5f5;">
+      <div class="phone">
+        <div class="phone-header"><span>9:41</span><span>Auxi</span></div>
+        <div class="outfit-area">
+          <div class="outfit-img">outfit image</div>
+          <div class="outfit-meta">
+            <div class="vibe">Minimal · Casual</div>
+            <div style="margin-top:4px"><span class="axis-chip">Today</span></div>
+          </div>
+        </div>
+        <div class="sticky-bar">
+          <div class="next-label">Up next</div>
+          <div class="remix-btn">⟲ Remix <span class="chip">New top</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Sticky bottom bar</h3>
+      <p>Fixed full-width bar. Most space for preview text + axis chip. Always visible, no scroll needed.</p>
+    </div>
+  </div>
+
+</div>
+
+<div class="section" style="margin-top: 32px; padding-top: 16px; border-top: 1px solid #eee;">
+  <p class="subtitle"><strong>Tradeoffs to weigh:</strong></p>
+  <ul style="font-size: 13px; line-height: 1.6;">
+    <li><strong>A (FAB):</strong> Most "premium" feel, but preview text awkward. Long-press for picker = natural.</li>
+    <li><strong>B (Inline pill):</strong> Feels native to existing Auxi pattern. Cheapest to implement. Preview cramped.</li>
+    <li><strong>C (Sticky bar):</strong> Best info density. Always-on but eats screen real estate (~70px).</li>
+  </ul>
+</div>
