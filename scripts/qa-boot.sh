@@ -43,6 +43,31 @@ preflight() {
   command -v yarn    >/dev/null || fail "yarn not found"
   command -v lsof    >/dev/null || fail "lsof not found"
   command -v curl    >/dev/null || fail "curl not found"
+
+  # Maestro + Java for deterministic UI flows under auxi/maestro/.
+  # Not a hard fail (boot still works without it), but warn loudly.
+  if command -v maestro >/dev/null 2>&1; then
+    # Cover both Homebrew prefixes: Apple Silicon (/opt/homebrew) and Intel (/usr/local).
+    local jdk_candidates=(
+      "/opt/homebrew/opt/openjdk/libexec/openjdk.jdk/Contents/Home"
+      "/usr/local/opt/openjdk/libexec/openjdk.jdk/Contents/Home"
+    )
+    if [[ -z "${JAVA_HOME:-}" ]]; then
+      local jdk
+      for jdk in "${jdk_candidates[@]}"; do
+        if [[ -d "$jdk" ]]; then
+          export JAVA_HOME="$jdk"
+          export PATH="$JAVA_HOME/bin:$PATH"
+          ok "Exported JAVA_HOME=$jdk for Maestro (this shell only)"
+          break
+        fi
+      done
+    fi
+  else
+    warn "maestro CLI not installed — Maestro flows under auxi/maestro/ will not run"
+    warn "  install: brew tap mobile-dev-inc/tap && brew install mobile-dev-inc/tap/maestro"
+  fi
+
   mkdir -p "$LOG_DIR"
   : > "$PIDS_FILE"
   ok "Preflight OK"

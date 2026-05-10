@@ -18,13 +18,17 @@ wardrobe_project/                      # ← this repo (umbrella)
     │   ├── mobile-dev.md              # works in auxi/ only · Figma-fluent
     │   ├── backend-dev.md             # works in wardrobe-backend/ only
     │   ├── tech-lead.md               # cross-repo, contracts & architecture
-    │   ├── qa-mobile.md               # mobile QA on auxi/
+    │   ├── qa-mobile.md               # mobile QA on auxi/, executes Maestro
+    │   ├── qa-ui.md                   # visual fidelity, authors Maestro YAML
+    │   ├── qa-ux.md                   # UX heuristic + a11y review
     │   └── pm.md                      # senior PM, owns Linear tickets
     └── skills/                        # role-specific workflows
         ├── auxi-rn-patterns.md
         ├── wardrobe-fastapi-patterns.md
         ├── cross-repo-coordination.md
         ├── auxi-qa-test.md
+        ├── auxi-qa-ui.md              # visual QA + Maestro authoring
+        ├── auxi-qa-ux.md              # UX heuristic review playbook
         ├── figma-design-extraction.md # read Figma thoroughly
         ├── figma-to-rn-workflow.md    # implement Figma → RN faithfully
         └── linear-pm-workflow.md      # PM ticket lifecycle
@@ -106,6 +110,7 @@ git commit -m "chore: bump submodules"
 | `tech-lead` | both repos (read-mostly) | Contract changes, breaking migrations, design reviews, release coordination |
 | `qa-mobile` | `auxi/` (read + test runs) | iOS/Android smoke, regression, mobile-mcp UI verification |
 | `qa-ui` | `auxi/` (read-only on src) · Figma-fluent | Visual fidelity sweeps, Figma-vs-actual diff, alignment/icon/typography/color/overflow bugs |
+| `qa-ux` | `auxi/` (read-only on src) | UX heuristic + a11y review — Nielsen's 10, mobile patterns, state coverage, IA, touch targets, contrast, VoiceOver, Dynamic Type. Findings only, no fix code |
 | `pm` | Linear board (project-wide) | New US, subtask splits, status sweeps, verified close |
 
 **Figma note**: the designer is the CEO. `mobile-dev` is wired for the

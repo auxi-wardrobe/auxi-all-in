@@ -1,220 +1,282 @@
 ---
 name: auxi-qa-ui
-description: Visual fidelity QA workflow for the Auxi RN app — sweep mode (no Figma) for general visual sweeps, compare mode (with Figma URL) for design-vs-actual diff. Use when verifying alignment, spacing, icons, typography, colors, layout overflow on the iOS simulator.
+description: Mobile QA flow authoring playbook for the Auxi RN app — author deterministic Maestro YAML flows with explicit UI state assertions targeting testID + accessibilityLabel. Use when writing or maintaining flows in auxi/maestro/flows/. Does NOT execute flows (use auxi-qa-test for that) and does NOT modify production code.
 ---
 
-# Auxi Visual QA Playbook
+# Auxi Maestro Flow Authoring Playbook
 
-You are running the visual pass on Auxi. The functional flows belong to
-`qa-mobile` — your job is alignment, spacing, icons, typography, colors,
-layout overflow. Every finding must have a screenshot. No exceptions.
+Authoring rule #1: every assertion is a deterministic state check. No
+screenshots, no OCR, no visual reasoning. If a requirement can't be
+expressed as `assertVisible` / `assertNotVisible` / element state, it's
+not in this QA model — push back to the user.
 
-## Setup (do this once per session)
+## File layout
 
-The sim must already be booted with the app installed. You don't boot it —
-that's `./scripts/qa-boot.sh`'s job. Quick health check:
-
-1. Call `mcp__mobile-mcp__mobile_list_available_devices` — at least one
-   iPhone must be in `Booted` state.
-2. Call `mcp__mobile-mcp__mobile_list_apps` — the auxi bundle id must be
-   present (resolved by `qa-boot.sh` to something like
-   `org.reactjs.native.example.auxi`).
-
-If either check fails, stop and tell the user:
-
-> The iOS sim isn't booted with the app installed. Run `./scripts/qa-boot.sh`
-> from the umbrella repo root first, then call me again.
-
-Make a screenshot directory for this session (use Bash for the mkdir):
-
-```bash
-SCREENSHOTS_DIR="auxi/docs/qa-findings/screenshots/$(date +%Y-%m-%d)"
-mkdir -p "$SCREENSHOTS_DIR"
+```
+auxi/maestro/
+├── README.md                 # how to run, current flow inventory
+├── config.yaml               # shared appId, default env, regression tags
+└── flows/
+    ├── _shared/              # sub-flows reused across features (login, etc.)
+    │   ├── login.yaml
+    │   └── reset-app-state.yaml
+    ├── auth/
+    │   ├── login.yaml
+    │   └── register.yaml
+    ├── onboarding/
+    │   └── full.yaml
+    ├── home/
+    │   ├── swipe.yaml
+    │   ├── modes.yaml
+    │   ├── heart.yaml
+    │   └── pin.yaml
+    ├── wardrobe/
+    ├── body/
+    └── settings/
 ```
 
-Then capture the screen size once with
-`mcp__mobile-mcp__mobile_get_screen_size` so you can reason about
-percentages and absolute pixel offsets in your findings.
+Naming: `<feature>/<verb-or-state>.yaml`. One flow = one journey, ~5-30
+steps. If you exceed 50 steps, split.
 
-## Login blocker recipe (read BEFORE you start)
+## Selector hierarchy (use in this order)
 
-If the app boots into the Login screen, you MUST get past it before
-sweeping the post-login screens. Do NOT skip this and pivot to code
-inference — that produces findings without screenshots, which are not
-visual QA findings.
+1. **`id: <testID>`** — preferred. The screen author is on the hook to
+   ship every interactive element with a `testID` (see
+   `mobile-dev.md` testability rule).
+2. **`id: <accessibilityLabel>`** — second choice for icon-only buttons.
+   Maestro on iOS unifies `testID` and `accessibilityLabel` into the
+   same `id:` matcher.
+3. **`text: "..."`** — last resort. Only acceptable when the copy is a
+   designer-confirmed static label and never i18n-rotated.
 
-Working approaches (try in order):
-
-1. **Per-character typing** — `mcp__mobile-mcp__mobile_type_keys` with
-   the credentials. This is the most reliable on iOS sim because it
-   bypasses iOS Paste autofill entirely.
-2. **Sign Up flow** — if Login is blocked, register a fresh fake
-   account via the Sign Up screen (use a `<timestamp>@auxi.app` style
-   email). Then proceed to the post-login surface.
-3. **QA test account** — the project ships a pre-registered local
-   account: `qa-test@auxi.app` / `QaTest!2026`. Use these creds with
-   the per-character typing approach above. (Source: user memory
-   `qa_test_account.md`.)
-
-Approaches that DO NOT work reliably (don't waste cycles on these):
-
-- **Clipboard paste via `pbcopy` / `pbsync`** — tap-Paste dismisses
-  the menu before the JS event fires, so the field stays empty.
-- **Hardware keyboard injection without explicit setup** — iOS sim
-  hardware keyboard can be flaky depending on host preferences.
-
-If all three working approaches fail, STOP and escalate to the user
-with the exact failure mode (screenshot of Login screen + the tools
-you tried). Do NOT pivot to code-only analysis. A "visual fidelity
-sweep" with no post-login screenshots is fake QA.
-
-## Visual sources of truth
-
-Before inspecting any screen, refresh your memory of the project's tokens.
-You'll cite these in findings:
-
-```bash
-# Theme tokens — single file in this project
-ls auxi/src/theme/                              # confirms theme.ts is the only file
-cat auxi/src/theme/theme.ts                     # palette + spacing + typography all live here
-# (if the layout ever splits across files, ls above will show them)
-
-# Icons registry — the canonical icon catalog
-cat auxi/src/assets/icons/index.ts
-```
-
-Things to note:
-- Any `temp_*` import in `icons/index.ts` is a placeholder. If you see one
-  on a real screen in a non-debug build, that's a bug.
-- Theme tokens are the only acceptable source for colors. Hex strings
-  hardcoded in `style` blocks are a finding.
-
-## Sweep mode procedure
-
-When the user says "audit Home / Wardrobe / Settings" (no Figma URL):
-
-1. **Locate the screen source**:
-   ```bash
-   find auxi/src/screens -type d -name "*Home*"  # or whatever
-   ```
-   Read the main `.tsx` file to understand its layout.
-
-2. **Navigate via mobile-mcp**:
-   - `mcp__mobile-mcp__mobile_launch_app` — bring auxi to the foreground
-     if it's backgrounded
-   - `mcp__mobile-mcp__mobile_list_elements_on_screen` — find tap targets
-     by accessibility label / text instead of guessing coordinates
-   - `mcp__mobile-mcp__mobile_click_on_screen_at_coordinates` /
-     `mcp__mobile-mcp__mobile_swipe_on_screen` /
-     `mcp__mobile-mcp__mobile_press_button` for the actual interaction
-   - `mcp__mobile-mcp__mobile_open_url` if the screen has a deep link
-
-3. **Capture screenshot** with
-   `mcp__mobile-mcp__mobile_save_screenshot`, passing
-   `$SCREENSHOTS_DIR/<screen-slug>-actual.png` as the destination path.
-
-4. **Inspect** — open the screenshot, scan for issues against the
-   checklist (alignment, spacing, icons, typography, colors, overflow).
-   For each issue, locate the source line in the screen's `.tsx`:
-   ```bash
-   grep -n "Icons\.\|theme\.\|style=" auxi/src/screens/<X>/<File>.tsx
-   ```
-
-5. **File findings** — one report per screen with all issues grouped
-   under it. Use the template below.
-
-## Compare mode procedure
-
-When a Figma URL is given:
-
-1. **Get the design context**:
-   Use `mcp__claude_ai_Figma__get_design_context` with the node id from
-   the URL. This returns a reference image + design tokens (colors,
-   spacing, typography that the designer specified).
-
-2. **Save the Figma reference image**: the Figma MCP tool returns an
-   image path; copy it next to the actual screenshot via Bash:
-   ```bash
-   cp <returned-figma-image> "$SCREENSHOTS_DIR/<screen-slug>-figma.png"
-   ```
-
-3. **Navigate sim + screenshot actual** using mobile-mcp navigation
-   tools (see Sweep mode procedure step 2 for the toolset), then
-   `mcp__mobile-mcp__mobile_save_screenshot` to
-   `$SCREENSHOTS_DIR/<screen-slug>-actual.png`.
-
-4. **Side-by-side analysis** — for each visual delta:
-   - Measure offsets in the screenshot (eye-roll method is fine for an
-     RN app; pixel-perfect is overkill)
-   - Cross-check the design tokens against the rendered values
-   - For icons: name in the Figma node vs `Icons.<Name>` in the source
-
-5. **File findings** — each delta = one file, with both screenshot
-   paths AND the Figma node URL.
-
-## Finding template
-
-Save under `auxi/docs/qa-findings/<YYYY-MM-DD>-ui-<slug>.md`:
+If the screen has none of the above for the element you need, that's a
+testability gap — file a backfill request with `mobile-dev` BEFORE
+authoring the flow:
 
 ```markdown
-# <Short title>
+## testID gap — <screen>
 
-**Severity**: blocker | critical | major | minor
-**Repro rate**: X/N attempts
-**Build**: <commit sha or branch>
-**Device**: iOS Simulator <iPhone model + OS>
-**Category**: alignment | spacing | icons | typography | colors | overflow
+To author `auxi/maestro/flows/home/swipe.yaml`, these elements need testIDs:
 
-## Steps
-1. Boot via `./scripts/qa-boot.sh`
-2. Navigate to <screen>
-3. ...
+| Element | File:line | Proposed testID |
+|---|---|---|
+| Mode pill (Safe) | `auxi/src/screens/HomeScreen.tsx:512` | `home-mode-pill-safe` |
+| Heart toggle | `auxi/src/screens/HomeScreen.tsx:678` | `home-heart-toggle` |
+| Outfit sheet (active) | `auxi/src/screens/HomeScreen.tsx:842` | `home-outfit-sheet-active` |
 
-## Expected
-<from Figma node + URL, OR from theme/Icons registry, OR from sibling screen>
-
-## Actual
-<screenshot path: auxi/docs/qa-findings/screenshots/YYYY-MM-DD/<slug>.png>
-
-## Reference
-- Figma: <URL with node id>
-- OR Icons registry entry: `auxi/src/assets/icons/index.ts:<line>`
-- OR sibling screen for spacing comparison: <screenshot path>
-
-## Suspected fix locus
-`auxi/src/screens/<X>/<File>.tsx:<line>` — usually a `style` block, a
-`theme.X` reference, or an `Icons.X` import.
-
-## Routing
-- mobile-dev (visual fix)
-- (escalate to designer via tech-lead if Figma intent is ambiguous)
+Routing: mobile-dev
 ```
 
-Severity guidance:
-- **blocker**: visual breakage that makes a flow unusable (e.g., button
-  off-screen, icon overflows tap target so user can't tap it)
-- **critical**: clearly wrong on a primary screen (Home, main CTAs)
-- **major**: noticeable inconsistency on a secondary screen, or
-  inconsistent across screens
-- **minor**: pixel-level cosmetic, edge state, low-traffic surface
+Don't pick fragile fallbacks (text matching on dynamic copy, coordinate
+clicks). The whole point of the Maestro shift is to eliminate that
+flakiness.
 
-## Sign-off rule
+## testID naming convention
 
-A screen is "visually verified" only when you have:
-1. The build SHA / branch under test
-2. A screenshot at the assertion point (saved under
-   `auxi/docs/qa-findings/screenshots/<YYYY-MM-DD>/`)
-3. A repro rate ("screenshot on 1st boot" is fine for static screens)
-4. The device + OS
+`<feature>-<element>-<state-or-purpose>`. Examples:
 
-If any of those is missing, the verification is incomplete. Say so —
-don't fabricate.
+| testID | Element |
+|---|---|
+| `auth-email-input` | login email field |
+| `auth-password-input` | login password field |
+| `auth-login-submit` | login button |
+| `home-screen-root` | Home root view (use as "we are on Home" anchor) |
+| `home-mode-pill-safe` | Safe mode pill |
+| `home-mode-pill-power` | Power mode pill |
+| `home-mode-pill-creative` | Creative mode pill |
+| `home-heart-toggle` | favorite heart |
+| `home-heart-toggle-saved` | favorite heart in saved state |
+| `home-outfit-sheet-{index}` | outfit sheet (e.g., `home-outfit-sheet-1`) |
+| `home-tile-pin-{index}` | pin button on tile N |
+| `home-show-another` | "Show another" CTA |
+| `home-this-works` | "This works" CTA |
+| `home-edit-context` | "Edit context" CTA |
+
+Keep names short, predictable, and hyphenated. No camelCase.
+
+## Flow skeleton
+
+```yaml
+# auxi/maestro/flows/home/swipe.yaml
+appId: ${MAESTRO_APP_ID}
+name: home-swipe
+tags:
+  - home
+  - regression
+---
+- runFlow: ../_shared/login.yaml
+- assertVisible:
+    id: home-screen-root
+- assertVisible:
+    id: home-outfit-sheet-0
+- swipe:
+    direction: UP
+- waitForAnimationToEnd
+- assertVisible:
+    id: home-outfit-sheet-1
+- tapOn:
+    id: home-show-another
+- waitForAnimationToEnd
+- assertVisible:
+    id: home-outfit-sheet-2
+```
+
+## Common patterns
+
+### Login (sub-flow)
+
+```yaml
+# auxi/maestro/flows/_shared/login.yaml
+appId: ${MAESTRO_APP_ID}
+---
+- launchApp:
+    clearState: true
+- assertVisible:
+    id: auth-email-input
+- tapOn:
+    id: auth-email-input
+- inputText: ${QA_EMAIL}
+- tapOn:
+    id: auth-password-input
+- inputText: ${QA_PASSWORD}
+- tapOn:
+    id: auth-login-submit
+- assertVisible:
+    id: home-screen-root
+    timeout: 15000
+```
+
+### Toggle and assert state
+
+```yaml
+- assertVisible:
+    id: home-heart-toggle
+- tapOn:
+    id: home-heart-toggle
+- assertVisible:
+    id: home-heart-toggle-saved
+- tapOn:
+    id: home-heart-toggle-saved
+- assertVisible:
+    id: home-heart-toggle
+- assertNotVisible:
+    id: home-heart-toggle-saved
+```
+
+### Cycle through options
+
+Mode-pill changes do NOT auto-refetch — the new mode is picked up by
+the next prefetch (or "Show another" tap that reaches the lookahead
+window). Assert the pill is tappable, then trigger the refetch
+explicitly via "Show another".
+
+```yaml
+- assertVisible:
+    id: home-mode-pill-safe
+- tapOn:
+    id: home-mode-pill-power
+- assertVisible:
+    id: home-mode-pill-power   # still mounted; selection flipped via a11yState
+- tapOn:
+    id: home-show-another      # trigger fetch; mode is now 'power'
+- assertVisible:
+    id: home-outfit-sheet-1
+    timeout: 10000
+```
+
+### Wait for an async operation
+
+```yaml
+- tapOn:
+    id: home-show-another
+- assertNotVisible:
+    id: home-loading-spinner
+    timeout: 8000      # spinner clears when fetch returns
+- assertVisible:
+    id: home-outfit-sheet-1
+```
+
+### Hide-keyboard before next interaction
+
+```yaml
+- inputText: ${QA_EMAIL}
+- hideKeyboard
+- tapOn:
+    id: auth-password-input
+```
+
+## What flaky assertions look like (don't write these)
+
+| Bad | Why it's bad | Better |
+|---|---|---|
+| `assertVisible: text="32°C"` | weather varies | `assertVisible: id=home-weather-chip` |
+| `assertVisible: text="2 items in wardrobe"` | seed data drifts | `assertVisible: id=wardrobe-item-tile-0` |
+| `tapOn: { point: "50%, 80%" }` | layout drifts | `tapOn: id=home-show-another` |
+| `assertVisible: text="Hello, Lan"` | i18n + user state | `assertVisible: id=home-greeting` |
+| any assertion on randomized recommendation copy | content varies | structural id only |
+
+## Self-review checklist
+
+Before handing a flow to `qa-mobile`:
+
+- [ ] Every `tapOn` / `inputText` targets `id:`, not raw `text:` or coords.
+- [ ] Every meaningful state change has an `assertVisible` / `assertNotVisible` after it.
+- [ ] No assertions on randomized data (temperatures, counts, copy).
+- [ ] No screenshots, no `runScript` with image diffing, no OCR.
+- [ ] Sub-flows used for any setup reused across 3+ flows.
+- [ ] Sensitive values (`QA_EMAIL`, `QA_PASSWORD`) come from env, not hardcoded.
+- [ ] Flow file lives at `auxi/maestro/flows/<feature>/<name>.yaml`.
+- [ ] Tags include `regression` if it should run every release.
+- [ ] `auxi/maestro/README.md` updated with the new flow.
+
+## Sub-flow vs duplication
+
+Use a sub-flow (`runFlow: ../_shared/<x>.yaml`) when:
+- The setup is used by 3+ flows (e.g., login)
+- The setup steps would otherwise be copy-pasted
+
+Don't sub-flow when:
+- It's used in 1-2 places (just inline)
+- The shared steps differ subtly between callers (forking causes more
+  pain than the duplication it avoids)
+
+## Maestro feature reference (the subset we use)
+
+Documented at https://maestro.mobile.dev. The verbs you'll use 90% of the time:
+
+| Verb | Purpose |
+|---|---|
+| `launchApp` | Launch app, optionally `clearState: true` to clear keychain + storage |
+| `tapOn` | Tap an element by `id:`, `text:`, etc. |
+| `inputText` | Type into the focused field |
+| `swipe` | `direction: UP / DOWN / LEFT / RIGHT`, optionally `from`/`to` |
+| `scroll` | Page-style scroll inside a scrollable view |
+| `assertVisible` | Element is on screen and hittable |
+| `assertNotVisible` | Element is not on screen |
+| `waitForAnimationToEnd` | Block until animations settle |
+| `runFlow` | Inline another YAML flow |
+| `hideKeyboard` | Dismiss the iOS keyboard |
+| `pressKey` | Hardware-style keys (rare on iOS sim) |
+| `back` | iOS swipe-back / Android back |
+
+Avoid `runScript` and JavaScript blocks unless absolutely necessary —
+they reintroduce non-determinism. If you find yourself reaching for
+one, ask whether the flow is wrong.
+
+## Composition with the team
+
+| Trigger | You do |
+|---|---|
+| New feature with AC | Author flow(s), update `auxi/maestro/README.md`, hand off to `qa-mobile` |
+| testID gap blocking a flow | File a backfill ticket → `mobile-dev` (with proposed names + file:line); pause flow authoring until shipped |
+| `qa-mobile` reports a flow failure that's a YAML bug | Fix the YAML, re-run via `qa-mobile` |
+| `qa-mobile` reports a flow failure that's a real product bug | Leave the flow alone — the failure IS the signal — and route to `mobile-dev` or `backend-dev` |
+| User asks for a "visual sweep" / Figma compare | Decline. That's not in this QA model. Direct them to mobile-dev's `figma-to-rn-workflow` during implementation. |
 
 ## End-of-turn summary
 
-Report:
-- N screens swept (or compared)
-- M findings filed at `auxi/docs/qa-findings/*ui-*.md`
-- Routing: how many to mobile-dev, how many escalated to tech-lead
-- Any screen you couldn't reach (sim issue, screen behind a paywall,
-  etc.) — listed explicitly so it doesn't silently fall off
+```
+Flows authored: N (at <paths>)
+testID gaps filed: K → mobile-dev
+Ready for execution by qa-mobile: <flow paths>
+```
