@@ -30,32 +30,36 @@ cd auxi
 git branch --show-current                              # warn if not on main
 git pull --ff-only                                     # latest main
 git status --short                                     # clean tree
-grep MARKETING_VERSION ios/auxi.xcodeproj/project.pbxproj | head -1
-grep CURRENT_PROJECT_VERSION ios/auxi.xcodeproj/project.pbxproj | head -1
+
+# Effective build settings via xcodebuild (authoritative, vs grep on pbxproj)
+xcodebuild -project ios/auxi.xcodeproj -target auxi -showBuildSettings 2>/dev/null \
+  | grep -E '^\s*(MARKETING_VERSION|CURRENT_PROJECT_VERSION) =' | head -2
+
 test -f ~/.appstoreconnect/private_keys/AuthKey_*.p8 && echo ok-asc-key
-test -n "$ASC_API_KEY" && test -n "$ASC_API_ISSUER" && echo ok-env || echo "Set ASC_API_KEY + ASC_API_ISSUER in shell rc"
+test -n "$ASC_API_KEY_ID" && test -n "$ASC_API_ISSUER" && echo ok-env \
+  || echo "Set ASC_API_KEY_ID + ASC_API_ISSUER in shell rc"
 test -f src/config/env.ts && grep PROD_ROOT src/config/env.ts
 test -f ios/ExportOptions.plist
-grep -c "FMT_USE_CONSTEVAL" ios/Podfile          # must be >0
-grep -c "CFBundleIconName" ios/auxi/Info.plist   # must be 1
-ls ios/auxi/Images.xcassets/AppIcon.appiconset/*.png | wc -l    # must be 9
+grep -c "FMT_USE_CONSTEVAL" ios/Podfile                                          # must be >0
+grep -c "CFBundleIconName" ios/auxi/Info.plist                                   # must be 1
+test -f ios/auxi/Images.xcassets/AppIcon.appiconset/Contents.json && echo ok-icons
 ```
 
 If any check fails → STOP, route to fix:
-- Missing fmt patch / sandboxing / icons / plist → branch is older than PR #11 merge → `git pull origin main` and re-check
-- Missing `env.ts` → branch is older than PR #14 → same fix
-- Missing ASC keys → user must add to `~/.zshrc`:
+- Missing fmt patch / sandboxing / icons / plist → branch is older than the TestFlight infra merge → `git pull origin main` and re-check
+- Missing `env.ts` → branch is older than the env-switch merge → same fix
+- Missing ASC env vars → user must add to `~/.zshrc` (values come from App Store Connect → Users and Access → Keys):
   ```bash
-  export ASC_API_KEY=U2JN4H9WCR
-  export ASC_API_ISSUER=f7c47bd9-de91-4a8e-a244-8b83d7fe6b14
+  export ASC_API_KEY_ID=<your-key-id>       # e.g. 10-char alphanumeric
+  export ASC_API_ISSUER=<your-issuer-uuid>  # UUID at top of the Keys page
   ```
-- Missing `AuthKey_*.p8` → user must download from App Store Connect → Users and Access → Keys → and place at `~/.appstoreconnect/private_keys/`
+- Missing `AuthKey_*.p8` → user must download from App Store Connect → Users and Access → Keys (same place) and place at `~/.appstoreconnect/private_keys/`
 
 ## Decide build number
 
 ```bash
 # Latest build number on Apple side (source of truth)
-xcrun altool --list-apps --apiKey "$ASC_API_KEY" --apiIssuer "$ASC_API_ISSUER" --output-format json 2>/dev/null
+xcrun altool --list-apps --apiKey "$ASC_API_KEY_ID" --apiIssuer "$ASC_API_ISSUER" --output-format json 2>/dev/null
 # OR check the local pbxproj — if user said "build 5", pass 5
 ```
 
