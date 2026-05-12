@@ -126,6 +126,38 @@ Then in App Store Connect:
 - `auxi/docs/journals/2026-05-10-first-testflight-upload.md` — post-mortem of the gnarly first ship
 - `auxi/ios/Podfile` post_install — fmt patch lives here, do NOT edit fmt source directly
 - `~/.appstoreconnect/private_keys/AuthKey_*.p8` — gitignored, never commit
+- `.claude/skills/auxi-launch-notify.md` — downstream skill auto-invoked on success
+
+## Auto-chain to launch-notify (zero-touch announcement)
+
+After `release-testflight.sh` exits 0 with upload success, the script writes `$ARCHIVE_DIR/release-metadata.env` containing:
+
+```
+BUILD_NUMBER=3
+MARKETING_VERSION=1.0
+TAG=v1.0-build3
+DELIVERY_UUID=e5df3f7f-...
+COMMIT_SHA=08142d2
+BRANCH=chore/...
+```
+
+Immediately invoke the `auxi-launch-notify` skill so it can post 3 announcement artifacts (GitHub Release, Linear comment, CHANGELOG.md). Pass the metadata file path:
+
+```bash
+ARCHIVE_DIR="${TMPDIR:-/tmp}/auxi-archive"
+META_FILE="$ARCHIVE_DIR/release-metadata.env"
+if [ -s "$META_FILE" ]; then
+  set -a; source "$META_FILE"; set +a
+  # Invoke auxi-launch-notify (Claude reads the skill spec and executes)
+fi
+```
+
+**Fail-soft contract**: launch-notify failure does NOT undo the upload. The IPA is already on Apple's side. If a surface fails:
+- User gets a summary listing which surfaces succeeded vs failed (with URLs for success, error message for failure)
+- User can re-run launch-notify with `SKIP_<SURFACE>=1` for the ones that already succeeded
+- Worst case: skip launch-notify entirely and announce manually
+
+If `$META_FILE` is missing or empty (e.g., script crashed before writing it), DO NOT auto-chain — surface the issue to the user instead.
 
 ## Trigger workflow summary
 
@@ -135,7 +167,8 @@ Then in App Store Connect:
 4. Run script, capture logs to `/tmp/auxi-archive/`
 5. If validate passes, prompt user `y/N` (the script does this)
 6. After upload success, push branch + tag
-7. Tell user: Apple processing 5–30 min, check email, answer Export Compliance if first build of this version
+7. **Source `$META_FILE` and invoke `auxi-launch-notify`** (creates GH Release + Linear comment + CHANGELOG entry)
+8. Tell user: Apple processing 5–30 min, check email, answer Export Compliance if first build of this version
 
 ## Anti-patterns (don't)
 
