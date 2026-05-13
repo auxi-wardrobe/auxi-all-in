@@ -271,7 +271,7 @@ one, ask whether the flow is wrong.
 | testID gap blocking a flow | File a backfill ticket → `mobile-dev` (with proposed names + file:line); pause flow authoring until shipped |
 | `qa-mobile` reports a flow failure that's a YAML bug | Fix the YAML, re-run via `qa-mobile` |
 | `qa-mobile` reports a flow failure that's a real product bug | Leave the flow alone — the failure IS the signal — and route to `mobile-dev` or `backend-dev` |
-| User asks for a "visual sweep" / Figma compare | Decline. That's not in this QA model. Direct them to mobile-dev's `figma-to-rn-workflow` during implementation. |
+| User asks for a "visual sweep" / Figma compare with Figma URL | Switch to compare mode — invoke `auxi-figma-audit` skill (3-pass design audit) |
 
 ## End-of-turn summary
 
