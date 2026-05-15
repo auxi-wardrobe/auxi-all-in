@@ -155,12 +155,11 @@ Load these on demand:
 
 ## Rubric source
 
-Current rubric is internal placeholder (em tự chế). **Final rubric must come from anh Viet (AU-259)**. When Viet provides:
-1. Replace `references/rubric.md` with Viet's rubric
-2. Skill auto-picks up new rubric on next invocation
-3. Re-run baseline eval → measure rubric impact
+Rubric is **official** — approved by Viet (AU-259, 2026-05-13). See `references/rubric.md`.
 
-Until then, rubric placeholder explicitly notes "preliminary" in every report header.
+The rubric is **system-agnostic**: it evaluates outfit quality regardless of which recommendation engine produced the outfit. When the engine changes (V05 → V06 → any future engine), update the API calls in Step 2 but keep `references/rubric.md` unchanged.
+
+To override rubric for a specific run: `--rubric <path>`
 
 ## Output examples
 
@@ -192,13 +191,13 @@ Until then, rubric placeholder explicitly notes "preliminary" in every report he
 
 ## Workflow position
 
-**Typically follows**: implementation changes to `engine_v05.py`, `seeder.py`, `v05_*_service.py`
+**Typically follows**: implementation changes to any recommendation engine, seeder, or data layer
 **Typically precedes**: `/ck:plan` for fix work surfaced by eval findings
-**Related**: AU-259 (rubric source), AU-260 (catalog seed)
+**Related**: AU-259 (rubric — closed, official), AU-260 (catalog seed)
 
 ## Known limitations
 
-1. Multimodal scoring is rubric-dependent — quality bounded by rubric quality. Until AU-259 lands, results are indicative not authoritative.
+1. Multimodal scoring is rubric-dependent — quality bounded by rubric quality. Rubric is now official (Viet, AU-259).
 2. DB mining requires `DATABASE_URL` in `.env`. Skill assumes prod-equivalent DB access.
 3. `--hybrid` cross-ref logic is simple (mismatch detection); future refinement may need ML.
 4. Vision subagent ~2-3 min per scenario. 5 scenarios = 10-15 min total.
