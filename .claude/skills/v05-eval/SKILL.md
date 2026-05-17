@@ -115,11 +115,13 @@ Capture `eval_runs/<ts>/outfits.json`. If `--skip-images`, stop here.
 ### Step 3 — Download images
 The eval script saves `outfits.json` with `image_url` per item. Download to `eval_runs/<ts>/images/outfit_NN/MM_CATEGORY_<id8>.jpg`.
 
-### Step 4 — Spawn vision subagent per scenario
+### Step 4 — Spawn fashion judge subagent per scenario
 Per `eval_runs/<ts>/`:
 - Spawn `general-purpose` agent (has Read tool — reads images natively)
-- Prompt agent with: rubric from `references/rubric.md` + list of image paths + eval context (gender, temp, mood)
-- Agent returns structured JSON: per-outfit scores
+- Agent MUST invoke `Skill("v05-fashion-judge")` before scoring
+- Pass to agent: list of image paths + eval context (gender, temp_c, occasion, mood, style_direction, is_rainy, is_try_another, previous_outfits)
+- Agent returns structured JSON: per-outfit scores (schema defined in `v05-fashion-judge` skill)
+- Do NOT pass the raw rubric inline — the skill loads rubric and calibration anchors itself
 
 ### Step 5 — `--logs` DB mining (if applicable)
 ```python

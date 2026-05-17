@@ -65,7 +65,7 @@ echo "Previous tag: ${PREV_TAG:-<none, first release>}"
 ## Surface 1 — GitHub Release
 
 ```bash
-REPO=ducga1998/auxi-mobile
+REPO=auxi-wardrobe/auxi-mobile
 
 # Idempotence: skip if release already exists
 if gh release view "$TAG" -R "$REPO" >/dev/null 2>&1; then
@@ -107,7 +107,7 @@ BODY=$(cat <<EOF
 
 - **Release:** $RELEASE_URL
 - **Delivery UUID:** \`$DELIVERY_UUID\`
-- **Commit:** [\`$COMMIT_SHA\`](https://github.com/ducga1998/auxi-mobile/commit/$COMMIT_SHA) (branch: \`$BRANCH\`)
+- **Commit:** [\`$COMMIT_SHA\`](https://github.com/auxi-wardrobe/auxi-mobile/commit/$COMMIT_SHA) (branch: \`$BRANCH\`)
 - **Backend:** Railway production
 
 **Changes** (auto-generated):
