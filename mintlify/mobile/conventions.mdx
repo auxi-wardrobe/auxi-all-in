@@ -1,0 +1,32 @@
+---
+title: "Conventions"
+description: "RN-specific rules — pulled from auxi/CLAUDE.md"
+---
+
+<Note>
+  This page is a pointer. The authoritative source is `auxi/CLAUDE.md` —
+  always reference it directly when implementing.
+</Note>
+
+## Highlights
+
+- **Navigation registration**: every screen must be registered in the navigator
+  module — not auto-discovered.
+- **Service layer**: all backend calls go through `auxi/src/services/*.ts`
+  (axios via `apiClient.ts`). No direct fetch from screens.
+- **Theme & i18n**: tokenized via the theme module; no inline magic colors,
+  no hard-coded strings outside i18n.
+- **testID discipline**: every interactive element used by Maestro flows
+  needs a stable `testID`.
+
+## Where things live
+
+```
+auxi/src/
+├── screens/       # registered in navigator
+├── components/    # presentational
+├── services/      # axios clients matching wardrobe-backend routes
+├── hooks/         # TanStack Query + UI hooks
+├── theme/         # tokens
+└── i18n/          # locale strings
+```

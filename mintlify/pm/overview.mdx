@@ -1,0 +1,28 @@
+---
+title: "PM Overview"
+description: "Linear board ownership, ticket lifecycle, weekly cadence"
+---
+
+The umbrella PM owns the Linear board. New user stories land as tickets,
+get split into subtasks the moment a blocker surfaces, get commented during
+execution, and get closed once verified.
+
+## Tools
+
+| Tool | Purpose |
+|---|---|
+| `pm` agent | Owns Linear board — turns user stories into tickets, splits subtasks, comments updates, closes when verified |
+| `linear-pm-workflow` skill | Ticket lifecycle conventions |
+| Linear MCP | Direct board manipulation |
+| `docs/pm/inbox/` | Findings triage — audit notes, Figma deltas, QA observations |
+
+## Cadence
+
+- **Per US**: PM creates the ticket, links AC docs, attaches Figma where
+  relevant.
+- **Mid-execution**: PM comments status on the ticket. Subtask splits happen
+  the moment a blocker shows up — don't let one ticket gather rot.
+- **Verification**: PM only closes after the work is verified end-to-end —
+  Maestro flow, screenshot, or backend test as appropriate.
+
+See [Roadmap](/pm/roadmap) and [Decisions](/pm/decisions).

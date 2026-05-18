@@ -1,0 +1,30 @@
+---
+title: "Auxi Mobile — Overview"
+description: "React Native 0.83, TypeScript 5, TanStack Query, React Navigation"
+---
+
+## Stack
+
+| Layer | Tech |
+|---|---|
+| Runtime | React Native 0.83 · React 19 · TS 5.8 |
+| Data | TanStack Query 5 · axios |
+| Nav | React Navigation 7 |
+| Pkg | yarn |
+| Tests | jest · Maestro |
+
+## Source
+
+This is a git submodule at `auxi/`. The authoritative conventions live in
+`auxi/CLAUDE.md` — RN-specific rules, navigation registration, dual-Home
+migration status. When that conflicts with anything here, the per-repo
+file wins.
+
+## Working in the mobile repo
+
+- All code changes go through the `mobile-dev` agent.
+- Figma work requires both `figma-design-extraction` and `figma-to-rn-workflow`
+  skills.
+- Visual fidelity is enforced by `qa-ui` (compare mode), execution by `qa-mobile`.
+
+See [Figma workflow](/mobile/figma-workflow) and [QA & testing](/mobile/qa-and-testing).

@@ -1,0 +1,47 @@
+---
+title: "API Drift Prevention"
+description: "The hard rule for /api/* changes"
+---
+
+<Warning>
+  When a `wardrobe-backend/routers/**/routes.py` route changes,
+  `API_DOCUMENTATION.md` is the contract. Update it in the same PR — no
+  exceptions.
+</Warning>
+
+## The flow
+
+<Steps>
+  <Step title="Backend dev updates the doc">
+    Edit `wardrobe-backend/API_DOCUMENTATION.md` in the same PR as the route
+    change. This is mandatory.
+  </Step>
+  <Step title="Tech-lead reviews">
+    The diff goes through `tech-lead` for contract sign-off. Breaking changes
+    require a coordinated mobile-side plan.
+  </Step>
+  <Step title="Mobile syncs the client">
+    `mobile-dev` updates the matching `auxi/src/services/*.ts` client. The
+    submodule pin in the umbrella bumps once both sides land.
+  </Step>
+  <Step title="File follow-up if asymmetric">
+    Whoever changes a route on either side is on the hook to file a follow-up
+    issue for the other side if the change can't land atomically.
+  </Step>
+</Steps>
+
+## Why this works
+
+- **No shared SDK** to drift silently.
+- **No codegen** that hides assumptions in generated artifacts.
+- **One written document** that both sides read — and update — by hand.
+
+The umbrella's whole reason for existing is to prevent the case where the
+mobile app ships against assumptions the backend has already broken. If
+you're tempted to mock the backend during mobile development, **don't**.
+
+## Enforcement
+
+Tech-lead is read-mostly across both repos and is the single source of
+truth for contract-level decisions. They block merges that ship a route
+change without an `API_DOCUMENTATION.md` update.

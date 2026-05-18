@@ -1,0 +1,32 @@
+---
+title: "Agents & Skills"
+description: "Role-scoped agents and the skills they activate"
+---
+
+The umbrella ships role-scoped agents in `.claude/agents/`. Each one refuses
+work outside its repo and routes to the right teammate.
+
+| Agent | Scope | Use when |
+|---|---|---|
+| `mobile-dev` | `auxi/` only · Figma-fluent | RN screens, services, theme, i18n |
+| `backend-dev` | `wardrobe-backend/` only | FastAPI routers, services, repos, models, migrations |
+| `tech-lead` | both repos (read-mostly) | Contract changes, breaking migrations, design reviews |
+| `qa-mobile` | `auxi/` (read + test runs) | iOS/Android smoke, regression, Maestro execution |
+| `qa-ui` | `auxi/` (read-only) · Figma-fluent | Visual fidelity sweeps, Maestro YAML authoring |
+| `qa-ux` | `auxi/` (read-only) | UX heuristic + a11y review (Nielsen, mobile patterns) |
+| `pm` | Linear board (project-wide) | New US, subtask splits, status sweeps |
+
+## Skills
+
+Role-specific workflows live in `.claude/skills/`:
+
+- `auxi-rn-patterns.md`, `wardrobe-fastapi-patterns.md`
+- `cross-repo-coordination.md`
+- `auxi-qa-test.md`, `auxi-qa-ui.md`, `auxi-qa-ux.md`
+- `figma-design-extraction.md`, `figma-to-rn-workflow.md`
+- `linear-pm-workflow.md`
+
+<Note>
+  **Designer is the CEO.** `mobile-dev` and `qa-ui` both have Figma MCP access
+  and must verify on the iOS simulator before declaring visual work done.
+</Note>

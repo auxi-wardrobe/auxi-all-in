@@ -1,0 +1,37 @@
+---
+title: "Two-Repo Contract"
+description: "One HTTP boundary, two clients, no shared SDK"
+---
+
+The mobile app and the internal admin app both hit the same backend, but
+over different surfaces:
+
+```
+auxi (RN)            ──► axios (apiClient.ts)        ──►  wardrobe-backend
+wardrobe-admin (SPA) ──► axios (services/*)          ──►       :5001/api    (public)
+                                                          + /admin/* (internal, admin role)
+```
+
+## Two clients
+
+| Surface | Consumer | Drift process |
+|---|---|---|
+| `/api/*` | `auxi/` (mobile) | Full contract update flow with tech-lead sign-off |
+| `/admin/*` | `wardrobe-admin/` SPA | Ping admin's React maintainer; no umbrella process |
+
+`/admin/*` is internal and ships inside the backend repo. Its contract changes
+don't break a downstream submodule, so the formal drift process doesn't apply.
+
+## Why no SDK?
+
+We deliberately avoid:
+- Shared TS types between repos
+- Codegen from OpenAPI
+- A common npm/PyPI package
+
+The cost of keeping a generated layer in sync exceeds the cost of a written
+contract — and a written contract forces backend and mobile to stay aware of
+the surface they're trading on.
+
+See [API drift prevention](/contracts/api-drift-prevention) for the actual
+process, and [Admin surface](/contracts/admin-surface) for the internal flow.

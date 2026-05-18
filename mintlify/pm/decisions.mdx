@@ -1,0 +1,33 @@
+---
+title: "Decisions"
+description: "Pointers to ADRs, journals, and notable shipped decisions"
+---
+
+<Note>
+  Substantive decisions live in `docs/journals/` (per-phase implementation
+  journals) and `docs/pm/` (PM artifacts). This page collects the highest-signal
+  links so future you doesn't have to spelunk.
+</Note>
+
+## Where to look
+
+- **`docs/journals/`** — chronological implementation journals
+- **`docs/pm/inbox/`** — findings awaiting triage
+- **`docs/system-architecture.md`** — architectural decisions baked in
+- **`docs/code-standards.md`** — accepted code conventions
+
+## Notable patterns to know
+
+- **Remix killed, Try Another wins** — the multi-axis recommender refactor
+  was replaced with a single "Try Another" batch refresh. Old 4-axis backend
+  code path is dead.
+- **QA uses Maestro only** — screenshot reasoning and Figma compare happen
+  upstream (`qa-ui` author mode). Execution layer is YAML + `testID`.
+- **No re-login loops in mobile-dev fixes** — fixes stay code-only.
+
+## Adding a new decision
+
+1. Land the change with an implementation journal in `docs/journals/`.
+2. If it shifts conventions, update `docs/code-standards.md` or
+   `docs/system-architecture.md` in the same PR.
+3. PM links the decision from the corresponding Linear ticket.
