@@ -1,0 +1,44 @@
+---
+title: "Wardrobe Project"
+description: "Personal wardrobe + AI outfit recommender — umbrella docs"
+---
+
+<Note>
+  Two-repo monorepo via git submodules: **auxi** (React Native mobile) and
+  **wardrobe-backend** (FastAPI + SQLAlchemy + Gemini). This site is the
+  cross-repo source of truth — contracts, architecture, agents, and PM context.
+</Note>
+
+## What's here
+
+<CardGroup cols={2}>
+  <Card title="Architecture" icon="diagram-project" href="/overview/architecture">
+    How auxi and wardrobe-backend talk over a single HTTP contract.
+  </Card>
+  <Card title="Local Setup" icon="terminal" href="/overview/local-setup">
+    Clone with submodules, run backend on :5001, run mobile on iOS sim.
+  </Card>
+  <Card title="Mobile (Auxi)" icon="mobile" href="/mobile/overview">
+    React Native 0.83, TS 5, Figma fidelity, Maestro QA.
+  </Card>
+  <Card title="Backend" icon="server" href="/backend/overview">
+    FastAPI routers, services, repositories, plus interactive OpenAPI playground.
+  </Card>
+  <Card title="Contracts" icon="handshake" href="/contracts/overview">
+    `/api/*` (public, auxi) and `/admin/*` (internal). No shared SDK, no codegen.
+  </Card>
+  <Card title="PM" icon="clipboard-list" href="/pm/overview">
+    Roadmap, decisions, and inbox triage. The designer is the CEO.
+  </Card>
+</CardGroup>
+
+## Two-repo contract
+
+```
+auxi (RN)            ──► axios (apiClient.ts)        ──►  wardrobe-backend FastAPI
+wardrobe-admin (SPA) ──► axios (services/*)          ──►       :5001/api    +     /admin/*
+                                                          (admin role enforced server-side)
+```
+
+See [API Drift Prevention](/contracts/api-drift-prevention) for how we keep
+mobile and backend in sync without an SDK.

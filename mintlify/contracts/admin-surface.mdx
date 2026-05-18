@@ -1,0 +1,36 @@
+---
+title: "Admin Surface"
+description: "/admin/* — internal, role-gated, no submodule consumer"
+---
+
+The `/admin/*` API surface is **internal** and consumed only by the
+`wardrobe-admin/` React SPA that ships inside the backend repo.
+
+## What's in scope
+
+- User management (admins create/disable accounts)
+- Common items catalog (seed data for the recommender)
+- ML config (axes, scoring weights, recommendation experiments)
+- Recommendation diagnostics
+
+## Authorization
+
+Admin role is enforced **server-side**. The SPA's UI gating is not a security
+boundary — every `/admin/*` route checks role on the server.
+
+## Drift process (lighter)
+
+Because there's no auxi consumer, `/admin/*` changes don't go through the
+public API drift flow. Instead:
+
+- The backend dev who changes the route pings the admin SPA maintainer
+  directly (in PR or Slack).
+- The matching service in `wardrobe-admin/src/services/*` is updated in the
+  same PR if possible.
+- No `API_DOCUMENTATION.md` entry needed — but PRs touching `/admin/*` should
+  mention the surface explicitly so reviewers know.
+
+## Hosting
+
+`wardrobe-admin/` deploys to Cloudflare via Wrangler. See
+[Backend → Deployment](/backend/deployment) for the hosting layout.

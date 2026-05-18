@@ -1,0 +1,46 @@
+---
+title: "wardrobe-backend — Overview"
+description: "FastAPI · SQLAlchemy · Gemini · S3"
+---
+
+## Stack
+
+| Layer | Tech |
+|---|---|
+| Runtime | Python 3.9+ · FastAPI |
+| ORM | SQLAlchemy |
+| AI | Gemini |
+| Storage | S3 |
+| Pkg | pip |
+| Tests | pytest · `python test_server.py` (e2e on :5002) |
+
+## Source
+
+Submodule at `wardrobe-backend/`. Authoritative conventions in
+`wardrobe-backend/CLAUDE.md`: service-repository pattern,
+`EphemeralFileManager`, and security rules.
+
+## Layout
+
+```
+wardrobe-backend/
+├── routers/         # FastAPI route modules
+│   ├── api/         # public surface — auxi consumes /api/*
+│   └── admin/       # internal — wardrobe-admin SPA consumes /admin/*
+├── services/        # business logic
+├── repositories/    # DB access
+├── models/          # SQLAlchemy
+├── migrations/
+└── wardrobe-admin/  # internal React SPA (NOT a submodule)
+```
+
+## API surfaces
+
+- **`/api/*`** — public; auxi mobile is the sole consumer. Drift here triggers
+  the API contract update flow.
+- **`/admin/*`** — internal ops; admin role enforced server-side. No auxi
+  consumer; PM/ops team manages users, common items, ML config.
+
+See [Services & Repositories](/backend/services-and-repositories) and
+[Deployment](/backend/deployment). For interactive endpoint exploration, see
+the **API Reference** tab.

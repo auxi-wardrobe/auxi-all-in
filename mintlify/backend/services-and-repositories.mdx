@@ -1,0 +1,32 @@
+---
+title: "Services & Repositories"
+description: "Layering rules — routers thin, services orchestrate, repositories own DB"
+---
+
+## Pattern
+
+```
+Router (FastAPI)  ──► Service (business logic)  ──► Repository (DB)
+   │                       │
+   │                       └── EphemeralFileManager (S3 + temp lifecycle)
+   │
+   └── Pydantic models (request/response only)
+```
+
+## Rules
+
+- **Routers are thin.** They parse input, call a service, return the response.
+  No business logic, no direct DB access.
+- **Services orchestrate.** They compose repositories, call Gemini, handle
+  side effects.
+- **Repositories own queries.** SQLAlchemy session in, domain object out.
+- **EphemeralFileManager** is the only abstraction allowed for short-lived
+  S3 + tempfile handling. Don't reinvent.
+
+## Where to look
+
+- `wardrobe-backend/routers/` — route definitions per module
+- `wardrobe-backend/services/` — composable business logic
+- `wardrobe-backend/repositories/` — DB access only
+- `wardrobe-backend/MODELS_DOCUMENTATION.md` — SQLAlchemy model reference
+- `wardrobe-backend/API_DOCUMENTATION.md` — public contract (mandatory after route changes)

@@ -1,0 +1,34 @@
+---
+title: "Deployment"
+description: "Backend hosting + wardrobe-admin via Cloudflare"
+---
+
+<Note>
+  Authoritative deployment instructions are in `wardrobe-backend/DEPLOYMENT_GUIDE.md`.
+  This page summarizes the moving parts.
+</Note>
+
+## Backend
+
+The FastAPI app is deployed from the `wardrobe-backend` repo. Entry point:
+`wardrobe-backend/app.py` (`uvicorn app:app`).
+
+Production runs are managed outside the umbrella — see the submodule's
+`DEPLOYMENT_GUIDE.md` for the current target, secrets handling, and
+migration runbook.
+
+## wardrobe-admin SPA
+
+The internal admin app lives at `wardrobe-backend/wardrobe-admin/`. It's a
+**React 19 + Vite + TS + Ant Design + Tailwind** single-page app deployed
+to Cloudflare via Wrangler.
+
+It is **not** a submodule — it ships with the backend repo because its
+contract (`/admin/*` routes) is internal and changes don't go through the
+public API drift process.
+
+## Database migrations
+
+SQLAlchemy / Alembic migrations live in `wardrobe-backend/migrations/`.
+Breaking schema changes must go through `tech-lead` sign-off before merge —
+they have the highest cross-repo blast radius.

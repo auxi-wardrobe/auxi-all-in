@@ -1,0 +1,37 @@
+---
+title: "Figma Workflow"
+description: "Designer is the CEO — extract thoroughly, implement faithfully, verify on simulator"
+---
+
+<Warning>
+  Figma fidelity is non-negotiable. Do not skim the file, do not approximate.
+  Always verify the final implementation on the iOS simulator before saying
+  the work is done.
+</Warning>
+
+## Two-step skill stack
+
+The `mobile-dev` agent always runs **both** skills back-to-back:
+
+<Steps>
+  <Step title="figma-design-extraction">
+    Read the Figma file thoroughly — icons, tokens, spacing, alignment,
+    states, edge cases. Capture every spec.
+  </Step>
+  <Step title="figma-to-rn-workflow">
+    Implement against the theme system. Verify pixel-by-pixel on the iOS
+    sim. No shortcuts.
+  </Step>
+</Steps>
+
+## Visual QA
+
+After implementation, `qa-ui` runs the **compare mode** (3-pass audit):
+1. Extract Figma spec
+2. Compare against code
+3. Verify on screenshot
+
+`qa-ui` also authors Maestro YAML flows with stable `testID` assertions.
+Execution is handled by `qa-mobile`.
+
+See [QA & testing](/mobile/qa-and-testing).

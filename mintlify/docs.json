@@ -1,0 +1,101 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "palm",
+  "name": "Wardrobe Project",
+  "description": "Personal wardrobe + AI outfit recommender — umbrella docs for Auxi mobile app, wardrobe-backend, and the contract between them.",
+  "colors": {
+    "primary": "#1f6feb",
+    "light": "#79b8ff",
+    "dark": "#0b3d91"
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Overview",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "index",
+              "overview/architecture",
+              "overview/local-setup",
+              "overview/agents-and-skills"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Mobile (Auxi)",
+        "groups": [
+          {
+            "group": "Auxi React Native App",
+            "pages": [
+              "mobile/overview",
+              "mobile/conventions",
+              "mobile/figma-workflow",
+              "mobile/qa-and-testing"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Backend",
+        "groups": [
+          {
+            "group": "wardrobe-backend",
+            "pages": [
+              "backend/overview",
+              "backend/services-and-repositories",
+              "backend/deployment"
+            ]
+          },
+          {
+            "group": "API Reference",
+            "openapi": "api-reference/openapi.json"
+          }
+        ]
+      },
+      {
+        "tab": "Contracts",
+        "groups": [
+          {
+            "group": "Two-Repo Contract",
+            "pages": [
+              "contracts/overview",
+              "contracts/api-drift-prevention",
+              "contracts/admin-surface"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "PM",
+        "groups": [
+          {
+            "group": "Project Management",
+            "pages": [
+              "pm/overview",
+              "pm/roadmap",
+              "pm/decisions"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "navbar": {
+    "links": [
+      {
+        "label": "Backend repo",
+        "href": "https://github.com/auxi-wardrobe/wardrobe-backend"
+      },
+      {
+        "label": "Mobile repo",
+        "href": "https://github.com/auxi-wardrobe/auxi-mobile"
+      }
+    ]
+  },
+  "footer": {
+    "socials": {}
+  }
+}

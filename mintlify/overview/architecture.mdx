@@ -1,0 +1,34 @@
+---
+title: "Architecture"
+description: "Umbrella repo, two submodules, one HTTP contract"
+---
+
+## Repo layout
+
+```
+wardrobe_project/                      # umbrella
+├── auxi/                              # submodule → React Native mobile
+├── wardrobe-backend/                  # submodule → FastAPI + Gemini
+│   └── wardrobe-admin/                # internal admin SPA (NOT a submodule)
+└── .claude/                           # agents + skills
+```
+
+## Boundary
+
+There's exactly one HTTP boundary between the mobile app and the backend.
+No shared SDK, no codegen — `wardrobe-backend/API_DOCUMENTATION.md` is the contract.
+
+<Steps>
+  <Step title="Backend changes route">
+    Update `wardrobe-backend/API_DOCUMENTATION.md` (mandatory).
+  </Step>
+  <Step title="Tech-lead reviews">
+    Signs off on contract diff.
+  </Step>
+  <Step title="Mobile syncs client">
+    Update the matching `auxi/src/services/*.ts` client.
+  </Step>
+</Steps>
+
+See [Contracts → API Drift Prevention](/contracts/api-drift-prevention) for the full
+rationale.

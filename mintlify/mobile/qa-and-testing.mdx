@@ -1,0 +1,41 @@
+---
+title: "QA & Testing"
+description: "Maestro flows + Jest. No screenshot reasoning, no Figma compare in execution."
+---
+
+<Note>
+  **QA uses Maestro only.** `qa-ui` authors YAML flows with stable `testID`
+  assertions; `qa-mobile` executes them on the iOS simulator. Screenshot
+  reasoning and design comparison happen earlier in the loop, not during
+  execution.
+</Note>
+
+## Test account
+
+QA flows authenticate against the local backend with:
+
+```
+email:    qa-test@auxi.app
+password: QaTest!2026
+```
+
+Account is pre-registered on the local backend on :5001.
+
+## Tools
+
+| Tool | Role |
+|---|---|
+| Maestro | E2E flow execution, deterministic, headless-capable |
+| Jest | Unit + component tests |
+| `qa-mobile` agent | Executes flows, reports structured pass/fail with logs |
+| `qa-ui` agent | Authors flows, compares against Figma, enforces `testID` discipline |
+| `qa-ux` agent | Heuristic + a11y audit (Nielsen, mobile patterns, VoiceOver) |
+
+## Hard rules
+
+- Production code changes go through `mobile-dev` only. QA agents never edit
+  source.
+- `mobile-dev` fixes stay code-only — no re-login loops, no manual UI
+  interactions during the fix cycle.
+- iOS simulator: check existing installed app first; never retry builds in
+  a loop. Stop fighting SDK mismatches in CLI.

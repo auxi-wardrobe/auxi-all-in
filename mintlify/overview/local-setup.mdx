@@ -1,0 +1,44 @@
+---
+title: "Local Setup"
+description: "Clone with submodules, run backend on :5001, run mobile on iOS sim"
+---
+
+<Steps>
+  <Step title="Clone with submodules">
+    ```bash
+    git clone --recurse-submodules <umbrella-url> wardrobe_project
+    cd wardrobe_project
+    ```
+
+    Already cloned? `git submodule update --init --recursive`.
+  </Step>
+
+  <Step title="Run backend on :5001">
+    ```bash
+    cd wardrobe-backend
+    uvicorn app:app --reload --port 5001
+    ```
+
+    OpenAPI is then at `http://localhost:5001/openapi.json` and the
+    interactive playground in this site auto-pulls from there.
+  </Step>
+
+  <Step title="Run mobile on iOS sim">
+    ```bash
+    cd auxi
+    yarn install
+    yarn ios:sim
+    ```
+  </Step>
+
+  <Step title="Verification">
+    Backend: `cd wardrobe-backend && python test_server.py` (e2e on :5002).
+    Mobile: `cd auxi && npx tsc --noEmit && yarn lint`.
+    Smoke: run the mobile app against the live backend on :5001 — no mocks.
+  </Step>
+</Steps>
+
+<Warning>
+  Never ship mobile changes against a mocked backend. Contract drift is exactly
+  what this umbrella repo exists to prevent.
+</Warning>
