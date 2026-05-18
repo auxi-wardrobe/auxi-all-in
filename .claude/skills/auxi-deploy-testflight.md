@@ -43,6 +43,12 @@ test -f ios/ExportOptions.plist
 grep -c "FMT_USE_CONSTEVAL" ios/Podfile                                          # must be >0
 grep -c "CFBundleIconName" ios/auxi/Info.plist                                   # must be 1
 test -f ios/auxi/Images.xcassets/AppIcon.appiconset/Contents.json && echo ok-icons
+
+# Sentry creds — Bundle RN + Upload Debug Symbols phases wrap sentry-cli.
+# Without auth, archive dies ~10 min in with "Node: cannot execute binary file".
+{ [ -f ios/sentry.properties ] || [ -n "$SENTRY_AUTH_TOKEN" ] \
+  || grep -q "SENTRY_DISABLE_AUTO_UPLOAD=true" ios/auxi.xcodeproj/project.pbxproj; } \
+  && echo ok-sentry || echo "Set SENTRY_AUTH_TOKEN, create ios/sentry.properties, or disable upload in pbxproj"
 ```
 
 If any check fails → STOP, route to fix:
@@ -104,6 +110,8 @@ Then in App Store Connect:
 | Error | Diagnosis | Action |
 |---|---|---|
 | `iOS 26.x is not installed` | Xcode 26 platform missing | Open Xcode → Settings → Platforms → install iOS 26 |
+| `Bundle React Native exit 1` + `Node: Node: cannot execute binary file` | pbxproj build phase used backticks instead of escaped quotes — `` `$WITH_ENVIRONMENT` `` ran with-environment.sh, captured stdout, corrupted the `/bin/sh` command. | Fix the shellScript in `ios/auxi.xcodeproj/project.pbxproj` "Bundle React Native code and images" phase: `/bin/sh -c "\"$WITH_ENVIRONMENT\" \"$SENTRY_XCODE\" \"$REACT_NATIVE_XCODE\""` (escaped quotes, no backticks) |
+| `An organization ID or slug is required` from sentry-cli during archive | Sentry build phase tries to upload sourcemap but creds missing | (a) set `SENTRY_AUTH_TOKEN` env, (b) create `ios/sentry.properties` with `defaults.org`/`defaults.project`/`auth.token`, or (c) ship without sourcemap: add `export SENTRY_DISABLE_AUTO_UPLOAD=true` to the build phase shellScript |
 | `fmt/format-inl.h:59 consteval error` | Pods got reset, patch lost | `cd ios && pod install` — Podfile post_install reapplies the patch |
 | `ITMS-90713 CFBundleIconName missing` | Info.plist key removed | Check `<key>CFBundleIconName</key><string>AppIcon</string>` present |
 | `ITMS-90022 Missing 120×120 icon` | Asset catalog broken | 9 PNGs + Contents.json with `filename` keys in `AppIcon.appiconset/` |
