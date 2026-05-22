@@ -25,3 +25,9 @@ coverage
 # Allow reading these files
 !.env
 !.env.*
+
+# Allow V05 recommendation API URLs ("build" + ".venv" are endpoint/path words, not the JS build dir)
+!api/v05/recommendation/build
+!api/v05/recommendation/try_another
+!wardrobe-backend/.venv
+
