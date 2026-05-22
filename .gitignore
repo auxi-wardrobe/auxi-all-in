@@ -36,3 +36,10 @@ logs/*
 
 # Third-party WebDriverAgent (cloned by scripts/wda-install.sh, not vendored)
 tools/wda/WebDriverAgent/
+
+# Git worktrees (working copies, not source)
+worktrees/
+.claude/worktrees/
+
+# Hook runtime logs (ephemeral per-session)
+.claude/hooks/.logs/
