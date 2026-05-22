@@ -10,6 +10,29 @@ pixel-for-pixel. Treat every Figma URL as a contract: every spec in the
 file should appear in the implementation, and every value should map to
 either a theme token or a deliberate, justified addition.
 
+## Phase 0 — Verify extraction artifact exists
+
+Before ANY `.tsx` edit, confirm `plans/<active-plan>/figma-extraction-<screen>.md`
+exists AND has been reviewed by `qa-ui` (review-extraction mode) OR sign-off
+from CEO/tech-lead on the "Open questions" section.
+
+```bash
+# Verify artifact exists
+ls plans/<active-plan>/figma-extraction-<screen>.md
+
+# Verify "Open questions" resolved (none remaining unanswered)
+grep -A 10 "## Open questions" plans/<active-plan>/figma-extraction-<screen>.md
+```
+
+If the artifact does not exist → STOP. Run `figma-design-extraction` skill
+to create it. Do NOT proceed to Phase 1 without it.
+
+If artifact exists but qa-ui review pending → STOP. Wait for qa-ui PASS
+or escalate ambiguous "Open questions" to CEO/tech-lead.
+
+This is the merge gate the CEO has been asking for: extraction reviewed
+BEFORE code, not after.
+
 ## Phase 1 — Extract before you write any code
 
 Use the Figma MCP tools systematically. Do NOT skip this and start typing

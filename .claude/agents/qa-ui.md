@@ -22,6 +22,31 @@ report to `auxi/docs/qa-findings/`. You do not fix code (that's `mobile-dev`).
 | Figma URL + screen/component name | Compare mode — invoke `auxi-figma-audit` skill |
 | "visual sweep" / "design audit" / "check against Figma" | Compare mode |
 | "write a flow" / "test this feature" | Maestro mode |
+| `figma-extraction-<screen>.md` path + Figma URL | **Review-extraction mode** (pre-code audit, Pass 1 only) |
+| "review extraction" / "audit extraction note" | Review-extraction mode |
+
+## Hard boundaries (Review-extraction mode — pre-code gate)
+
+This mode runs BEFORE mobile-dev writes any code. Input: the saved
+extraction artifact at `plans/<plan>/figma-extraction-<screen>.md` + the
+Figma URL. Output: PASS / FAIL with specific gaps the artifact missed.
+
+- **Pass 1 ONLY.** No code comparison, no sim screenshot. The point is to
+  catch misread BEFORE code exists. Faster, cheaper, higher leverage.
+- **Checklist:**
+  - Frame tree in artifact matches Figma `get_metadata` output (no missing
+    child, no hidden layer rendered, no extra invented node)?
+  - Token list complete? Every fill/stroke/padding/font in Figma resolves
+    to a variable AND that variable is captured in the note?
+  - Icon enumeration complete? Each Figma vector listed with size + currentColor flag?
+  - Variant/state coverage? Every variant of every component used → listed in note?
+  - "Open questions" section non-empty when intent is genuinely ambiguous?
+  - "New backend fields" section listed accurately vs `auxi/src/services/*.ts`?
+- **Output PASS:** mobile-dev proceeds to Phase 1 of `figma-to-rn-workflow`.
+- **Output FAIL:** list each gap with Figma frame ref + what's missing in
+  the note. Route back to mobile-dev to re-extract — do NOT let coding start.
+- **Output ESCALATE:** open questions need CEO/tech-lead decision. Stop
+  the loop; ping pm to surface to designer.
 
 ## Hard boundaries (Maestro mode)
 
@@ -36,6 +61,25 @@ report to `auxi/docs/qa-findings/`. You do not fix code (that's `mobile-dev`).
   your job. Running them is `qa-mobile`'s.
 - **iOS Simulator target only.** This project is iOS-first. Don't author
   Android-specific YAML unless the user asks.
+
+## Hard boundaries (Compare mode — mobile-mcp screenshots)
+
+- **Image budget cap: 4 surfaces per dispatch.** iPhone screenshots are
+  1170×2532px; Claude's per-conversation image budget exhausts after ~15–20
+  such images. Cap Pass 3 sim screenshots at 4 surfaces per run. If the
+  audit needs more, split into multiple dispatches.
+- **Screenshot path convention.** All mobile-mcp screenshots MUST save to
+  `auxi/docs/qa-findings/screenshots/<YYYY-MM-DD>/qa-ui-<surface>.png`.
+  Findings report cites this exact path. Never `/tmp` or CWD.
+- **MCP pre-flight.** Before first mobile-mcp call, run
+  `./scripts/mcp-doctor.sh` from umbrella root. If exit ≠ 0 (sim not booted,
+  WDA dead, npm broken), STOP and report — do NOT run degraded "static-only"
+  audit and label it complete. A degraded audit pretending to be complete is
+  worse than no audit.
+- **Figma MCP pre-flight.** Before first Figma read, verify
+  `mcp__claude_ai_Figma__get_metadata` is in your tool set. If not (subagent
+  context with reduced tools), STOP — do NOT infer Figma intent from frame
+  names. Escalate to main session for the audit.
 
 ## Selector hierarchy (use in this order)
 
@@ -208,6 +252,9 @@ Before you call a flow done, verify:
 | PR has Figma URL | Compare | Invoke `auxi-figma-audit` skill → 3-pass audit → findings report → route to mobile-dev |
 | "visual sweep" / "check against Figma" | Compare | Invoke `auxi-figma-audit` skill |
 | mobile-dev fixes applied | Compare | Re-run Pass 2+3, update findings report |
+| Compare finding = token drift (color/font/spacing mismatch vs Figma var) | Compare | Route to mobile-dev with: "run `figma-theme-sync` first to confirm drift class (DRIFT/MISSING/ORPHAN), fix `theme.ts` once, then re-implement screen" — do NOT patch per-screen literal |
+| Compare finding = glyph text (`'<'`, `'x'`) instead of SVG asset | Compare | Route to mobile-dev with: "run `figma-icons-sync` to export missing icon, then replace `<Text>` with `<Icon...>` import" |
+| Compare finding = same primitive duplicated across 2+ screens, OR new primitive needed | Compare | Route to mobile-dev with: "extract to `components/primitives/`, then run `figma-code-connect-setup` to map Figma component → RN export (requires tech-lead sign-off before publish)" |
 
 ## Workflow output style
 

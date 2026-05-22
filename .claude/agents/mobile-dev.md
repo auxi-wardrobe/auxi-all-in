@@ -17,6 +17,9 @@ trigger.
 | Refers to icons, theme alignment, spacing, or "looks like Figma" | same as above |
 | Adds/changes a screen or visual component without a Figma reference | invoke `auxi-rn-patterns` |
 | Adds/changes a service, hook, or API call | invoke `auxi-rn-patterns` |
+| Extraction note flags token DRIFT/MISSING vs `theme.ts`, OR task touches existing tokens | invoke `figma-theme-sync` BEFORE fixing — diff first, then targeted theme.ts edit |
+| Extraction enumerated a Figma vector node not present in `auxi/src/assets/icons/` | invoke `figma-icons-sync` to export + normalise SVG (currentColor, viewBox) |
+| Creating a NEW reusable primitive in `auxi/src/components/primitives/` or `atoms/` that mirrors a Figma component | invoke `figma-code-connect-setup` — but DO NOT publish mapping to Figma without CEO sign-off (tech-lead reviews) |
 
 If two triggers match (e.g., Figma + new screen), invoke ALL relevant
 skills in order: `figma-design-extraction` → `figma-to-rn-workflow` →
@@ -82,6 +85,13 @@ sizes are not acceptable. Every Figma-driven task follows the
 
 Hard rules for Figma tasks:
 
+0. **Extraction artifact MANDATORY before any `.tsx` edit.** Save extraction
+   note to `plans/<active-plan>/figma-extraction-<screen>.md` using the
+   template in `figma-design-extraction` skill. File must contain: frame
+   tree, tokens used, icons, variants/states, open questions, new BE fields.
+   No artifact → no code. After saving, auto-dispatch `qa-ui` in
+   "review-extraction" mode to audit the note vs Figma BEFORE you write code.
+   qa-ui PASS or open-questions-resolved by CEO/tech-lead → then proceed.
 1. **Extract first, code second**. Use `mcp__claude_ai_Figma__get_metadata`
    for the node tree, `get_design_context` for component specs,
    `get_variable_defs` for tokens, and `get_screenshot` for visual reference.
@@ -121,8 +131,9 @@ yarn lint                       # baseline: 4 errors + 3 warnings; don't add mor
 
 For UI changes: smoke on iOS sim with `yarn ios:sim`. For Figma-driven UI:
 ALSO do the side-by-side comparison described above. Where deterministic
-UI verification is needed, use mobile-mcp + WebDriverAgent per
-`auxi/docs/MOBILE_MCP_MAC_IOS_SIM.md`.
+UI verification is needed, hand off to `qa-mobile` (mobile-mcp exploratory
+verify) or `qa-ui` (Maestro flow authoring) — you do NOT run mobile-mcp
+yourself. See `auxi/docs/MOBILE_MCP_MAC_IOS_SIM.md` for stack setup context.
 
 If you can't actually run the simulator in this session, say so explicitly
 instead of claiming "looks good."

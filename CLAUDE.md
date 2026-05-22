@@ -120,6 +120,75 @@ faithfully + verify on simulator). `qa-ui` also has Figma MCP access
 for compare mode (design-vs-actual diff). Don't shortcut these for
 visual work.
 
+## Mobile MCP tool grants (tiers)
+
+When granting `mcp__mobile-mcp__*` tools to an agent, pick the **smallest
+tier that fits the role**. Don't bulk-grant.
+
+| Tier | Use case | Agent | Tools |
+|---|---|---|---|
+| **Read-only screenshot** | Visual fidelity compare | `qa-ui` | `launch_app`, `take_screenshot`, `save_screenshot`, `list_available_devices`, `list_elements_on_screen`, `click_on_screen_at_coordinates` |
+| **Navigate + screenshot** | UX heuristic walks | `qa-ux` | Read-only + `swipe_on_screen`, `press_button`, `get_screen_size`, `list_apps`, `open_url` |
+| **Full exploratory** | Smoke verify, ticket close-out | `qa-mobile` | Navigate + `type_keys`, `terminate_app`, `get_crash`, `list_crashes` |
+
+`mobile-dev` does NOT have mobile-mcp — it writes code; sim verify hands
+off to `qa-mobile` or `qa-ui`. `tech-lead`, `backend-dev`, `pm` never
+need mobile-mcp.
+
+Setup + health: `auxi/docs/MOBILE_MCP_MAC_IOS_SIM.md`.
+Pre-flight: `./scripts/mcp-doctor.sh` (called best-effort by `qa-boot.sh`).
+Version pinned in `.mcp.json` at project root — don't unpin.
+
+## Figma → mobile UI workflow (canonical)
+
+The CEO is the designer. Drift between Figma and shipped UI is the #1 quality
+issue this project has. The workflow below is enforced — skipping any step
+defeats the gate.
+
+```
+1. mobile-dev gets a Figma URL
+   ↓
+2. mobile-dev invokes `figma-design-extraction` skill
+   → produces extraction note + saves to plans/<plan>/figma-extraction-<screen>.md
+   ↓
+3. mobile-dev auto-dispatches qa-ui (review-extraction mode)
+   → audit note vs Figma, Pass 1 ONLY (no code yet)
+   → PASS / FAIL / ESCALATE
+   ↓
+4. If PASS → mobile-dev invokes `figma-to-rn-workflow` skill
+   → Phase 0 verifies artifact + qa-ui review status
+   → Phase 1-7 implement
+   ↓
+5. `./scripts/auxi-lint-tokens.sh` clean (no hex/font drift)
+   ↓
+6. qa-ui Compare mode Pass 2+3 (code vs Figma, sim screenshot)
+   ↓
+7. qa-mobile smoke verify on sim (mobile-mcp exploratory)
+   ↓
+8. PR with template checklist all green → merge
+```
+
+**Supporting skills:**
+- `figma-design-extraction` — pull Figma structure + tokens + variants
+- `figma-to-rn-workflow` — Phase 0 artifact gate + 7-phase impl
+- `figma-theme-sync` — diff Figma vars vs `auxi/src/theme/theme.ts` (token drift)
+- `figma-icons-sync` — export missing SVGs with `currentColor` convention
+- `figma-code-connect-setup` — map Figma component → RN primitive in inspector
+- `auxi-rn-patterns` — primitives-first rule, screen registration, services
+- `auxi-figma-audit` — 3-pass Compare mode audit (post-code)
+
+**Supporting scripts:**
+- `./scripts/auxi-lint-tokens.sh` — hex literal + font family drift check
+- `./scripts/mcp-doctor.sh` — sim + WDA + mobile-mcp health-check
+- `./scripts/qa-boot.sh` — full stack boot + best-effort MCP doctor
+
+**PR template** (`.github/PULL_REQUEST_TEMPLATE.md`) enforces:
+- Figma URL with frame node-id
+- Extraction artifact path
+- qa-ui review-extraction PASS
+- `auxi-lint-tokens.sh` clean
+- Sim screenshot / qa-mobile verify ID
+
 The agents are NOT generic — they refuse work outside their scope and route
 to the right teammate. See each agent's frontmatter for hard boundaries.
 

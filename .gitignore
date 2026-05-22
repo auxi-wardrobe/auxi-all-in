@@ -33,3 +33,6 @@ ehthumbs.db
 # QA boot script artefacts
 logs/*
 !logs/.gitkeep
+
+# Third-party WebDriverAgent (cloned by scripts/wda-install.sh, not vendored)
+tools/wda/WebDriverAgent/

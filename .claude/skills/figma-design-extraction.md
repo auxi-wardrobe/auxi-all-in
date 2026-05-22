@@ -269,3 +269,36 @@ a paraphrase. Example:
 ```
 
 That note becomes the input to `figma-to-rn-workflow`.
+
+## Mandatory: save artifact to plan dir
+
+The extraction note above MUST be saved to disk before any `.tsx` work, not
+left in conversation only. Path:
+
+```
+plans/<active-plan-dir>/figma-extraction-<screen-or-feature-slug>.md
+```
+
+Use the section template above PLUS append these two sections:
+
+```markdown
+## Open questions for CEO / tech-lead
+- <variant ambiguity, copy gap, missing state, new field, etc.>
+- If no open questions: write "None — spec self-contained."
+
+## New backend fields (vs current API client)
+- <field name> — found in Figma <frame ref>, not in `auxi/src/services/<x>.ts`
+- If none: write "None — all fields covered by current contract."
+```
+
+Why mandatory:
+- Reviewer (qa-ui review-extraction mode, tech-lead, CEO) needs a stable
+  artifact to compare against Figma. Conversation messages get lost.
+- "New backend fields" section forces contract check BEFORE mobile coding
+  starts — avoids the "Materials/Energy/Purchase date implemented then
+  realize BE doesn't accept" loop.
+- Open questions list forces escalation rather than silent guessing.
+
+After saving, mobile-dev auto-dispatches `qa-ui` in `review-extraction`
+mode for a Pass 1 audit (artifact vs Figma). Only after qa-ui PASS does
+`figma-to-rn-workflow` begin.

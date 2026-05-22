@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "mobile-mcp": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@mobilenext/mobile-mcp@0.0.56"],
+      "env": {}
+    }
+  }
+}

@@ -262,12 +262,25 @@ To stop: ./scripts/qa-stop.sh
 EOF
 }
 
+# --- MCP doctor (best-effort, doesn't block boot) ---
+check_mcp() {
+  log "Running MCP doctor (best-effort — WDA + mobile-mcp health-check)..."
+  if "$SCRIPT_DIR/mcp-doctor.sh"; then
+    ok "MCP stack healthy"
+  else
+    local rc=$?
+    warn "MCP doctor exited $rc — mobile-mcp may not work this session"
+    warn "  Manual run: ./scripts/mcp-doctor.sh (or ignore if you don't need mobile-mcp now)"
+  fi
+}
+
 main() {
   preflight
   free_ports
   start_backend
   boot_simulator
   start_mobile
+  check_mcp
   print_handoff
 }
 

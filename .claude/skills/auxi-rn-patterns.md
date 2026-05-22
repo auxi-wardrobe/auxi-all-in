@@ -33,6 +33,51 @@ import { MyNewScreen } from '../screens/MyNewScreen';
 If you skip either, the navigation type is wrong (1) or `navigate` throws
 at runtime (2). There is no compile-time guard.
 
+## Primitives-first rule
+
+**Screens compose primitives — they do NOT build from scratch.**
+
+Auxi has `auxi/src/components/primitives/FigmaPrimitives.tsx` for the
+shared building blocks (TopIconButton, DividerRow, BottomSheetSurface,
+PillButton, etc.). Every new screen must:
+
+1. **Audit existing primitives first.** Grep `auxi/src/components/primitives/`
+   and `auxi/src/components/atoms/` for components that match the Figma node.
+2. **If a primitive exists** → reuse it. Do NOT re-implement.
+3. **If Figma shows a component pattern reused across screens but no RN
+   primitive exists** → create the primitive FIRST in `primitives/`, then
+   compose. Do NOT inline a one-off `<View>` stack on the screen with the
+   intent to "extract later."
+4. **Token-only styling.** Every `style={{}}` value comes from `theme.ts`
+   (colors, spacing, fonts, radius). No hex literal in screens. No literal
+   font family string in screens — go through `theme.text.*` preset.
+
+Quick scan before screening (`auxi/`):
+```bash
+ls auxi/src/components/primitives/
+ls auxi/src/components/atoms/
+grep -rn "export const" auxi/src/components/primitives/ auxi/src/components/atoms/
+```
+
+Why: every per-screen inline component is a source of drift (same row layout
+implemented 3 ways across 3 screens). Primitives stabilize the visual
+language and reduce qa-ui finding count.
+
+Anti-pattern (don't ship):
+```tsx
+// In MyScreen.tsx — inlining a row, hex literal, hardcoded font
+<View style={{ flexDirection: 'row', padding: 16, backgroundColor: '#FAFAFA' }}>
+  <Text style={{ fontFamily: 'Inter-Medium', fontSize: 14 }}>{label}</Text>
+</View>
+```
+
+Correct:
+```tsx
+import { DividerRow } from '../components/primitives/FigmaPrimitives';
+// DividerRow already encodes the Figma row pattern with theme tokens
+<DividerRow label={label} value={value} />
+```
+
 ## Service file pattern (HTTP)
 
 Never import axios in screens or hooks. New API surfaces become a service.
