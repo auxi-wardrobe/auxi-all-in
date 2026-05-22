@@ -33,6 +33,18 @@ git branch --show-current                                                       
 git pull --ff-only                                                                 # latest main
 git status --short                                                                 # clean tree
 
+# node_modules freshness — catches the "package.json moved but yarn install
+# didn't run" trap that silently breaks Metro at archive time. Bundle RN
+# fails ~6 min into the lane with `UnableToResolveError: Unable to resolve
+# module X` when a new JS dep was merged in but never installed locally.
+# Cheaper to run `yarn install --check-files` (~5-30s, no-op if clean) than
+# to debug a failed archive. `--ignore-engines` if the project's `engines`
+# pin a node version the user doesn't have — verify the install still
+# succeeds rather than skipping the check.
+yarn install --check-files --ignore-engines 2>&1 | tail -3
+test -d node_modules/i18next && echo ok-node-modules \
+  || echo "node_modules not fresh — rerun `yarn install --ignore-engines`"
+
 # Fastlane toolchain
 test -f ios/Gemfile && echo ok-gemfile
 test -f ios/fastlane/Fastfile && echo ok-fastfile
@@ -115,6 +127,7 @@ Then in App Store Connect:
 
 | Error | Diagnosis | Action |
 |---|---|---|
+| `UnableToResolveError: Unable to resolve module X` during Bundle RN | `node_modules` is missing a package that's declared in `package.json` (typical after a merge that added deps) | `yarn install --check-files --ignore-engines` then re-run `bundle exec fastlane beta`. The pre-flight now catches this — if it slipped through, the check was skipped |
 | `Could not find action 'cocoapods'` or `LoadError` | `bundle install` not run, or stale `vendor/bundle/` | `cd ios && bundle install` |
 | `app_store_connect_api_key: missing ASC_API_KEY_ID` | env vars not exported in this shell | `source ~/.zshrc` then retry, or check `~/.zshrc` has the exports |
 | `iOS 26.x is not installed` | Xcode 26 platform missing | Open Xcode → Settings → Platforms → install iOS 26 |
