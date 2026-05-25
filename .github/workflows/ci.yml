@@ -1,0 +1,62 @@
+# Umbrella CI — enforces the verification gates that were previously checklist-only.
+#
+# Mirrors `.github/PULL_REQUEST_TEMPLATE.md` + CLAUDE.md "Verification gates":
+#   - auxi:    npx tsc --noEmit + yarn lint   (mobile typecheck/lint)
+#   - auxi:    scripts/auxi-lint-tokens.sh     (#1 recurring qa-ui finding: token/font drift)
+#   - backend: pytest -m unit                  (hermetic, no external deps — see pyproject markers)
+#
+# SUBMODULES: auxi/ and wardrobe-backend/ are SEPARATE private repos. The default
+# GITHUB_TOKEN cannot read them, so checkout needs a PAT with `repo` scope stored as
+# the `SUBMODULE_TOKEN` secret (ducga1998 account). Create it once:
+#   gh secret set SUBMODULE_TOKEN --body "<PAT with repo scope>"
+# Until that secret exists, the submodule checkout (and therefore these jobs) will fail.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  auxi:
+    name: auxi · typecheck + lint + token drift
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          token: ${{ secrets.SUBMODULE_TOKEN }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install deps
+        working-directory: auxi
+        run: yarn install --frozen-lockfile
+      - name: Typecheck
+        working-directory: auxi
+        run: npx tsc --noEmit
+      - name: Lint (baseline preserved)
+        working-directory: auxi
+        run: yarn lint
+      - name: Token / font-family drift
+        run: ./scripts/auxi-lint-tokens.sh
+
+  backend:
+    name: backend · unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          token: ${{ secrets.SUBMODULE_TOKEN }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install deps
+        working-directory: wardrobe-backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-dev.txt
+      - name: Unit tests (hermetic marker)
+        working-directory: wardrobe-backend
+        run: pytest -m unit
