@@ -347,6 +347,15 @@
 
 ## Recent Changes (Last 30 Days)
 
+### 2026-06-12
+
+**AU-318 Wear-This Mood Feedback:**
+- User mood feedback loop integration (mood tags on "Wear this")
+- Backend contract: `POST /api/favorites` mood persistence + `GET /api/v05/mood-feedback/policy`
+- Mobile sheet UI for mood collection (occasion-contextual chips)
+- Analytics instrumentation (9 events)
+- Status: In Review, PRs auxi-backend#91 / auxi-mobile#62 (stacked on #60)
+
 ### 2026-05-17
 
 **Branch:** `feat/v05-eval-official-rubric-au259`
