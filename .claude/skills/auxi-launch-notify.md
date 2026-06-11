@@ -1,6 +1,6 @@
 ---
 name: auxi-launch-notify
-description: Announce a successful auxi TestFlight launch on three surfaces — GitHub Release, Linear comment, CHANGELOG.md. Use when the deploy skill auto-chains here after upload success, OR when the user says "announce build N", "post release notes", "launch notify", "thông báo build N", "post changelog cho build N". Each surface is idempotent — re-running is safe.
+description: Announce a successful auxi TestFlight launch on four surfaces — GitHub Release, Linear comment, CHANGELOG.md, Slack notification. Use when the deploy skill auto-chains here after upload success, OR when the user says "announce build N", "post release notes", "launch notify", "thông báo build N", "post changelog cho build N". Each surface is idempotent — re-running is safe.
 ---
 
 # Auxi → launch notification
@@ -34,7 +34,8 @@ Source these from `${TMPDIR:-/tmp}/auxi-archive/release-metadata.env` written by
 | `BRANCH` | yes | `chore/ship-infra-and-env` | `git branch --show-current` |
 | `LINEAR_TICKET` | no | `AU-249` | resolved from branch / commit footer / default |
 | `DRY_RUN` | no | `1` | print plan, do not write |
-| `SKIP_GH` / `SKIP_LINEAR` / `SKIP_CHANGELOG` | no | `1` | retry-only-one-surface escape hatches |
+| `SKIP_GH` / `SKIP_LINEAR` / `SKIP_CHANGELOG` / `SKIP_SLACK` | no | `1` | retry-only-one-surface escape hatches |
+| `SLACK_CHANNEL_ID` | no | `C0XXXXXXX` | Slack target; default DM to the user (`U08HFKEDVS5`) — connected workspace has no Auxi channel as of 2026-06 |
 
 Fail loud if any required var is empty.
 
@@ -168,11 +169,12 @@ else
   TODAY=$(date -u +%Y-%m-%d)
   # PREV_TAG resolved in Pre-resolution step above
   RANGE="${PREV_TAG:+$PREV_TAG..}$TAG"
-  # BSD-sed compatible: extended regex via -E, no escaped group/?
-  STRIP_PREFIX='-E s/^[a-z]+(\([^)]*\))?: */- /'
-  FEAT=$(git log --pretty='%s' "$RANGE" | grep -E '^feat(\(|:)' | sed $STRIP_PREFIX || true)
-  FIX=$(git log --pretty='%s' "$RANGE" | grep -E '^fix(\(|:)' | sed $STRIP_PREFIX || true)
-  CHANGED=$(git log --pretty='%s' "$RANGE" | grep -E '^(refactor|perf|chore)(\(|:)' | sed $STRIP_PREFIX || true)
+  # BSD-sed compatible: -E inline + single-quoted script. Do NOT stash the
+  # script in an unquoted variable (`sed $VAR`) — word-splitting shatters it
+  # into bogus args and macOS sed dies with "illegal option". Inline it.
+  FEAT=$(git log --pretty='%s' "$RANGE" | grep -E '^feat(\(|:)' | sed -E 's/^[a-z]+(\([^)]*\))?: */- /' || true)
+  FIX=$(git log --pretty='%s' "$RANGE" | grep -E '^fix(\(|:)' | sed -E 's/^[a-z]+(\([^)]*\))?: */- /' || true)
+  CHANGED=$(git log --pretty='%s' "$RANGE" | grep -E '^(refactor|perf|chore)(\(|:)' | sed -E 's/^[a-z]+(\([^)]*\))?: */- /' || true)
 
   # Build the section
   SECTION="## [$TAG] - $TODAY"$'\n'
@@ -197,6 +199,33 @@ EOF_PY
   echo "✓ Inserted $TAG section into CHANGELOG.md"
 fi
 ```
+
+## Surface 4 — Slack notification
+
+Interactive sessions only (uses the claude.ai Slack MCP — not available
+headless; in headless runs print `Slack: skipped — no MCP` and move on).
+
+Target resolution:
+1. `SLACK_CHANNEL_ID` env var if set
+2. Default: DM to the user — `U08HFKEDVS5`. (As of 2026-06 the connected
+   Slack workspace is the company workspace with NO Auxi channel — do NOT
+   post to #product-releases or #general there. When a dedicated Auxi
+   channel exists, set `SLACK_CHANNEL_ID` here and in the deploy chain.)
+
+**Idempotence check first**: `slack_read_channel` (or read DM history) for
+a message containing `$TAG` in the last 20 messages — skip if found.
+
+Message (via `mcp__claude_ai_Slack__slack_send_message`):
+
+```
+🚀 *Auxi $TAG live on TestFlight*
+• Release: $RELEASE_URL
+• Linear: $COMMENT_URL (ticket $LINEAR_TICKET)
+• Commit: $COMMIT_SHA (branch $BRANCH)
+Apple processing ~5–30 min. Internal testers get email after group assign.
+```
+
+If Slack MCP errors → report in summary, do NOT fail the other surfaces.
 
 ## Commit + push CHANGELOG
 
@@ -245,6 +274,7 @@ Launch notification — $TAG complete
 GH Release   : $RELEASE_URL
 Linear       : $COMMENT_URL  (ticket: $LINEAR_TICKET)
 CHANGELOG    : <last commit URL or "skipped — no change">
+Slack        : <message link or "skipped — <reason>">
 ==============================================
 ```
 
@@ -264,6 +294,8 @@ If `DRY_RUN=1`, print what each surface WOULD do and exit. No `gh` create, no Li
 | `git push` rejected (protected branch) | main is gated | Fall back to PR (above) |
 | CHANGELOG.md insert produces malformed output | python3 regex edge case | Print the file head + tail, ask user to manually fix |
 | `release-metadata.env` missing | Deploy skill didn't write it, or running standalone | Require all env vars on command line; print which ones are missing |
+| Slack MCP unavailable (headless/cron) | No interactive MCP session | Skip Surface 4, mark "skipped — no MCP" in summary; do not fail the run |
+| Slack send fails (channel not found / permission) | Wrong `SLACK_CHANNEL_ID` or bot not in channel | Fall back to DM `U08HFKEDVS5`; report in summary |
 
 Each surface should be independently retryable via `SKIP_<OTHER>=1`. After fixing one surface, re-run with the rest skipped.
 
