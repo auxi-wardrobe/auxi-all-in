@@ -43,3 +43,6 @@ worktrees/
 
 # Hook runtime logs (ephemeral per-session)
 .claude/hooks/.logs/
+
+# Brainstorming visual companion
+.superpowers/

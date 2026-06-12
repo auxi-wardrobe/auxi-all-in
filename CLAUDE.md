@@ -18,6 +18,7 @@ wardrobe_project/                      # ← this repo (umbrella)
     │   ├── mobile-dev.md              # works in auxi/ only · Figma-fluent
     │   ├── backend-dev.md             # works in wardrobe-backend/ only
     │   ├── tech-lead.md               # cross-repo, contracts & architecture
+    │   ├── devops.md                  # ops/infra: Railway, Cloudflare, DB, secrets, releases
     │   ├── qa-mobile.md               # mobile QA on auxi/, executes Maestro
     │   ├── qa-ui.md                   # visual fidelity, authors Maestro YAML
     │   ├── qa-ux.md                   # UX heuristic + a11y review
@@ -31,7 +32,9 @@ wardrobe_project/                      # ← this repo (umbrella)
         ├── auxi-qa-ux.md              # UX heuristic review playbook
         ├── figma-design-extraction.md # read Figma thoroughly
         ├── figma-to-rn-workflow.md    # implement Figma → RN faithfully
-        └── linear-pm-workflow.md      # PM ticket lifecycle
+        ├── linear-pm-workflow.md      # PM ticket lifecycle
+        ├── linear-sweep.md            # autopilot Phase 1 — scheduled board sweep (daily 09:00 cloud routine)
+        └── linear-autopilot.md        # autopilot Phase 2 — ticket→PR pipeline (dev→gates→review→QA→PR)
 ```
 
 **Rule of thumb**: dev agents are sandboxed to their own repo. Cross-repo work
@@ -107,7 +110,8 @@ git commit -m "chore: bump submodules"
 |---|---|---|
 | `mobile-dev` | `auxi/` only · Figma-fluent | RN screens from Figma, navigation, services, theme, i18n |
 | `backend-dev` | `wardrobe-backend/` only | FastAPI routers, services, repos, models, migrations |
-| `tech-lead` | both repos (read-mostly) | Contract changes, breaking migrations, design reviews, release coordination |
+| `tech-lead` | both repos (read-mostly) | Contract changes, breaking migrations, design reviews, release decisions (when/what — devops executes) |
+| `devops` | ops/infra files both repos · gated executor | Railway deploys + env/secret drift, prod↔local DB sync, Cloudflare/wrangler deploys + DNS/CORS, observability (Sentry/Railway metrics), release execution. Refuses app code |
 | `qa-mobile` | `auxi/` (read + test runs) | iOS/Android smoke, regression, mobile-mcp UI verification |
 | `qa-ui` | `auxi/` (read-only on src) · Figma-fluent | Visual fidelity sweeps, Figma-vs-actual diff, alignment/icon/typography/color/overflow bugs |
 | `qa-ux` | `auxi/` (read-only on src) | UX heuristic + a11y review — Nielsen's 10, mobile patterns, state coverage, IA, touch targets, contrast, VoiceOver, Dynamic Type. Findings only, no fix code |
@@ -132,8 +136,11 @@ tier that fits the role**. Don't bulk-grant.
 | **Full exploratory** | Smoke verify, ticket close-out | `qa-mobile` | Navigate + `type_keys`, `terminate_app`, `get_crash`, `list_crashes` |
 
 `mobile-dev` does NOT have mobile-mcp — it writes code; sim verify hands
-off to `qa-mobile` or `qa-ui`. `tech-lead`, `backend-dev`, `pm` never
-need mobile-mcp.
+off to `qa-mobile` or `qa-ui`. `tech-lead`, `backend-dev`, `devops`, `pm`
+never need mobile-mcp. `devops` instead carries Railway + Cloudflare +
+Sentry MCP grants — same "smallest tier that fits" rule applies (it gets
+read + common-mutate Railway tools; destructive deletes are withheld to
+force escalation).
 
 Setup + health: `auxi/docs/MOBILE_MCP_MAC_IOS_SIM.md`.
 Pre-flight: `./scripts/mcp-doctor.sh` (called best-effort by `qa-boot.sh`).

@@ -16,8 +16,11 @@ and architectural correctness.
    updated and `wardrobe-backend/API_DOCUMENTATION.md` is current.
 2. **Architecture decisions**: anything that crosses the contract, breaks
    data shapes, or changes the deployment story.
-3. **Release coordination**: pinning submodule HEADs in the umbrella repo,
-   sequencing backend deploys before mobile releases that depend on them.
+3. **Release coordination**: you DECIDE the release — pinning submodule
+   HEADs in the umbrella repo, sequencing backend deploys before mobile
+   releases that depend on them. The `devops` agent EXECUTES the mechanics
+   (the actual deploy, env vars, DB ops, submodule pin/push). You call
+   when/what; devops makes it happen. Hand off infra failures to devops.
 4. **Dispute resolution**: when mobile-dev and backend-dev disagree on
    contract responsibility, you call it.
 

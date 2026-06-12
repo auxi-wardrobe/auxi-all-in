@@ -1,0 +1,280 @@
+- generic [ref=e5]:
+  - generic [ref=e6]:
+    - generic [ref=e8]:
+      - generic [ref=e9]: Auxi
+      - text: Admin
+    - navigation [ref=e10]:
+      - link "Dashboard" [ref=e11] [cursor=pointer]:
+        - /url: /
+        - img [ref=e12]
+        - text: Dashboard
+      - link "Users" [ref=e14] [cursor=pointer]:
+        - /url: /users
+        - img [ref=e15]
+        - text: Users
+      - link "Common Items" [ref=e17] [cursor=pointer]:
+        - /url: /common-items
+        - img [ref=e18]
+        - text: Common Items
+      - link "AI Generate" [ref=e20] [cursor=pointer]:
+        - /url: /ai-generate
+        - img [ref=e21]
+        - text: AI Generate
+      - link "Algorithm Cockpit" [ref=e23] [cursor=pointer]:
+        - /url: /algorithm-cockpit
+        - img [ref=e24]
+        - text: Algorithm Cockpit
+      - link "Recommendation Test" [ref=e26] [cursor=pointer]:
+        - /url: /recommendation-test
+        - img [ref=e27]
+        - text: Recommendation Test
+      - link "Valen Recommendation" [ref=e29] [cursor=pointer]:
+        - /url: /valen-recommendation
+        - img [ref=e30]
+        - text: Valen Recommendation
+      - link "Recommendation Eval" [ref=e32] [cursor=pointer]:
+        - /url: /recommendation-evaluation
+        - img [ref=e33]
+        - text: Recommendation Eval
+      - link "V05 Outfit Tester" [ref=e35] [cursor=pointer]:
+        - /url: /v05-tester
+        - img [ref=e36]
+        - text: V05 Outfit Tester
+      - link "V05 Metrics" [ref=e39] [cursor=pointer]:
+        - /url: /v05-metrics
+        - img [ref=e40]
+        - text: V05 Metrics
+      - link "Bulk Auto-Tag" [ref=e42] [cursor=pointer]:
+        - /url: /bulk-tag
+        - img [ref=e43]
+        - text: Bulk Auto-Tag
+  - main [ref=e46]:
+    - generic [ref=e47]:
+      - generic [ref=e48]:
+        - img [ref=e49]
+        - heading "V05 Outfit Tester" [level=1] [ref=e51]
+        - code [ref=e52]: /api/v05/recommendation/build
+      - generic [ref=e54]:
+        - generic [ref=e55]:
+          - img [ref=e56]
+          - generic [ref=e59]: Run as
+        - generic [ref=e61]:
+          - generic [ref=e62]:
+            - text: qa-test@auxi.appuser
+            - combobox [ref=e63]
+          - img "down" [ref=e142]:
+            - img [ref=e143]
+          - img "close-circle" [ref=e139] [cursor=pointer]:
+            - img [ref=e140]
+        - generic [ref=e145]:
+          - img [ref=e146]
+          - generic [ref=e149]: 65 wardrobe items
+      - generic [ref=e69]:
+        - generic [ref=e70]:
+          - generic [ref=e71]:
+            - generic [ref=e72]:
+              - img [ref=e73]
+              - heading "Weather" [level=3] [ref=e76]
+            - generic [ref=e77]:
+              - text: Temperature (°C)
+              - spinbutton "Temperature (°C)" [ref=e78]: "20"
+            - generic [ref=e79]:
+              - generic [ref=e80]:
+                - img [ref=e81]
+                - generic [ref=e84]: Rainy
+              - button "Rainy" [ref=e85]
+          - generic [ref=e87]:
+            - generic [ref=e88]:
+              - img [ref=e89]
+              - heading "User" [level=3] [ref=e92]
+            - generic [ref=e93]:
+              - text: Gender
+              - generic [ref=e94]:
+                - button "M" [ref=e95]
+                - button "W" [ref=e96]
+                - button "U" [ref=e97]
+            - generic [ref=e98]:
+              - text: Occasion
+              - combobox "Occasion" [ref=e99]:
+                - option "casual" [selected]
+                - option "work"
+                - option "weekend"
+                - option "outdoor"
+                - option "sports"
+                - option "beach"
+                - option "formal"
+                - option "special_event"
+                - option "formal_event"
+                - option "date"
+                - option "date_night"
+                - option "unknown"
+          - generic [ref=e100]:
+            - generic [ref=e101]:
+              - img [ref=e102]
+              - heading "Output" [level=3] [ref=e105]
+            - generic [ref=e106]:
+              - text: Count
+              - generic [ref=e107]:
+                - button "1" [ref=e108]
+                - button "2" [ref=e109]
+                - button "3" [ref=e110]
+          - button "Advanced" [ref=e112]:
+            - img [ref=e113]
+            - img [ref=e115]
+            - generic [ref=e118]: Advanced
+          - button "Build Outfits" [ref=e119]:
+            - img [ref=e120]
+            - text: Build Outfits
+        - generic [ref=e122]:
+          - generic [ref=e150]:
+            - generic [ref=e151]:
+              - paragraph [ref=e152]:
+                - text: "1 outfit returned — suggested default:"
+                - generic [ref=e153]: "#1"
+              - paragraph [ref=e154]:
+                - generic [ref=e155]: Session
+                - generic "0c7b4703-5278-46f4-95ee-f15075cfe886" [ref=e156]: 0c7b4703…
+            - button "Clear" [ref=e157]
+          - article [ref=e158]:
+            - generic [ref=e159]:
+              - 'heading "Outfit #1" [level=2] [ref=e160]'
+              - generic [ref=e161]: "score: 0.685"
+              - generic "18bbb171ad9c" [ref=e162]: "#18bbb171ad9c"
+              - generic [ref=e163]:
+                - img [ref=e164]
+                - text: suggested
+            - generic [ref=e166]:
+              - paragraph [ref=e167]: Items (2)
+              - generic [ref=e168]:
+                - generic [ref=e169]:
+                  - img "MUL DRS (FLO)" [ref=e171]
+                  - generic [ref=e172]:
+                    - paragraph [ref=e173]: MUL DRS (FLO)
+                    - paragraph [ref=e174]: FULL_BODY
+                    - generic [ref=e175]: MUL
+                    - generic [ref=e176]:
+                      - generic [ref=e177]: SOFT
+                      - generic [ref=e178]: CASUAL
+                    - paragraph [ref=e179]: USR_FB_DRS_MUL_FLO_01
+                - generic [ref=e180]:
+                  - img "BGE HEL (STR)" [ref=e182]
+                  - generic [ref=e183]:
+                    - paragraph [ref=e184]: BGE HEL (STR)
+                    - paragraph [ref=e185]: FOOTWEAR
+                    - generic [ref=e186]: TAN
+                    - generic [ref=e187]:
+                      - generic [ref=e188]: CASUAL
+                      - generic [ref=e189]: MINIMAL
+                    - paragraph [ref=e190]: USR_SH_HEL_BGE_STR_01
+            - generic [ref=e191]:
+              - paragraph [ref=e192]: Styling Note
+              - paragraph [ref=e193]: “Easy and ready.”
+            - generic [ref=e194]:
+              - paragraph [ref=e195]: Vibe Signature
+              - generic [ref=e196]:
+                - generic [ref=e199]: mixed
+                - generic [ref=e200]: REGULAR
+                - generic [ref=e201]: smart_casual
+                - generic [ref=e203]: statement
+                - generic [ref=e210]: CASUAL
+                - generic [ref=e211]: MINIMAL
+                - generic [ref=e212]: SOFT
+            - button "Debug reasoning" [ref=e214]:
+              - img [ref=e215]
+              - text: Debug reasoning
+            - generic [ref=e217]:
+              - generic [ref=e219]:
+                - img [ref=e220]
+                - 'heading "Try Another — from Outfit #1" [level=3] [ref=e223]'
+              - generic [ref=e224]:
+                - generic [ref=e225]: Varying from
+                - generic "18bbb171ad9c" [ref=e226]: "#18bbb171ad9c"
+              - generic [ref=e227]:
+                - generic [ref=e228]:
+                  - text: Axis
+                  - combobox "Axis" [ref=e229]:
+                    - option "auto (engine cycles by seen)" [selected]
+                    - option "Silhouette"
+                    - option "Color"
+                    - option "Layering"
+                    - option "Footwear"
+                    - option "Accessory"
+                - generic [ref=e230]:
+                  - generic [ref=e231]:
+                    - img [ref=e232]
+                    - text: Style feedback (optional, max 500)
+                  - textbox "Style feedback (optional, max 500)" [ref=e235]:
+                    - /placeholder: e.g. less formal, more pastel
+              - button "Try Another" [ref=e236]:
+                - img [ref=e237]
+                - text: Try Another
+          - generic [ref=e239]:
+            - button "Engine Trace v0.5" [active] [ref=e240]:
+              - img [ref=e248]
+              - img [ref=e243]
+              - generic [ref=e246]: Engine Trace
+              - generic [ref=e247]: v0.5
+            - generic [ref=e251]:
+              - generic [ref=e252]:
+                - paragraph [ref=e253]: Engine Diagnostics
+                - generic [ref=e254]:
+                  - paragraph [ref=e256]: Tier Pools (after pre-tag)
+                  - generic [ref=e257]:
+                    - img [ref=e258]
+                    - generic [ref=e260]:
+                      - text: Only
+                      - strong [ref=e261]: "1"
+                      - text: of 3 tiers populated — LLM-1 won't fire (needs ≥ 2).
+                  - generic [ref=e262]:
+                    - generic [ref=e263]:
+                      - paragraph [ref=e264]: safe
+                      - paragraph [ref=e265]: "1"
+                    - generic [ref=e266]:
+                      - paragraph [ref=e267]: elevated
+                      - paragraph [ref=e268]: "0"
+                    - generic [ref=e269]:
+                      - paragraph [ref=e270]: exploratory
+                      - paragraph [ref=e271]: "0"
+                - generic [ref=e272]:
+                  - generic [ref=e273]:
+                    - paragraph [ref=e274]: LLM-1
+                    - generic [ref=e275]:
+                      - generic [ref=e276]:
+                        - img [ref=e277]
+                        - text: fallback (insufficient_pools)
+                      - generic [ref=e279]: cache miss
+                      - generic [ref=e280]: 0 ms
+                  - generic [ref=e281]:
+                    - paragraph [ref=e282]: LLM-3
+                    - text: n/a
+                - generic [ref=e283]:
+                  - generic [ref=e284]:
+                    - paragraph [ref=e285]: Anchor Diversity Score
+                    - text: "3.000"
+                  - generic [ref=e286]:
+                    - paragraph [ref=e287]: Anchor Pool Size
+                    - text: "6"
+                - generic [ref=e288]:
+                  - paragraph [ref=e289]: Pool Sizes After L1
+                  - generic [ref=e290]:
+                    - generic [ref=e291]: "FULL_BODY: 2"
+                    - generic [ref=e292]: "ACCESSORY: 8"
+                    - generic [ref=e293]: "BOTTOM: 2"
+                    - generic [ref=e294]: "TOP: 2"
+                    - generic [ref=e295]: "OUTER: 1"
+                    - generic [ref=e296]: "FOOTWEAR: 5"
+                - generic [ref=e297]:
+                  - paragraph [ref=e298]: Layer Timings
+                  - generic [ref=e299]:
+                    - generic [ref=e300]: "L1: 0 ms"
+                    - generic [ref=e301]: "L2: 0 ms"
+                    - generic [ref=e302]: "L3: 0 ms"
+                    - generic [ref=e303]: "L4: 0 ms"
+                    - generic [ref=e304]: "L5: 0 ms"
+                    - generic [ref=e305]: "L6: 0 ms"
+                - generic [ref=e306]:
+                  - paragraph [ref=e307]: Fallback Flags
+                  - generic [ref=e309]: style_diversity_unmet
+              - generic [ref=e310]:
+                - paragraph [ref=e311]: Skipped Logs
+                - paragraph [ref=e312]: "52"

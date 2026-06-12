@@ -31,3 +31,6 @@ coverage
 !api/v05/recommendation/try_another
 !wardrobe-backend/.venv
 
+# Allow referencing Xcode DerivedData build products (simctl install of compiled auxi.app)
+!**/DerivedData/**
+

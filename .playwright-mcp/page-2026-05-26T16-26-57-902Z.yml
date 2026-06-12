@@ -1,0 +1,251 @@
+- generic [ref=e14]:
+  - generic [ref=e15]:
+    - generic [ref=e17]:
+      - generic [ref=e18]: Auxi
+      - text: Admin
+    - navigation [ref=e19]:
+      - link "Dashboard" [ref=e20] [cursor=pointer]:
+        - /url: /
+        - img [ref=e21]
+        - text: Dashboard
+      - link "Users" [ref=e24] [cursor=pointer]:
+        - /url: /users
+        - img [ref=e25]
+        - text: Users
+      - link "Common Items" [ref=e27] [cursor=pointer]:
+        - /url: /common-items
+        - img [ref=e28]
+        - text: Common Items
+      - link "AI Generate" [ref=e30] [cursor=pointer]:
+        - /url: /ai-generate
+        - img [ref=e31]
+        - text: AI Generate
+      - link "Algorithm Cockpit" [ref=e33] [cursor=pointer]:
+        - /url: /algorithm-cockpit
+        - img [ref=e34]
+        - text: Algorithm Cockpit
+      - link "Recommendation Test" [ref=e36] [cursor=pointer]:
+        - /url: /recommendation-test
+        - img [ref=e37]
+        - text: Recommendation Test
+      - link "Valen Recommendation" [ref=e39] [cursor=pointer]:
+        - /url: /valen-recommendation
+        - img [ref=e40]
+        - text: Valen Recommendation
+      - link "Recommendation Eval" [ref=e42] [cursor=pointer]:
+        - /url: /recommendation-evaluation
+        - img [ref=e43]
+        - text: Recommendation Eval
+      - link "V05 Outfit Tester" [ref=e45] [cursor=pointer]:
+        - /url: /v05-tester
+        - img [ref=e46]
+        - text: V05 Outfit Tester
+      - link "V05 Metrics" [ref=e48] [cursor=pointer]:
+        - /url: /v05-metrics
+        - img [ref=e49]
+        - text: V05 Metrics
+      - link "Bulk Auto-Tag" [ref=e51] [cursor=pointer]:
+        - /url: /bulk-tag
+        - img [ref=e52]
+        - text: Bulk Auto-Tag
+  - main [ref=e55]:
+    - generic [ref=e56]:
+      - generic [ref=e57]:
+        - generic [ref=e58]:
+          - heading "System Overview" [level=1] [ref=e59]
+          - paragraph [ref=e60]: Real-time metrics and system health
+        - generic [ref=e61]: API Connected
+      - generic [ref=e63]:
+        - generic [ref=e64]:
+          - generic [ref=e66]:
+            - img [ref=e68]
+            - generic [ref=e71]:
+              - img [ref=e72]
+              - text: 12%
+          - generic [ref=e74]:
+            - heading "Total Users" [level=2] [ref=e75]
+            - paragraph [ref=e76]: "15"
+        - generic [ref=e77]:
+          - generic [ref=e79]:
+            - img [ref=e81]
+            - generic [ref=e84]:
+              - img [ref=e85]
+              - text: 12%
+          - generic [ref=e87]:
+            - heading "Common Items" [level=2] [ref=e88]
+            - paragraph [ref=e89]: "162"
+        - generic [ref=e90]:
+          - generic [ref=e92]:
+            - img [ref=e94]
+            - generic [ref=e97]:
+              - img [ref=e98]
+              - text: 12%
+          - generic [ref=e100]:
+            - heading "Personal Items" [level=2] [ref=e101]
+            - paragraph [ref=e102]: "300"
+        - generic [ref=e103]:
+          - generic [ref=e105]:
+            - img [ref=e107]
+            - generic [ref=e110]:
+              - img [ref=e111]
+              - text: 12%
+          - generic [ref=e113]:
+            - heading "Total Recommendations" [level=2] [ref=e114]
+            - paragraph [ref=e115]: "246"
+      - generic [ref=e116]:
+        - generic [ref=e117]:
+          - heading "Recommendation Volume (30d)" [level=3] [ref=e119]:
+            - img [ref=e120]
+            - text: Recommendation Volume (30d)
+          - generic [ref=e125]:
+            - generic:
+              - generic:
+                - paragraph: Day 11
+                - paragraph:
+                  - img
+                  - text: 74 Req
+            - application [ref=e126]
+        - generic [ref=e133]:
+          - generic [ref=e134]:
+            - heading "New Signups" [level=3] [ref=e135]:
+              - img [ref=e136]
+              - text: New Signups
+            - link "View All" [ref=e139] [cursor=pointer]:
+              - /url: /users
+          - list [ref=e140]:
+            - listitem [ref=e141]:
+              - generic [ref=e142]:
+                - link "qa-onb-260526b@auxi.app" [ref=e143] [cursor=pointer]:
+                  - /url: /users/669ebad8-262b-4dcf-a341-abfb60c345fe
+                - generic [ref=e144]:
+                  - img [ref=e145]
+                  - text: May 26, 05:54 PM
+              - img [ref=e147]
+            - listitem [ref=e149]:
+              - generic [ref=e150]:
+                - link "qa-onb-260526@auxi.app" [ref=e151] [cursor=pointer]:
+                  - /url: /users/02d56ea8-ff18-4ace-a505-180baf38c62b
+                - generic [ref=e152]:
+                  - img [ref=e153]
+                  - text: May 26, 05:39 PM
+              - img [ref=e155]
+            - listitem [ref=e157]:
+              - generic [ref=e158]:
+                - link "duc2820@gmail.com" [ref=e159] [cursor=pointer]:
+                  - /url: /users/df3c24b6-2808-4451-95d8-1d9852720c86
+                - generic [ref=e160]:
+                  - img [ref=e161]
+                  - text: May 25, 05:50 PM
+              - img [ref=e163]
+            - listitem [ref=e165]:
+              - generic [ref=e166]:
+                - link "viettran@macgie.com" [ref=e167] [cursor=pointer]:
+                  - /url: /users/be4cfbeb-449c-4110-8b39-c209ffb1b6c6
+                - generic [ref=e168]:
+                  - img [ref=e169]
+                  - text: May 25, 03:12 AM
+              - img [ref=e171]
+            - listitem [ref=e173]:
+              - generic [ref=e174]:
+                - link "maikatran05@gmail.com" [ref=e175] [cursor=pointer]:
+                  - /url: /users/10b03e03-a3ba-4db6-8dfd-00150041cd64
+                - generic [ref=e176]:
+                  - img [ref=e177]
+                  - text: May 19, 04:00 AM
+              - img [ref=e179]
+        - generic [ref=e181]:
+          - generic [ref=e182]:
+            - heading "Engine Activity Log" [level=3] [ref=e183]:
+              - img [ref=e184]
+              - text: Engine Activity Log
+            - generic [ref=e187]: Live Feed
+          - table [ref=e189]:
+            - rowgroup [ref=e190]:
+              - row "Type Hash User ID Time" [ref=e191]:
+                - columnheader "Type" [ref=e192]
+                - columnheader "Hash" [ref=e193]
+                - columnheader "User ID" [ref=e194]
+                - columnheader "Time" [ref=e195]
+            - rowgroup [ref=e196]:
+              - row "start JNS_GRY_... b32cb743... May 11, 04:27 PM" [ref=e197]:
+                - cell "start" [ref=e198]
+                - cell "JNS_GRY_..." [ref=e199]
+                - cell "b32cb743..." [ref=e200]:
+                  - link "b32cb743..." [ref=e201] [cursor=pointer]:
+                    - /url: /users/b32cb743-2264-411c-abf1-ee14f6733368
+                - cell "May 11, 04:27 PM" [ref=e202]
+              - row "start JNS_GRY_... b32cb743... May 11, 04:26 PM" [ref=e203]:
+                - cell "start" [ref=e204]
+                - cell "JNS_GRY_..." [ref=e205]
+                - cell "b32cb743..." [ref=e206]:
+                  - link "b32cb743..." [ref=e207] [cursor=pointer]:
+                    - /url: /users/b32cb743-2264-411c-abf1-ee14f6733368
+                - cell "May 11, 04:26 PM" [ref=e208]
+              - row "next SKR_TAN_... b32cb743... May 6, 01:32 PM" [ref=e209]:
+                - cell "next" [ref=e210]
+                - cell "SKR_TAN_..." [ref=e211]
+                - cell "b32cb743..." [ref=e212]:
+                  - link "b32cb743..." [ref=e213] [cursor=pointer]:
+                    - /url: /users/b32cb743-2264-411c-abf1-ee14f6733368
+                - cell "May 6, 01:32 PM" [ref=e214]
+              - row "start SKR_TAN_... b32cb743... May 6, 01:31 PM" [ref=e215]:
+                - cell "start" [ref=e216]
+                - cell "SKR_TAN_..." [ref=e217]
+                - cell "b32cb743..." [ref=e218]:
+                  - link "b32cb743..." [ref=e219] [cursor=pointer]:
+                    - /url: /users/b32cb743-2264-411c-abf1-ee14f6733368
+                - cell "May 6, 01:31 PM" [ref=e220]
+              - row "next SHO_NVY_... b32cb743... May 6, 10:24 AM" [ref=e221]:
+                - cell "next" [ref=e222]
+                - cell "SHO_NVY_..." [ref=e223]
+                - cell "b32cb743..." [ref=e224]:
+                  - link "b32cb743..." [ref=e225] [cursor=pointer]:
+                    - /url: /users/b32cb743-2264-411c-abf1-ee14f6733368
+                - cell "May 6, 10:24 AM" [ref=e226]
+              - row "next SKR_BLK_... b32cb743... May 6, 10:12 AM" [ref=e227]:
+                - cell "next" [ref=e228]
+                - cell "SKR_BLK_..." [ref=e229]
+                - cell "b32cb743..." [ref=e230]:
+                  - link "b32cb743..." [ref=e231] [cursor=pointer]:
+                    - /url: /users/b32cb743-2264-411c-abf1-ee14f6733368
+                - cell "May 6, 10:12 AM" [ref=e232]
+        - generic [ref=e233]:
+          - heading "Recent Uploads" [level=3] [ref=e235]:
+            - img [ref=e236]
+            - text: Recent Uploads
+          - list [ref=e239]:
+            - listitem [ref=e240]:
+              - img "Structured Blouse · Cobalt" [ref=e242]
+              - generic [ref=e243]:
+                - paragraph [ref=e244]: Structured Blouse · Cobalt
+                - generic [ref=e245]:
+                  - generic [ref=e246]: BLS
+                  - generic [ref=e247]: 5/26/2026
+            - listitem [ref=e248]:
+              - img "Grey WST (Regular)" [ref=e250]
+              - generic [ref=e251]:
+                - paragraph [ref=e252]: Grey WST (Regular)
+                - generic [ref=e253]:
+                  - generic [ref=e254]: VST
+                  - generic [ref=e255]: 5/26/2026
+            - listitem [ref=e256]:
+              - img "Black DRS (BLZ)" [ref=e258]
+              - generic [ref=e259]:
+                - paragraph [ref=e260]: Black DRS (BLZ)
+                - generic [ref=e261]:
+                  - generic [ref=e262]: DRS
+                  - generic [ref=e263]: 5/26/2026
+            - listitem [ref=e264]:
+              - img "Black PEP (Regular)" [ref=e266]
+              - generic [ref=e267]:
+                - paragraph [ref=e268]: Black PEP (Regular)
+                - generic [ref=e269]:
+                  - generic [ref=e270]: BLS
+                  - generic [ref=e271]: 5/26/2026
+            - listitem [ref=e272]:
+              - img "Structured Shirt · Cobalt" [ref=e274]
+              - generic [ref=e275]:
+                - paragraph [ref=e276]: Structured Shirt · Cobalt
+                - generic [ref=e277]:
+                  - generic [ref=e278]: SHR
+                  - generic [ref=e279]: 5/26/2026

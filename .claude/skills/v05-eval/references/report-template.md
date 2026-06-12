@@ -127,7 +127,7 @@ Which pipeline stage raises most:
 | L1 (post-filter) | <n> | <pct>% |
 | pre-L1 (no_user_items) | <n> | <pct>% |
 | L4 (mood) | <n> | <pct>% |
-| L5 (force_axis) | <n> | <pct>% |
+| L5 (distance filter) | <n> | <pct>% |
 
 ## Per-user repeat failures
 

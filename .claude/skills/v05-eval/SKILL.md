@@ -1,6 +1,6 @@
 ---
 name: v05-eval
-description: "V05 outfit recommendation eval — run live scenarios, mine PoolInsufficient logs, multimodal scoring. Surfaces real failures (climate-starved slots, axis filter exhaustion) and outfit quality regressions."
+description: "V05 outfit recommendation eval — run live scenarios, mine PoolInsufficient logs, multimodal scoring. Surfaces real failures (climate-starved slots, distance-floor exhaustion) and outfit quality regressions."
 category: project-tools
 keywords: [v05, eval, outfit, recommendation, qa, pool-insufficient, wardrobe]
 argument-hint: "[--fresh|--logs|--hybrid] [--count N] [--days N] [--scenarios <csv>]"
@@ -25,6 +25,17 @@ End-to-end QA harness for the V05 outfit recommendation engine. Replaces the man
 - Before shipping new V05 feature — surface failure patterns in advance
 - Periodically (weekly) — mine DB log for new failure clusters → feed into Linear backlog
 
+## Try-another success metric (distinctness — since 260611, replaces axis success)
+
+A `try_another` call **succeeds** when the response outfit is non-null AND
+`trace.min_distance ≥ trace.distance_floor` AND `fallback_flags` contains none of
+{`relaxed_distance`, `variations_cycled`, `exclude_relaxed`}. Terminal
+"no more variations" calls are counted separately (report both incl./excl., FU-04 framing).
+Report alongside: distance histogram, relaxed/cycled/terminal rates, reseed evidence
+(pool growth), and zero unflagged repeated `outfit_hash` per session (hard fail).
+Targets: fresh-pool ≥85% · full 10-call session ≥80% · p95 ≤2.5s · zero 5xx.
+Reference run: `wardrobe-backend/plans/reports/v05-eval-260611-diversity-try-another.md`.
+
 ## Three modes
 
 ### `--fresh` — Run new eval matrix (default if no flag)
@@ -32,7 +43,7 @@ End-to-end QA harness for the V05 outfit recommendation engine. Replaces the man
 1. Login as qa-test account
 2. For each scenario (gender × temp × occasion × mood):
    - POST `/api/v05/recommendation/build`
-   - Cycle 4-9 `try_another` calls across 5 axes
+   - Cycle 4-10 `try_another` calls (distance-based diversity — no axis param since 260611)
    - Download item images locally
 3. Spawn multimodal subagent per scenario → read images + score per rubric
 4. Aggregate report → `wardrobe-backend/plans/reports/v05-eval-<date>-fresh.md`

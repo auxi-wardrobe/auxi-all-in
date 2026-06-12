@@ -1,0 +1,7 @@
+- generic [ref=e5]:
+  - img [ref=e7]
+  - generic [ref=e9]: You're not logged in
+  - generic [ref=e10]: Sign in to your AhaSlides account to access the survey builder.
+  - link "Go to login" [ref=e12] [cursor=pointer]:
+    - /url: https://presenter.dev.ahaslide.com
+    - generic [ref=e13]: Go to login

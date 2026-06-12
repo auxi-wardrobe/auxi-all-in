@@ -39,7 +39,7 @@ User can pass `--scenarios "<gender>/<temp_c>/<occasion>[/<mood>],..."`. Example
 When designing new scenarios, ensure:
 - [ ] Covers a climate bucket boundary (29°C, 19°C, 14°C are sensitive)
 - [ ] Tests mood combinations not in default matrix
-- [ ] Tests `force_axis` if available (extend eval script to accept `--axis`)
+- [ ] Exercises deep try_another sessions (≥10 calls) to probe distance-floor exhaustion / ladder behavior
 - [ ] Includes occasion variants (casual + work + event)
 - [ ] Tests across genders (M and W) for symmetry
 

@@ -1,0 +1,161 @@
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - generic [ref=e6]:
+      - generic [ref=e7]: Auxi
+      - text: Admin
+    - navigation [ref=e8]:
+      - link "Dashboard" [ref=e9] [cursor=pointer]:
+        - /url: /
+        - img [ref=e10]
+        - text: Dashboard
+      - link "Users" [ref=e12] [cursor=pointer]:
+        - /url: /users
+        - img [ref=e13]
+        - text: Users
+      - link "Common Items" [ref=e15] [cursor=pointer]:
+        - /url: /common-items
+        - img [ref=e16]
+        - text: Common Items
+      - link "AI Generate" [ref=e18] [cursor=pointer]:
+        - /url: /ai-generate
+        - img [ref=e19]
+        - text: AI Generate
+      - link "Algorithm Cockpit" [ref=e21] [cursor=pointer]:
+        - /url: /algorithm-cockpit
+        - img [ref=e22]
+        - text: Algorithm Cockpit
+      - link "Recommendation Test" [ref=e24] [cursor=pointer]:
+        - /url: /recommendation-test
+        - img [ref=e25]
+        - text: Recommendation Test
+      - link "Valen Recommendation" [ref=e27] [cursor=pointer]:
+        - /url: /valen-recommendation
+        - img [ref=e28]
+        - text: Valen Recommendation
+      - link "Recommendation Eval" [ref=e30] [cursor=pointer]:
+        - /url: /recommendation-evaluation
+        - img [ref=e31]
+        - text: Recommendation Eval
+      - link "V05 Outfit Tester" [ref=e33] [cursor=pointer]:
+        - /url: /v05-tester
+        - img [ref=e34]
+        - text: V05 Outfit Tester
+      - link "V05 Metrics" [ref=e37] [cursor=pointer]:
+        - /url: /v05-metrics
+        - img [ref=e38]
+        - text: V05 Metrics
+      - link "Bulk Auto-Tag" [ref=e40] [cursor=pointer]:
+        - /url: /bulk-tag
+        - img [ref=e41]
+        - text: Bulk Auto-Tag
+  - main [ref=e44]:
+    - generic [ref=e45]:
+      - generic [ref=e48]:
+        - generic [ref=e49]:
+          - img [ref=e50]
+          - text: V05 Engine — Design QA
+        - heading "V05 Outfit Tester" [level=1] [ref=e52]
+        - paragraph [ref=e53]:
+          - text: Drive
+          - code [ref=e54]: /api/v05/recommendation/build
+          - text: directly. Tune every input parameter and inspect outfit cards, vibe signatures, and the engine trace — no mobile app required.
+      - generic [ref=e56]:
+        - generic [ref=e57]:
+          - img [ref=e58]
+          - generic [ref=e61]: Run as
+        - generic [ref=e63]:
+          - generic [ref=e64]:
+            - generic: Search user by email… (empty = test as myself)
+            - combobox [expanded] [active] [ref=e65]:
+              - listbox [ref=e149]: Type to search…
+          - img "search" [ref=e150]:
+            - img [ref=e151]
+        - generic [ref=e70]: Self-test mode — using your own wardrobe
+      - generic [ref=e71]:
+        - generic [ref=e72]:
+          - generic [ref=e73]:
+            - generic [ref=e74]:
+              - img [ref=e75]
+              - heading "Weather" [level=3] [ref=e78]
+            - generic [ref=e79]:
+              - text: Temperature (°C)
+              - spinbutton "Temperature (°C)" [ref=e80]: "20"
+            - generic [ref=e81]:
+              - generic [ref=e82]:
+                - img [ref=e83]
+                - generic [ref=e86]: Rainy
+              - button "Rainy" [ref=e87]
+          - generic [ref=e89]:
+            - generic [ref=e90]:
+              - img [ref=e91]
+              - heading "User" [level=3] [ref=e94]
+            - generic [ref=e95]:
+              - text: Gender
+              - generic [ref=e96]:
+                - button "M" [ref=e97]
+                - button "W" [ref=e98]
+                - button "U" [ref=e99]
+            - generic [ref=e100]:
+              - text: Occasion
+              - combobox "Occasion" [ref=e101]:
+                - option "casual" [selected]
+                - option "work"
+                - option "weekend"
+                - option "outdoor"
+                - option "sports"
+                - option "beach"
+                - option "formal"
+                - option "special_event"
+                - option "formal_event"
+                - option "date"
+                - option "date_night"
+                - option "unknown"
+          - generic [ref=e102]:
+            - generic [ref=e103]:
+              - img [ref=e104]
+              - heading "Intent" [level=3] [ref=e107]
+            - generic [ref=e108]:
+              - text: Mood (optional)
+              - combobox "Mood (optional)" [ref=e109]:
+                - option "(none — null)" [selected]
+                - option "calm"
+                - option "confident"
+                - option "playful"
+                - option "low_energy"
+                - option "grounded"
+          - generic [ref=e110]:
+            - generic [ref=e111]:
+              - img [ref=e112]
+              - heading "Output" [level=3] [ref=e115]
+            - generic [ref=e116]:
+              - text: Count
+              - generic [ref=e117]:
+                - button "1" [ref=e118]
+                - button "2" [ref=e119]
+                - button "3" [ref=e120]
+            - generic [ref=e121]:
+              - text: Seed (optional)
+              - spinbutton "Seed (optional)" [ref=e122]
+          - button "Memory (advanced)" [ref=e124]:
+            - img [ref=e125]
+            - generic [ref=e127]: Memory (advanced)
+          - generic [ref=e128]:
+            - generic [ref=e129]:
+              - img [ref=e130]
+              - heading "Filtering" [level=3] [ref=e133]
+            - generic [ref=e134]:
+              - text: Exclude IDs (one UUID per line)
+              - textbox "Exclude IDs (one UUID per line)" [ref=e135]:
+                - /placeholder: "item-uuid-1\nitem-uuid-2"
+          - button "Build Outfits" [ref=e136]:
+            - img [ref=e137]
+            - text: Build Outfits
+        - generic [ref=e140]:
+          - img [ref=e141]
+          - paragraph [ref=e144]: V05 Outfit Tester
+          - paragraph [ref=e145]: This page drives the V05 stateless 6-layer recommendation pipeline directly, returning 1-3 outfit candidates with vibe signatures, human-readable reasoning, and a full engine trace.
+          - paragraph [ref=e146]:
+            - text: Fill in the form on the left and click
+            - strong [ref=e147]: Build Outfits
+            - text: to see results.
+          - paragraph [ref=e148]: "Spec reference: docs/RECOMMEND_V05_SPEC.md"

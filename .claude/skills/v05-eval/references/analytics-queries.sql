@@ -112,17 +112,19 @@ ORDER BY created_at DESC
 LIMIT 20;
 
 -- ═══════════════════════════════════════════════════════════════════════════
--- Q9 — Force-axis failures (TA axis-filter exhaustion)
--- (When force_axis is set, did engine recover?)
+-- Q9 — Distance-floor recompose failures (TA distance-filter exhaustion)
+-- (Since 260611 `inputs` carries min_distance + seen_signatures_count instead
+--  of force_axis. Did the engine recover, and at which floor?)
 -- ═══════════════════════════════════════════════════════════════════════════
 SELECT
-  event_json -> 'inputs' ->> 'force_axis' AS axis,
+  event_json -> 'inputs' ->> 'min_distance' AS distance_floor,
+  (event_json -> 'inputs' ->> 'seen_signatures_count')::int AS seen_count,
   failure_reason,
   COUNT(*) AS cnt
 FROM v05_pool_insufficient_events
 WHERE created_at > NOW() - INTERVAL ':days days'
-  AND event_json -> 'inputs' ->> 'force_axis' IS NOT NULL
-GROUP BY axis, failure_reason
+  AND event_json -> 'inputs' ->> 'min_distance' IS NOT NULL
+GROUP BY distance_floor, seen_count, failure_reason
 ORDER BY cnt DESC;
 
 -- ═══════════════════════════════════════════════════════════════════════════

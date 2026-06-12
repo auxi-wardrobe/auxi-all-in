@@ -1,0 +1,563 @@
+- generic [ref=e11]:
+  - generic [ref=e13]:
+    - link "Instagram" [ref=e16] [cursor=pointer]:
+      - /url: /
+      - img "Instagram" [ref=e19]
+    - generic [ref=e24]:
+      - link "Log In" [ref=e26] [cursor=pointer]:
+        - /url: /accounts/login/?next=%2Fgloriasinclair.cs%2Freel%2FDYKV3XPxqrw%2F&source=desktop_nav
+      - link "Sign Up" [ref=e28] [cursor=pointer]:
+        - /url: /accounts/emailsignup/
+  - main [ref=e29]:
+    - generic [ref=e30]:
+      - generic [ref=e32]:
+        - group "Video player" [ref=e48]:
+          - button "Toggle audio" [ref=e50] [cursor=pointer]:
+            - img "Audio is muted" [ref=e52]
+        - generic [ref=e55]:
+          - generic [ref=e57]:
+            - button "gloriasinclair.cs's profile picture" [disabled] [ref=e59]:
+              - link "gloriasinclair.cs's profile picture" [disabled] [ref=e61] [cursor=pointer]:
+                - img "gloriasinclair.cs's profile picture" [ref=e62]
+            - generic [ref=e64]:
+              - generic [ref=e65]:
+                - link "gloriasinclair.cs" [ref=e69] [cursor=pointer]:
+                  - /url: /gloriasinclair.cs/
+                  - generic [ref=e72]: gloriasinclair.cs
+                - generic [ref=e73]:
+                  - generic [ref=e75]: •
+                  - button "Follow" [ref=e76] [cursor=pointer]
+              - link "Original audio" [ref=e80] [cursor=pointer]:
+                - /url: /reels/audio/27069989435972545/
+                - generic [ref=e83]: Original audio
+            - button "More options" [ref=e86] [cursor=pointer]:
+              - img "More options" [ref=e89]
+          - separator [ref=e93]
+          - generic [ref=e95]:
+            - generic [ref=e97]:
+              - link "gloriasinclair.cs's profile picture" [ref=e99] [cursor=pointer]:
+                - /url: /gloriasinclair.cs/
+                - img "gloriasinclair.cs's profile picture" [ref=e100]
+              - generic [ref=e104]:
+                - generic [ref=e105]:
+                  - link "gloriasinclair.cs" [ref=e106] [cursor=pointer]:
+                    - /url: /gloriasinclair.cs/
+                    - generic [ref=e109]: gloriasinclair.cs
+                  - time [ref=e111]: 2w
+                - generic [ref=e112]:
+                  - text: How to make any outfit instantly interesting. ✨ Save these 3 rules! 👇
+                  - link "#styletips" [ref=e113] [cursor=pointer]:
+                    - /url: /explore/tags/styletips/
+                  - link "#fashionhacks" [ref=e114] [cursor=pointer]:
+                    - /url: /explore/tags/fashionhacks/
+                  - link "#bodyproportions" [ref=e115] [cursor=pointer]:
+                    - /url: /explore/tags/bodyproportions/
+                  - link "#styleinspo" [ref=e116] [cursor=pointer]:
+                    - /url: /explore/tags/styleinspo/
+                  - link "#ai" [ref=e117] [cursor=pointer]:
+                    - /url: /explore/tags/ai/
+                  - link "#personalstylist" [ref=e118] [cursor=pointer]:
+                    - /url: /explore/tags/personalstylist/
+                  - link "#virtualinfluencer" [ref=e119] [cursor=pointer]:
+                    - /url: /explore/tags/virtualinfluencer/
+                  - link "#capsulewardrobe" [ref=e120] [cursor=pointer]:
+                    - /url: /explore/tags/capsulewardrobe/
+                  - link "#usa" [ref=e121] [cursor=pointer]:
+                    - /url: /explore/tags/usa/
+            - button "Load more comments" [ref=e123] [cursor=pointer]:
+              - img "Load more comments" [ref=e125]
+            - generic [ref=e127]:
+              - generic [ref=e130]:
+                - link "tn_tonya_'s profile picture" [ref=e133] [cursor=pointer]:
+                  - /url: /tn_tonya_/
+                  - img "tn_tonya_'s profile picture" [ref=e134]
+                - generic [ref=e136]:
+                  - generic [ref=e138]:
+                    - generic [ref=e139]:
+                      - link "tn_tonya_" [ref=e141] [cursor=pointer]:
+                        - /url: /tn_tonya_/
+                        - generic [ref=e144]: tn_tonya_
+                      - link "1d" [ref=e146] [cursor=pointer]:
+                        - /url: /p/DYKV3XPxqrw/c/18252488863305887/
+                        - time [ref=e147]: 1d
+                    - generic [ref=e149]: I can’t keep up. I thought we weren’t doing skinny pants this year?
+                  - generic [ref=e150]:
+                    - button "Like" [ref=e151] [cursor=pointer]:
+                      - generic [ref=e152]: Like
+                    - button "Reply" [ref=e153] [cursor=pointer]:
+                      - generic [ref=e155]: Reply
+              - generic [ref=e158]:
+                - link "felix.fathom.14's profile picture" [ref=e161] [cursor=pointer]:
+                  - /url: /felix.fathom.14/
+                  - img "felix.fathom.14's profile picture" [ref=e162]
+                - generic [ref=e164]:
+                  - generic [ref=e166]:
+                    - generic [ref=e167]:
+                      - link "felix.fathom.14" [ref=e169] [cursor=pointer]:
+                        - /url: /felix.fathom.14/
+                        - generic [ref=e172]: felix.fathom.14
+                      - link "6d" [ref=e174] [cursor=pointer]:
+                        - /url: /p/DYKV3XPxqrw/c/18058244477712999/
+                        - time [ref=e175]: 6d
+                    - generic [ref=e177]: Left looks always better
+                  - generic [ref=e178]:
+                    - button "Like" [ref=e179] [cursor=pointer]:
+                      - generic [ref=e180]: Like
+                    - button "Reply" [ref=e181] [cursor=pointer]:
+                      - generic [ref=e183]: Reply
+              - generic [ref=e186]:
+                - link "gelmeck_asante_bakare's profile picture" [ref=e189] [cursor=pointer]:
+                  - /url: /gelmeck_asante_bakare/
+                  - img "gelmeck_asante_bakare's profile picture" [ref=e190]
+                - generic [ref=e192]:
+                  - generic [ref=e194]:
+                    - generic [ref=e195]:
+                      - link "gelmeck_asante_bakare" [ref=e197] [cursor=pointer]:
+                        - /url: /gelmeck_asante_bakare/
+                        - generic [ref=e200]: gelmeck_asante_bakare
+                      - link "1w" [ref=e202] [cursor=pointer]:
+                        - /url: /p/DYKV3XPxqrw/c/18223771177318147/
+                        - time [ref=e203]: 1w
+                    - generic [ref=e205]: Love this for xharcter deseign. Thank you lol
+                  - generic [ref=e206]:
+                    - button "Like" [ref=e207] [cursor=pointer]:
+                      - generic [ref=e208]: Like
+                    - button "Reply" [ref=e209] [cursor=pointer]:
+                      - generic [ref=e211]: Reply
+              - generic [ref=e214]:
+                - link "marmelon520's profile picture" [ref=e217] [cursor=pointer]:
+                  - /url: /marmelon520/
+                  - img "marmelon520's profile picture" [ref=e218]
+                - generic [ref=e220]:
+                  - generic [ref=e222]:
+                    - generic [ref=e223]:
+                      - link "marmelon520" [ref=e225] [cursor=pointer]:
+                        - /url: /marmelon520/
+                        - generic [ref=e228]: marmelon520
+                      - link "1w" [ref=e230] [cursor=pointer]:
+                        - /url: /p/DYKV3XPxqrw/c/18113185846880500/
+                        - time [ref=e231]: 1w
+                    - generic [ref=e233]: And when you are not at all intresting as human, create an ai video copying another creator's video 😊
+                  - generic [ref=e234]:
+                    - button "2 likes" [ref=e235] [cursor=pointer]:
+                      - generic [ref=e237]: 2 likes
+                    - button "Reply" [ref=e238] [cursor=pointer]:
+                      - generic [ref=e240]: Reply
+              - generic [ref=e243]:
+                - link "fitnessinspo_future_you's profile picture" [ref=e246] [cursor=pointer]:
+                  - /url: /fitnessinspo_future_you/
+                  - img "fitnessinspo_future_you's profile picture" [ref=e247]
+                - generic [ref=e249]:
+                  - generic [ref=e251]:
+                    - generic [ref=e252]:
+                      - link "fitnessinspo_future_you" [ref=e254] [cursor=pointer]:
+                        - /url: /fitnessinspo_future_you/
+                        - generic [ref=e257]: fitnessinspo_future_you
+                      - link "1w" [ref=e259] [cursor=pointer]:
+                        - /url: /p/DYKV3XPxqrw/c/17972991078043124/
+                        - time [ref=e260]: 1w
+                    - generic [ref=e262]: Is it only low profile sneakers now?
+                  - generic [ref=e263]:
+                    - button "Like" [ref=e264] [cursor=pointer]:
+                      - generic [ref=e265]: Like
+                    - button "Reply" [ref=e266] [cursor=pointer]:
+                      - generic [ref=e268]: Reply
+              - generic [ref=e271]:
+                - link "avgguy4's profile picture" [ref=e274] [cursor=pointer]:
+                  - /url: /avgguy4/
+                  - img "avgguy4's profile picture" [ref=e275]
+                - generic [ref=e277]:
+                  - generic [ref=e279]:
+                    - generic [ref=e280]:
+                      - link "avgguy4" [ref=e282] [cursor=pointer]:
+                        - /url: /avgguy4/
+                        - generic [ref=e285]: avgguy4
+                      - link "2w" [ref=e287] [cursor=pointer]:
+                        - /url: /p/DYKV3XPxqrw/c/17918894385360295/
+                        - time [ref=e288]: 2w
+                    - generic [ref=e290]: If you are not interesting by dress then it has to be interesting by personality🗣️
+                  - generic [ref=e291]:
+                    - button "10 likes" [ref=e292] [cursor=pointer]:
+                      - generic [ref=e294]: 10 likes
+                    - button "Reply" [ref=e295] [cursor=pointer]:
+                      - generic [ref=e297]: Reply
+              - generic [ref=e300]:
+                - link "individualist.002's profile picture" [ref=e303] [cursor=pointer]:
+                  - /url: /individualist.002/
+                  - img "individualist.002's profile picture" [ref=e304]
+                - generic [ref=e306]:
+                  - generic [ref=e308]:
+                    - generic [ref=e309]:
+                      - link "individualist.002" [ref=e311] [cursor=pointer]:
+                        - /url: /individualist.002/
+                        - generic [ref=e314]: individualist.002
+                      - link "2w" [ref=e316] [cursor=pointer]:
+                        - /url: /p/DYKV3XPxqrw/c/17885421828551495/
+                        - time [ref=e317]: 2w
+                    - generic [ref=e319]: Contrast.
+                  - generic [ref=e320]:
+                    - button "Like" [ref=e321] [cursor=pointer]:
+                      - generic [ref=e322]: Like
+                    - button "Reply" [ref=e323] [cursor=pointer]:
+                      - generic [ref=e325]: Reply
+              - generic [ref=e328]:
+                - link "elia_ribpel's profile picture" [ref=e331] [cursor=pointer]:
+                  - /url: /elia_ribpel/
+                  - img "elia_ribpel's profile picture" [ref=e332]
+                - generic [ref=e334]:
+                  - generic [ref=e336]:
+                    - generic [ref=e337]:
+                      - link "elia_ribpel" [ref=e339] [cursor=pointer]:
+                        - /url: /elia_ribpel/
+                        - generic [ref=e342]: elia_ribpel
+                      - link "2w" [ref=e344] [cursor=pointer]:
+                        - /url: /p/DYKV3XPxqrw/c/18023645603819560/
+                        - time [ref=e345]: 2w
+                    - generic [ref=e347]: Just descovering they are not real person 😂😂
+                  - generic [ref=e348]:
+                    - button "123 likes" [ref=e349] [cursor=pointer]:
+                      - generic [ref=e351]: 123 likes
+                    - button "Reply" [ref=e352] [cursor=pointer]:
+                      - generic [ref=e354]: Reply
+              - generic [ref=e357]:
+                - link "dorysoukalovaa's profile picture" [ref=e360] [cursor=pointer]:
+                  - /url: /dorysoukalovaa/
+                  - img "dorysoukalovaa's profile picture" [ref=e361]
+                - generic [ref=e363]:
+                  - generic [ref=e365]:
+                    - generic [ref=e366]:
+                      - link "dorysoukalovaa" [ref=e368] [cursor=pointer]:
+                        - /url: /dorysoukalovaa/
+                        - generic [ref=e371]: dorysoukalovaa
+                      - link "2w" [ref=e373] [cursor=pointer]:
+                        - /url: /p/DYKV3XPxqrw/c/17947218860997847/
+                        - time [ref=e374]: 2w
+                    - generic [ref=e376]: Ai?
+                  - generic [ref=e377]:
+                    - button "52 likes" [ref=e378] [cursor=pointer]:
+                      - generic [ref=e380]: 52 likes
+                    - button "Reply" [ref=e381] [cursor=pointer]:
+                      - generic [ref=e383]: Reply
+              - generic [ref=e386]:
+                - link "fleurtjedeut's profile picture" [ref=e389] [cursor=pointer]:
+                  - /url: /fleurtjedeut/
+                  - img "fleurtjedeut's profile picture" [ref=e390]
+                - generic [ref=e392]:
+                  - generic [ref=e394]:
+                    - generic [ref=e395]:
+                      - link "fleurtjedeut" [ref=e397] [cursor=pointer]:
+                        - /url: /fleurtjedeut/
+                        - generic [ref=e400]: fleurtjedeut
+                      - link "2w" [ref=e402] [cursor=pointer]:
+                        - /url: /p/DYKV3XPxqrw/c/18088148237357708/
+                        - time [ref=e403]: 2w
+                    - link "@dictusdeutekom" [ref=e406] [cursor=pointer]:
+                      - /url: /dictusdeutekom/
+                  - generic [ref=e407]:
+                    - button "Like" [ref=e408] [cursor=pointer]:
+                      - generic [ref=e409]: Like
+                    - button "Reply" [ref=e410] [cursor=pointer]:
+                      - generic [ref=e412]: Reply
+              - generic [ref=e415]:
+                - link "alhamdulillah_segar's profile picture" [ref=e418] [cursor=pointer]:
+                  - /url: /alhamdulillah_segar/
+                  - img "alhamdulillah_segar's profile picture" [ref=e419]
+                - generic [ref=e421]:
+                  - generic [ref=e423]:
+                    - generic [ref=e424]:
+                      - link "alhamdulillah_segar" [ref=e426] [cursor=pointer]:
+                        - /url: /alhamdulillah_segar/
+                        - generic [ref=e429]: alhamdulillah_segar
+                      - link "2w" [ref=e431] [cursor=pointer]:
+                        - /url: /p/DYKV3XPxqrw/c/17964650126917710/
+                        - time [ref=e432]: 2w
+                    - generic [ref=e434]: 👍🏻
+                  - generic [ref=e435]:
+                    - button "Like" [ref=e436] [cursor=pointer]:
+                      - generic [ref=e437]: Like
+                    - button "Reply" [ref=e438] [cursor=pointer]:
+                      - generic [ref=e440]: Reply
+              - generic [ref=e443]:
+                - link "traceywright1495's profile picture" [ref=e446] [cursor=pointer]:
+                  - /url: /traceywright1495/
+                  - img "traceywright1495's profile picture" [ref=e447]
+                - generic [ref=e449]:
+                  - generic [ref=e451]:
+                    - generic [ref=e452]:
+                      - link "traceywright1495" [ref=e454] [cursor=pointer]:
+                        - /url: /traceywright1495/
+                        - generic [ref=e457]: traceywright1495
+                      - link "2w" [ref=e459] [cursor=pointer]:
+                        - /url: /p/DYKV3XPxqrw/c/17989519928987428/
+                        - time [ref=e460]: 2w
+                    - generic [ref=e462]: I struggle with big hips. Can you help with that abd menopause tunmy
+                  - generic [ref=e463]:
+                    - button "Like" [ref=e464] [cursor=pointer]:
+                      - generic [ref=e465]: Like
+                    - button "Reply" [ref=e466] [cursor=pointer]:
+                      - generic [ref=e468]: Reply
+              - generic [ref=e471]:
+                - link "ardiarina6's profile picture" [ref=e474] [cursor=pointer]:
+                  - /url: /ardiarina6/
+                  - img "ardiarina6's profile picture" [ref=e475]
+                - generic [ref=e477]:
+                  - generic [ref=e479]:
+                    - generic [ref=e480]:
+                      - link "ardiarina6" [ref=e482] [cursor=pointer]:
+                        - /url: /ardiarina6/
+                        - generic [ref=e485]: ardiarina6
+                      - link "2w" [ref=e487] [cursor=pointer]:
+                        - /url: /p/DYKV3XPxqrw/c/18135565699550642/
+                        - time [ref=e488]: 2w
+                    - generic [ref=e490]: Ai but you behind this awesome👍👏👏, 🔥🔥
+                  - generic [ref=e491]:
+                    - button "3 likes" [ref=e492] [cursor=pointer]:
+                      - generic [ref=e494]: 3 likes
+                    - button "Reply" [ref=e495] [cursor=pointer]:
+                      - generic [ref=e497]: Reply
+              - generic [ref=e500]:
+                - link "darko_caramello_nikolic's profile picture" [ref=e503] [cursor=pointer]:
+                  - /url: /darko_caramello_nikolic/
+                  - img "darko_caramello_nikolic's profile picture" [ref=e504]
+                - generic [ref=e506]:
+                  - generic [ref=e508]:
+                    - generic [ref=e509]:
+                      - link "darko_caramello_nikolic" [ref=e511] [cursor=pointer]:
+                        - /url: /darko_caramello_nikolic/
+                        - generic [ref=e514]: darko_caramello_nikolic
+                      - link "2w" [ref=e516] [cursor=pointer]:
+                        - /url: /p/DYKV3XPxqrw/c/18082572956531934/
+                        - time [ref=e517]: 2w
+                    - generic [ref=e519]: Than, try to be interesting as a person 😂
+                  - generic [ref=e520]:
+                    - button "15 likes" [ref=e521] [cursor=pointer]:
+                      - generic [ref=e523]: 15 likes
+                    - button "Reply" [ref=e524] [cursor=pointer]:
+                      - generic [ref=e526]: Reply
+              - generic [ref=e529]:
+                - link "jeroms1380's profile picture" [ref=e532] [cursor=pointer]:
+                  - /url: /jeroms1380/
+                  - img "jeroms1380's profile picture" [ref=e533]
+                - generic [ref=e535]:
+                  - generic [ref=e537]:
+                    - generic [ref=e538]:
+                      - link "jeroms1380" [ref=e540] [cursor=pointer]:
+                        - /url: /jeroms1380/
+                        - generic [ref=e543]: jeroms1380
+                      - link "2w" [ref=e545] [cursor=pointer]:
+                        - /url: /p/DYKV3XPxqrw/c/18092427677239532/
+                        - time [ref=e546]: 2w
+                    - generic [ref=e548]: Love your reels, and i always repost😅😊❤️ keep going.....
+                  - generic [ref=e549]:
+                    - button "4 likes" [ref=e550] [cursor=pointer]:
+                      - generic [ref=e552]: 4 likes
+                    - button "Reply" [ref=e553] [cursor=pointer]:
+                      - generic [ref=e555]: Reply
+              - progressbar [ref=e558]:
+                - img "Loading..." [ref=e559]
+          - generic [ref=e572]:
+            - generic [ref=e573]:
+              - generic [ref=e574]:
+                - button "Like" [ref=e577] [cursor=pointer]:
+                  - img "Like" [ref=e580]
+                - button "29.2K" [ref=e582] [cursor=pointer]
+                - button "Comment" [ref=e584] [cursor=pointer]:
+                  - img "Comment" [ref=e586]
+                - button "35" [ref=e588] [cursor=pointer]
+                - button "Share" [ref=e589] [cursor=pointer]:
+                  - img "Share" [ref=e590]
+              - button "Save" [ref=e594] [cursor=pointer]:
+                - img "Save" [ref=e596]
+            - link "May 10" [ref=e600] [cursor=pointer]:
+              - /url: /gloriasinclair.cs/reel/DYKV3XPxqrw/
+              - time [ref=e602]: May 10
+          - generic [ref=e607]:
+            - link "Log in" [ref=e608] [cursor=pointer]:
+              - /url: /accounts/login/?next=%2Fgloriasinclair.cs%2Freel%2FDYKV3XPxqrw%2F&source=post_comment_input
+            - text: to like or comment.
+      - separator [ref=e610]
+      - generic [ref=e611]:
+        - generic [ref=e613]:
+          - text: More posts from
+          - link "gloriasinclair.cs" [ref=e614] [cursor=pointer]:
+            - /url: /gloriasinclair.cs/
+        - generic [ref=e617]:
+          - generic [ref=e618]:
+            - 'link "How to look more chic🤍 #StyleTips #ElegantStyle #OutfitRules #MinimalStyle #ClassyLook #FashionTips #StyleInspo #usa #american #us #OutfitInspiration #ai #EverydayStyle #virtualinfluencer #MinimalStyle #TrendingNow Clip" [ref=e620] [cursor=pointer]':
+              - /url: /gloriasinclair.cs/reel/DY-GZKfxUOm/
+              - 'img "How to look more chic🤍 #StyleTips #ElegantStyle #OutfitRules #MinimalStyle #ClassyLook #FashionTips #StyleInspo #usa #american #us #OutfitInspiration #ai #EverydayStyle #virtualinfluencer #MinimalStyle #TrendingNow" [ref=e623]'
+              - generic:
+                - generic:
+                  - generic:
+                    - img "Clip"
+            - link "link in bio 🤍 Clip" [ref=e626] [cursor=pointer]:
+              - /url: /gloriasinclair.cs/reel/DYxqds-xAlx/
+              - img "link in bio 🤍" [ref=e629]
+              - generic:
+                - generic:
+                  - generic:
+                    - img "Clip"
+            - 'link "Follow us for more timeless style secrets! ❤️✨ #fashion #style #ootd #fashiontrends #styleinspo #ai #streetstyle #virtualinfluencer #oldmoney Clip" [ref=e632] [cursor=pointer]':
+              - /url: /gloriasinclair.cs/reel/DYvCU9nxXDZ/
+              - 'img "Follow us for more timeless style secrets! ❤️✨ #fashion #style #ootd #fashiontrends #styleinspo #ai #streetstyle #virtualinfluencer #oldmoney" [ref=e635]'
+              - generic:
+                - generic:
+                  - generic:
+                    - img "Clip"
+          - generic [ref=e637]:
+            - 'link "Follow us for more! ❤️✨ #fashion #outfitideas #streetstyle #ootd #fashioninspo #styleinspo #outfitinspiration #womensfashion #minimalstyle #viralfashion #usa #virtualinfluencer #ootdfashion #fashionaesthetic #styleinspiration #ai #capsulewardrobe #trendingfashion #cleanstyle #styleblogger #fashiongram #outfitreel #modernfashion #us Clip" [ref=e639] [cursor=pointer]':
+              - /url: /gloriasinclair.cs/reel/DYesewTxVFR/
+              - 'img "Follow us for more! ❤️✨ #fashion #outfitideas #streetstyle #ootd #fashioninspo #styleinspo #outfitinspiration #womensfashion #minimalstyle #viralfashion #usa #virtualinfluencer #ootdfashion #fashionaesthetic #styleinspiration #ai #capsulewardrobe #trendingfashion #cleanstyle #styleblogger #fashiongram #outfitreel #modernfashion #us" [ref=e642]'
+              - generic:
+                - generic:
+                  - generic:
+                    - img "Clip"
+            - 'link "which one is your favoriteee👀✨ #fashion #outfitideas #streetstyle #ootd #fashioninspo #styleinspo #outfitinspiration #womensfashion #minimalstyle #viralfashion #usa #virtualinfluencer #ootdfashion #fashionaesthetic #styleinspiration #ai #capsulewardrobe #trendingfashion #cleanstyle #styleblogger #fashiongram #outfitreel #modernfashion #us Clip" [ref=e645] [cursor=pointer]':
+              - /url: /gloriasinclair.cs/reel/DYcQv22R4_x/
+              - 'img "which one is your favoriteee👀✨ #fashion #outfitideas #streetstyle #ootd #fashioninspo #styleinspo #outfitinspiration #womensfashion #minimalstyle #viralfashion #usa #virtualinfluencer #ootdfashion #fashionaesthetic #styleinspiration #ai #capsulewardrobe #trendingfashion #cleanstyle #styleblogger #fashiongram #outfitreel #modernfashion #us" [ref=e648]'
+              - generic:
+                - generic:
+                  - generic:
+                    - img "Clip"
+            - 'link "Follow us for more timeless style secrets! ❤️✨ #fashion #outfitideas #streetstyle #ootd #fashioninspo #styleinspo #outfitinspiration #womensfashion #minimalstyle #viralfashion #usa #virtualinfluencer #ootdfashion #fashionaesthetic #styleinspiration #ai #capsulewardrobe #trendingfashion #cleanstyle #styleblogger #fashiongram #outfitreel #modernfashion #us Clip" [ref=e651] [cursor=pointer]':
+              - /url: /gloriasinclair.cs/reel/DYZmSEKRnoO/
+              - 'img "Follow us for more timeless style secrets! ❤️✨ #fashion #outfitideas #streetstyle #ootd #fashioninspo #styleinspo #outfitinspiration #womensfashion #minimalstyle #viralfashion #usa #virtualinfluencer #ootdfashion #fashionaesthetic #styleinspiration #ai #capsulewardrobe #trendingfashion #cleanstyle #styleblogger #fashiongram #outfitreel #modernfashion #us" [ref=e654]'
+              - generic:
+                - generic:
+                  - generic:
+                    - img "Clip"
+          - generic [ref=e656]:
+            - 'link "Comment your fave & save it! ☁️ #FashionHacks #StyleTips #OutfitInspiration #VirtualInfluencer #StyleSecrets #ShoeStyle #WardrobeEssentials #OutfitIdeas #FashionInspo #StyleHacks Clip" [ref=e658] [cursor=pointer]':
+              - /url: /gloriasinclair.cs/reel/DYXa2Bhxt-7/
+              - 'img "Comment your fave & save it! ☁️ #FashionHacks #StyleTips #OutfitInspiration #VirtualInfluencer #StyleSecrets #ShoeStyle #WardrobeEssentials #OutfitIdeas #FashionInspo #StyleHacks" [ref=e661]'
+              - generic:
+                - generic:
+                  - generic:
+                    - img "Clip"
+            - 'link "Follow us for more timeless style secrets! ❤️✨ #fashion #style #ootd #fashiontrends #styleinspo #ai #streetstyle #virtualinfluencer #oldmoney Clip" [ref=e664] [cursor=pointer]':
+              - /url: /gloriasinclair.cs/reel/DYR6Wizx1nh/
+              - 'img "Follow us for more timeless style secrets! ❤️✨ #fashion #style #ootd #fashiontrends #styleinspo #ai #streetstyle #virtualinfluencer #oldmoney" [ref=e667]'
+              - generic:
+                - generic:
+                  - generic:
+                    - img "Clip"
+            - 'link "remember: texture is everything. ✨ #fashion #outfitideas #streetstyle #ootd #fashioninspo #styleinspo #outfitinspiration #womensfashion #minimalstyle #viralfashion #usa #virtualinfluencer #ootdfashion #fashionaesthetic #styleinspiration #ai #capsulewardrobe #trendingfashion #cleanstyle #styleblogger #fashiongram #outfitreel #modernfashion #us Clip" [ref=e670] [cursor=pointer]':
+              - /url: /gloriasinclair.cs/reel/DYRLYgnRaA9/
+              - 'img "remember: texture is everything. ✨ #fashion #outfitideas #streetstyle #ootd #fashioninspo #styleinspo #outfitinspiration #womensfashion #minimalstyle #viralfashion #usa #virtualinfluencer #ootdfashion #fashionaesthetic #styleinspiration #ai #capsulewardrobe #trendingfashion #cleanstyle #styleblogger #fashiongram #outfitreel #modernfashion #us" [ref=e673]'
+              - generic:
+                - generic:
+                  - generic:
+                    - img "Clip"
+        - generic [ref=e675]:
+          - link "See more posts" [ref=e677] [cursor=pointer]:
+            - /url: /gloriasinclair.cs/
+            - generic [ref=e678]: See more posts
+          - separator [ref=e679]
+  - contentinfo [ref=e680]:
+    - generic [ref=e681]:
+      - generic [ref=e683]:
+        - link "Meta" [ref=e685] [cursor=pointer]:
+          - /url: https://about.meta.com/
+          - generic [ref=e686]: Meta
+        - link "About" [ref=e688] [cursor=pointer]:
+          - /url: https://about.instagram.com/
+          - generic [ref=e689]: About
+        - link "Blog" [ref=e691] [cursor=pointer]:
+          - /url: https://about.instagram.com/blog/
+          - generic [ref=e692]: Blog
+        - link "Jobs" [ref=e694] [cursor=pointer]:
+          - /url: https://about.instagram.com/about-us/careers
+          - generic [ref=e695]: Jobs
+        - link "Help" [ref=e697] [cursor=pointer]:
+          - /url: https://help.instagram.com/
+          - generic [ref=e698]: Help
+        - link "API" [ref=e700] [cursor=pointer]:
+          - /url: https://developers.facebook.com/docs/instagram
+          - generic [ref=e701]: API
+        - link "Privacy" [ref=e703] [cursor=pointer]:
+          - /url: /legal/privacy/
+          - generic [ref=e704]: Privacy
+        - link "Terms" [ref=e706] [cursor=pointer]:
+          - /url: /legal/terms/
+          - generic [ref=e707]: Terms
+        - link "Locations" [ref=e709] [cursor=pointer]:
+          - /url: /explore/locations/
+          - generic [ref=e710]: Locations
+        - link "Popular" [ref=e712] [cursor=pointer]:
+          - /url: /popular/
+          - generic [ref=e713]: Popular
+        - link "Instagram Lite" [ref=e715] [cursor=pointer]:
+          - /url: /web/lite/
+          - generic [ref=e716]: Instagram Lite
+        - link "Meta AI" [ref=e718] [cursor=pointer]:
+          - /url: https://www.meta.ai/?utm_source=foa_web_footer
+          - generic [ref=e719]: Meta AI
+        - link "Threads" [ref=e721] [cursor=pointer]:
+          - /url: https://www.threads.com/
+          - generic [ref=e722]: Threads
+        - link "Contact Uploading & Non-Users" [ref=e724] [cursor=pointer]:
+          - /url: https://www.facebook.com/help/instagram/261704639352628
+          - generic [ref=e725]: Contact Uploading & Non-Users
+        - link "Meta Verified" [ref=e727] [cursor=pointer]:
+          - /url: /accounts/meta_verified/?entrypoint=web_footer
+          - generic [ref=e728]: Meta Verified
+      - generic [ref=e729]:
+        - generic [ref=e730] [cursor=pointer]:
+          - generic [ref=e731]:
+            - generic [ref=e732]: English
+            - img "Down chevron icon" [ref=e735]
+          - combobox "Switch Display Language" [ref=e737]:
+            - option "Afrikaans"
+            - option "العربية"
+            - option "Čeština"
+            - option "Dansk"
+            - option "Deutsch"
+            - option "Ελληνικά"
+            - option "English" [selected]
+            - option "English (UK)"
+            - option "Español (España)"
+            - option "Español"
+            - option "فارسی"
+            - option "Suomi"
+            - option "Français"
+            - option "עברית"
+            - option "Bahasa Indonesia"
+            - option "Italiano"
+            - option "日本語"
+            - option "한국어"
+            - option "Bahasa Melayu"
+            - option "Norsk"
+            - option "Nederlands"
+            - option "Polski"
+            - option "Português (Brasil)"
+            - option "Português (Portugal)"
+            - option "Русский"
+            - option "Svenska"
+            - option "ภาษาไทย"
+            - option "Filipino"
+            - option "Türkçe"
+            - option "中文(简体)"
+            - option "中文(台灣)"
+            - option "বাংলা"
+            - option "ગુજરાતી"
+            - option "हिन्दी"
+            - option "Hrvatski"
+            - option "Magyar"
+            - option "ಕನ್ನಡ"
+            - option "മലയാളം"
+            - option "मराठी"
+            - option "नेपाली"
+            - option "ਪੰਜਾਬੀ"
+            - option "සිංහල"
+            - option "Slovenčina"
+            - option "தமிழ்"
+            - option "తెలుగు"
+            - option "اردو"
+            - option "Tiếng Việt"
+            - option "中文(香港)"
+            - option "Български"
+            - option "Français (Canada)"
+            - option "Română"
+            - option "Српски"
+            - option "Українська"
+        - generic [ref=e739]: © 2026 Instagram from Meta
