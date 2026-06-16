@@ -38,6 +38,7 @@
 - Write clean, readable, and maintainable code
 - Follow established architectural patterns
 - Implement features according to specifications
+- **[ANALYTICS]** Every new feature, screen, or significant user interaction in the mobile app must ship Mixpanel tracking events alongside the code. See `.claude/rules/analytics-tracking-required.md` for the full rule (event naming, property hygiene, no-PII, doc update). A feature isn't "done" until events are wired AND `auxi/docs/analytics/mixpanel-tracking-plan.md` is updated.
 - Handle edge cases and error scenarios
 - **DO NOT** create new enhanced files, update to the existing files directly.
 
