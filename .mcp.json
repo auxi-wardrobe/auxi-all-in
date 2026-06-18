@@ -5,6 +5,30 @@
       "command": "npx",
       "args": ["-y", "@mobilenext/mobile-mcp@0.0.56"],
       "env": {}
+    },
+    "slack": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-slack@2025.4.25"],
+      "env": {
+        "SLACK_BOT_TOKEN": "${SLACK_BOT_TOKEN}",
+        "SLACK_TEAM_ID": "T0AD40Z9NCA"
+      }
+    },
+    "sentry": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@sentry/mcp-server@0.36.0"],
+      "env": {
+        "SENTRY_ACCESS_TOKEN": "${SENTRY_AUTH_TOKEN}"
+      }
+    },
+    "mixpanel-macgie": {
+      "type": "http",
+      "url": "https://mcp-eu.mixpanel.com/mcp",
+      "headers": {
+        "Authorization": "Bearer Basic ${MIXPANEL_MACGIE_AUTH}"
+      }
     }
   }
 }

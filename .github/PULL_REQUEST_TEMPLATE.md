@@ -23,6 +23,7 @@
 - [ ] **Extraction artifact:** path to `plans/<plan>/figma-extraction-<screen>.md`
 - [ ] **qa-ui review-extraction:** PASS / link to findings
 - [ ] **No new hex literals or font-family strings** in `src/screens/**` / `src/components/**` (`./scripts/auxi-lint-tokens.sh` clean)
+- [ ] **designer design-review:** PASS (step 6.5 hard gate) / link to `auxi/docs/design-reviews/<date>-<screen>.md`
 - [ ] **Sim screenshot OR qa-mobile verify run ID** attached below
 
 <!-- Drop screenshots / qa-mobile log excerpt here -->
