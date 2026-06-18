@@ -177,7 +177,7 @@ defeats the gate.
 6. qa-ui Compare mode Pass 2+3 (code vs Figma, sim screenshot)
    ↓
 6.5 designer design-review — HARD GATE (after qa-ui Compare PASS, before qa-mobile)
-   → 6-lens craft pass: tokens → motion → color → header/footer/layout → cross-screen → states
+   → 8-lens product-experience pass: design-system → motion → hierarchy → color → states → cross-screen → native-feel → recommendation (+ journey continuity)
    → PASS / FAIL (blocks PR) / ESCALATE (taste → CEO)
    → findings to auxi/docs/design-reviews/<date>-<screen>.md
    ↓
@@ -194,7 +194,7 @@ defeats the gate.
 - `figma-code-connect-setup` — map Figma component → RN primitive in inspector
 - `auxi-rn-patterns` — primitives-first rule, screen registration, services
 - `auxi-figma-audit` — 3-pass Compare mode audit (post-code)
-- `auxi-design-review` — designer's 6-lens craft pass (step 6.5 hard gate); rule
+- `auxi-design-review` — designer's 8-lens product-experience pass (step 6.5 hard gate); rule
   `design-review-required.md`; design-system docs in `auxi/docs/design-system/`
 
 **Supporting scripts:**

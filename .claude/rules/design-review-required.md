@@ -94,6 +94,6 @@ single-frame pixel-diff misses.
 ## Related
 
 - `.claude/agents/designer.md` — the gate agent (findings-only, hard gate)
-- `.claude/skills/auxi-design-review.md` — the 6-lens review playbook
+- `.claude/skills/auxi-design-review.md` — the 8-lens product-experience review playbook
 - `auxi/docs/design-system/` — the four rule docs above
 - `plans/260618-1115-designer-role/spec.md` — the approved spec
