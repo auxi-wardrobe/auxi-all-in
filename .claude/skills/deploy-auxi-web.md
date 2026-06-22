@@ -1,71 +1,43 @@
 ---
 name: deploy-auxi-web
-description: Deploy the auxi web review surface (react-native-web build) to Cloudflare Pages so the designer can PREVIEW it in a browser. Use this whenever the user or designer asks to deploy/ship/publish/update the web preview — e.g. "deploy đi", "deploy", "deploy web", "ship the web preview", "cập nhật web review", "đẩy web lên". It ONLY builds and uploads a preview to Cloudflare Pages — it never commits, pushes, branches, opens a PR, or merges. Returns the live URL.
+description: Deploy the auxi web review surface (react-native-web build) to Cloudflare Pages so the designer can PREVIEW it in a browser. Use whenever the user/designer asks to deploy/ship/publish/update the web preview — e.g. "deploy đi", "deploy", "deploy web", "ship the preview", "cập nhật web review". Each run publishes a VERSIONED URL (git commit hash + timestamp) plus refreshes a stable "latest" link. It ONLY builds + uploads — it never commits, pushes, branches, opens a PR, or merges. Returns the URLs.
 ---
 
-# Deploy auxi Web Review Surface (PREVIEW ONLY)
+# Deploy auxi Web Review Surface (PREVIEW ONLY, versioned)
 
-One command for the designer: build the react-native-web bundle from the current
-working tree and publish it to Cloudflare Pages for preview, then hand back the
-live link.
+`yarn web:deploy` builds the current working tree and publishes it to Cloudflare
+Pages, producing:
+- **This version:** `https://<shorthash>[-wip]-<yymmdd-hhmm>.auxi-web-review.pages.dev`
+  (a permanent URL tied to the git commit it was built from; `-wip` = the tree had
+  uncommitted edits; timestamp keeps each preview distinct).
+- **Latest:** `https://auxi-web-review.pages.dev` (always the most recent deploy).
 
-## ⛔ This is PREVIEW ONLY — it MUST NOT touch git
-
-When running this skill you may ONLY: `vite build` + `wrangler pages deploy`.
-You MUST NOT run ANY git command — no `git add/commit/push`, no new branch,
-no `gh pr create`, no merge. The designer's deploy is decoupled from source
-control on purpose:
-
-- "deploy đi" = publish a preview of the **current working tree** (even with
-  uncommitted designer edits). Nothing is recorded in git.
-- Committing code, opening PRs, and merging are the **maintainer's** job and
-  happen in a separate, reviewed step — never as part of a deploy.
-
-(Note: the `--commit-dirty=true` flag in the deploy command is a *wrangler*
-flag meaning "deploy even though the git tree is dirty". It does NOT create a
-git commit.)
-
-## What this deploys
-- Project: `auxi` (the dir with `vite.config.ts` + `functions/`).
-- Target: Cloudflare Pages project **`auxi-web-review`** → https://auxi-web-review.pages.dev
-- App auth handled server-side by the Pages Function proxy
-  (`functions/api/[[path]].js`, CF secrets `REVIEW_EMAIL`/`REVIEW_PASSWORD`) —
-  no app credentials are in the bundle.
+## ⛔ PREVIEW ONLY — never touch git
+When running this skill you may ONLY `vite build` + `wrangler pages deploy`.
+NEVER run git/gh (`add/commit/push`, branch, `pr create`, merge). Deploy = publish
+a preview of the current working tree; committing/PR/merge is the maintainer's
+separate, reviewed step. (`--commit-dirty=true` is a wrangler flag — it does NOT
+make a git commit.)
 
 ## Steps
+1. Be in the auxi repo root (folder with `vite.config.ts`); else `cd auxi`.
+2. `yarn web:deploy`  (runs `scripts/deploy-web.sh`).
+3. Report BOTH URLs it prints (This version + Latest).
+4. Remind: hard-refresh (Cmd+Shift+R) — Pages caches `index.html`.
 
-1. Be in the auxi repo root (folder with `vite.config.ts`). If the session's cwd
-   is the umbrella repo, `cd auxi` first.
-
-2. Build + deploy:
-   ```bash
-   yarn web:deploy
-   ```
-   (runs `scripts/deploy-web.sh` → `vite build` → `wrangler pages deploy dist-web
-   --project-name auxi-web-review`)
-
-3. From wrangler's output report BOTH links:
-   - **Production:** https://auxi-web-review.pages.dev
-   - **This deploy:** the unique `https://<hash>.auxi-web-review.pages.dev` line.
-
-4. Remind the user to **hard-refresh (Cmd+Shift+R)** — Pages caches `index.html`.
-
-## Cloudflare auth (one-time per machine)
-
-`wrangler` needs Cloudflare credentials to deploy (NOT in the repo — secrets
-aren't committed). `scripts/deploy-web.sh` checks for auth and, if missing,
-prints setup instructions and stops. Set up ONCE, pick one:
-
-- **(a) Browser login** — `npx wrangler login` (needs access to the Cloudflare
-  account `duc2820@gmail.com`). Persists in `~/.wrangler`.
-- **(b) API token (headless, recommended for the designer)** — create a
-  "Cloudflare Pages — Edit" token, then `cp auxi/.env.deploy.example
-  auxi/.env.deploy` and fill `CLOUDFLARE_API_TOKEN` (`.env.deploy` is gitignored).
-
-On a machine already logged in, no setup is needed.
+## One-time setup (maintainer)
+1. **Cloudflare auth** for whoever deploys — `npx wrangler login`, or put a
+   "Cloudflare Pages — Edit" token in `auxi/.env.deploy` (see `.env.deploy.example`).
+2. **Proxy secrets in BOTH environments.** The app auth runs server-side in
+   `functions/api/[[path]].js` from CF secrets `REVIEW_EMAIL`/`REVIEW_PASSWORD`.
+   `wrangler pages secret put` only sets the **production** env (used by the
+   "latest" URL). For the **versioned (preview) URLs** to load data, add the same
+   two vars to the **Preview** environment ONCE in the dashboard:
+   Cloudflare → Workers & Pages → auxi-web-review → Settings → Variables and
+   Secrets → **Preview** → add `REVIEW_EMAIL` + `REVIEW_PASSWORD` (encrypt).
+   Without this, versioned URLs render the UI but API calls return `proxy_auth`.
 
 ## Guardrails
-- PREVIEW ONLY — never run git/gh commands (see the section above).
-- If `vite build` fails, STOP and show the error. Never deploy a broken build.
-- Optional smoke check: `curl -s https://auxi-web-review.pages.dev/api/me`
-  should return JSON for the review account (confirms the proxy is live).
+- PREVIEW ONLY — never run git/gh.
+- If `vite build` fails, STOP and show the error; don't deploy a broken build.
+- Smoke check: `curl -s https://auxi-web-review.pages.dev/api/me` → JSON (proxy live).
