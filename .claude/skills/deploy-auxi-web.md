@@ -9,35 +9,47 @@ One command for the designer: build the react-native-web bundle from the current
 working tree and publish it to Cloudflare Pages, then hand back the live link.
 
 ## What this deploys
-- Project: `auxi` (the dir containing `vite.config.ts` + `functions/`).
+- Project: `auxi` (the dir with `vite.config.ts` + `functions/`).
 - Target: Cloudflare Pages project **`auxi-web-review`** → https://auxi-web-review.pages.dev
-- Auth is handled server-side by the Pages Function proxy (`functions/api/[[path]].js`)
-  using CF secrets `REVIEW_EMAIL` / `REVIEW_PASSWORD` — **no credentials are in the
-  bundle**, nothing extra to configure at deploy time.
+- App auth is handled server-side by the Pages Function proxy
+  (`functions/api/[[path]].js`, CF secrets `REVIEW_EMAIL`/`REVIEW_PASSWORD`) —
+  **no app credentials are in the bundle**.
 
 ## Steps
 
-1. Make sure you are in the auxi repo root (the folder with `vite.config.ts`).
-   If the session's working dir is the umbrella repo, `cd auxi` first.
+1. Be in the auxi repo root (folder with `vite.config.ts`). If the session's cwd
+   is the umbrella repo, `cd auxi` first.
 
-2. Build + deploy in one shot:
+2. Build + deploy:
    ```bash
    yarn web:deploy
    ```
-   (= `vite build` → `wrangler pages deploy dist-web --project-name auxi-web-review --branch main --commit-dirty=true`)
+   (runs `scripts/deploy-web.sh` → `vite build` → `wrangler pages deploy dist-web
+   --project-name auxi-web-review`)
 
-3. From wrangler's output, report BOTH links to the user:
+3. From wrangler's output report BOTH links:
    - **Production:** https://auxi-web-review.pages.dev
-   - **This deploy:** the unique `https://<hash>.auxi-web-review.pages.dev` line wrangler prints.
+   - **This deploy:** the unique `https://<hash>.auxi-web-review.pages.dev` line.
 
-4. Remind the user to **hard-refresh (Cmd+Shift+R)** — Cloudflare Pages caches `index.html`.
+4. Remind the user to **hard-refresh (Cmd+Shift+R)** — Pages caches `index.html`.
+
+## Cloudflare auth (one-time per machine)
+
+`wrangler` needs Cloudflare credentials to deploy. These are NOT in the repo
+(secrets must not be committed). `scripts/deploy-web.sh` checks for auth and, if
+missing, prints setup instructions and stops. Set up ONCE, pick one:
+
+- **(a) Browser login** — `npx wrangler login` (needs access to the Cloudflare
+  account `duc2820@gmail.com`). Persists in `~/.wrangler`.
+- **(b) API token (headless, recommended for the designer)** — create a
+  "Cloudflare Pages — Edit" token in the CF dashboard, then
+  `cp auxi/.env.deploy.example auxi/.env.deploy` and fill `CLOUDFLARE_API_TOKEN`.
+  `.env.deploy` is gitignored.
+
+On a machine already logged in (e.g. the maintainer's), no setup is needed.
 
 ## Guardrails
 - If `vite build` fails, STOP and show the error. Never deploy a broken build.
-- If wrangler reports an auth error, tell the user to run `npx wrangler login`
-  (Cloudflare account: duc2820@gmail.com) — it's interactive, so they run it via
-  the `!` prefix in the prompt.
-- This deploys the CURRENT working tree as-is. No git commit/push is required or
-  performed. (If the user also wants the source committed, do that separately.)
-- Optional smoke check after deploy: `curl -s https://auxi-web-review.pages.dev/api/me`
+- This deploys the CURRENT working tree as-is. No git commit/push is required.
+- Optional smoke check: `curl -s https://auxi-web-review.pages.dev/api/me`
   should return JSON for the review account (confirms the proxy is live).
