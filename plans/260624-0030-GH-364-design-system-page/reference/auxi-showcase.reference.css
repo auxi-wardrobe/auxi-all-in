@@ -1,0 +1,136 @@
+/* ============================================================================
+   AUTHORITATIVE DS SOURCE — claude.ai/design project "auxi" (019df3b4…)
+   file: auxi-showcase.css  (linked by "Auxi Design System Showcase.html")
+   Exported 2026-06-24 via DesignSync for the in-app DS-page rebuild (GH-364).
+   This is the NEW design system. Poppins-only. DO NOT hand-edit — re-export.
+   NOTE: radius scale + color ramps here DIVERGE from app theme.ts on purpose —
+   this is the new target. Implement DS-page with these values as DS-page-local
+   tokens; do NOT mutate the live theme.ds.* that product screens depend on.
+   ============================================================================ */
+
+:root{
+  /* —— Primary · warm sand/taupe (brand neutral) —— */
+  --p-50:#F2EFEB;  --p-100:#EEE6DE; --p-200:#E0D2C4; --p-300:#C6BBB1;
+  --p-400:#9E968E; --p-500:#5B554F; --p-600:#262321; --p-700:#070606;
+
+  /* —— Neutral · cool gray ramp —— */
+  --n-50:#FCFCFD;  --n-100:#F2F4F7; --n-200:#E4E7EC; --n-300:#D0D5DD;
+  --n-400:#AAB1BA; --n-500:#797E89; --n-600:#40444D; --n-700:#282B31;
+  --n-800:#1D1F23; --n-900:#16181C; --n-black:#121212; --white:#FFFFFF;
+
+  /* —— Success · teal/green —— */
+  --su-100:#A0F5E4; --su-200:#4BF3D2; --su-400:#16A085; --su-500:#045130;
+  /* —— Danger —— */
+  --da-50:#FEF3F2; --da-100:#FDE1E1; --da-200:#FCA5A5; --da-300:#E74C3C;
+  --da-400:#C0392B; --da-500:#831A12; --da-600:#4B0F0A; --da-700:#250705;
+  /* —— Warning —— */
+  --wa-50:#FFF9F4; --wa-100:#FCF0DB; --wa-400:#D35400; --wa-500:#983C00;
+  /* —— Info —— */
+  --in-50:#F1F7FD; --in-100:#DCEDFC; --in-200:#84CAFF; --in-300:#53A1EB;
+  --in-400:#1465B4; --in-500:#0C3D6C; --in-600:#0A335A; --in-700:#061E36;
+
+  /* —— Semantic roles —— */
+  --ink:var(--n-800); --ink-2:var(--n-600); --ink-3:var(--n-500);
+  --surface:var(--white); --surface-2:var(--n-50); --surface-cream:var(--p-50);
+  --line:var(--n-200); --line-cream:var(--p-100); --border-subtle:var(--n-100);
+
+  /* —— Radius (Shape collection) — NEW scale —— */
+  --r-none:0; --r-xs:4px; --r-sm:6px; --r-md:8px; --r-lg:10px;
+  --r-xl:12px; --r-2xl:16px; --r-3xl:24px; --r-4xl:32px; --r-full:999px;
+
+  /* —— Elevation —— */
+  --sh-card:0 1px 3px rgba(29,38,70,.06), 0 1px 2px rgba(29,38,70,.04);
+  --sh-raised:0 4px 16px rgba(29,38,70,.10);
+  --sh-dialog:0 8px 40px rgba(0,0,0,.15);
+  --sh-sheet:0 -4px 40px rgba(29,38,70,.18);
+
+  /* —— Type — POPPINS ONLY (mono only for spec overlines) —— */
+  --font-head:'Poppins',system-ui,sans-serif;
+  --font-ui:'Poppins',system-ui,sans-serif;
+  --font-mono:'JetBrains Mono',ui-monospace,monospace;
+}
+
+/* ========================= DIVIDER ========================= */
+.divider{border:none;height:1px;background:var(--border-subtle);width:100%}
+.divider-v{border:none;width:1px;align-self:stretch;background:var(--border-subtle)}
+.divider-label{display:flex;align-items:center;gap:16px;width:100%;color:var(--ink-3);font-size:12px;font-family:var(--font-mono);letter-spacing:.1em;text-transform:uppercase}
+.divider-label::before,.divider-label::after{content:"";flex:1;height:1px;background:var(--border-subtle)}
+.divider-inset{margin-left:56px}
+
+/* ========================= ICONS (sizes) ========================= */
+/* L 32 / stroke 2 · M 24 / stroke 1.5 · S 16 / stroke 1.3 ; fill variant = currentColor */
+
+/* ========================= BUTTONS ========================= */
+.btn{position:relative;font-family:var(--font-ui);font-weight:500;font-size:16px;line-height:24px;border:none;border-radius:var(--r-2xl);cursor:pointer;height:56px;padding:0 28px;display:inline-flex;align-items:center;justify-content:center;gap:8px;transition:background .13s,box-shadow .13s,color .13s}
+/* sizes · L 56/r-2xl · M 44/r-xl · S 32/r-lg */
+.btn-lg{height:56px;font-size:16px;padding:0 28px;border-radius:var(--r-2xl)}
+.btn-md{height:44px;font-size:15px;padding:0 22px;border-radius:var(--r-xl)}
+.btn-sm{height:32px;font-size:13px;padding:0 14px;border-radius:var(--r-lg);gap:6px}
+.btn-primary{background:var(--ink);color:var(--p-50)}            /* hover #16181C · active #000 */
+.btn-secondary{background:transparent;color:var(--ink);box-shadow:inset 0 0 0 1.5px var(--ink)} /* hover rgba(29,31,35,.05) · active .12 */
+.btn-text{background:transparent;color:var(--ink);height:44px;padding:0 16px;border-radius:var(--r-xl)} /* hover .05 · active .1 */
+.btn-danger{background:var(--da-400);color:#fff}                 /* hover/active da-500 */
+.btn-danger-outline{background:transparent;color:var(--da-400);box-shadow:inset 0 0 0 1.5px var(--da-400)}
+.btn.pressed{transform:scale(.96)}    /* spring scale; NO shadow/opacity change */
+.btn-disabled,.btn:disabled{opacity:.5;pointer-events:none}
+/* loading: .5 opacity + 3-dot loader replacing label */
+.dots,.dots::before,.dots::after{width:8px;height:8px;border-radius:50%;background:currentColor;animation:auxiDot 1s infinite ease-in-out}
+.dots{animation-delay:.16s} .dots::before{left:-13px;animation-delay:0s} .dots::after{left:13px;animation-delay:.32s}
+@keyframes auxiDot{0%,80%,100%{opacity:.3;transform:scale(.72)}40%{opacity:1;transform:scale(1)}}
+/* icon button · 48/r-xl (lg 56/16, md 44/12, sm 32/10); hover rgba(29,31,35,.06) */
+
+/* ========================= SELECTION CONTROLS ========================= */
+.uiswitch{width:52px;height:32px;border-radius:var(--r-full);background:var(--n-300);transition:.18s} /* knob 24, top4 left4→left24; ON bg su-400 */
+.uiradio{width:20px;height:20px;border-radius:50%;box-shadow:inset 0 0 0 2px var(--n-400);transition:.13s} /* on → p-700 + 10px dot; disabled n-300 */
+.uicheck{width:20px;height:20px;border-radius:var(--r-xs);box-shadow:inset 0 0 0 2px var(--n-400);transition:.13s} /* on → ink fill + check; indeterminate; disabled */
+/* checkmenu: 300 wide, surface-2, r-2xl, sh-card; cm-row 14/16 pad, divider line-cream, sel bg n-50, cm-tag mono */
+
+/* ========================= INPUTS ========================= */
+.input{height:54px;border-radius:var(--r-xl);background:#fff;box-shadow:inset 0 0 0 1.5px var(--n-300);padding:0 16px;font-size:15px;transition:.13s}
+.input.focus{box-shadow:inset 0 0 0 1.5px var(--ink)}
+.input.err{box-shadow:inset 0 0 0 1.5px var(--da-400)}
+/* field: label 12.5 ink-2; hint 11.5 ink-3 (err → da-400) */
+
+/* ========================= CHIPS / TAGS / BADGES ========================= */
+.chip{font-size:13.5px;font-weight:500;padding:9px 16px;border-radius:var(--r-full);background:var(--p-200);color:var(--p-600);transition:.12s} /* hover p-300; .on bg p-500 text p-50 */
+.chip.removable{gap:7px;padding-left:11px}  /* trailing x, 15px, opacity .7→1 */
+.tag{font-size:11.5px;font-weight:500;color:var(--p-50);background:rgba(29,31,35,.82);padding:5px 13px;border-radius:var(--r-full)}
+.badge{font-size:11.5px;font-weight:500;padding:5px 12px;border-radius:var(--r-full)} /* .cream p-100/p-600 · .tan p-200/p-600 · .soft n-100/ink-2 */
+.status{font-size:12px;font-weight:500;display:inline-flex;gap:7px;padding:5px 12px 5px 10px;border-radius:var(--r-full)} /* ::before 7px dot */
+.status.ok{background:var(--su-100);color:var(--su-500)}   /* dot su-400 */
+.status.warn{background:var(--wa-100);color:var(--wa-500)} /* dot wa-400 */
+.status.err{background:var(--da-100);color:var(--da-500)}  /* dot da-400 */
+.status.info{background:var(--in-100);color:var(--in-500)} /* dot in-400 */
+
+/* ========================= LIST / SETTINGS ROWS ========================= */
+.listrow{display:flex;align-items:center;gap:12px;padding:16px;border-bottom:1px solid var(--line-cream)} /* lbl 15; val ink-3 13.5; chev 20 ink-3; .danger → da-400 */
+
+/* ========================= TABS / SEGMENTED ========================= */
+.seg{display:inline-flex;background:var(--n-100);border-radius:var(--r-full);padding:4px;gap:2px} /* btn 9/20 r-full; .on white + sh-card */
+.tabs button.on::after{content:"";position:absolute;left:14px;right:14px;bottom:-1px;height:2.5px;border-radius:3px;background:var(--ink)}
+.tabbar{display:flex;justify-content:space-around;background:var(--n-800);padding:12px 8px 18px;border-radius:0 0 26px 26px} /* tb icon24, label10, .on p-50 */
+/* floating pill footer: bg p-100, pad8, r16; THUMB spring: transform/width .34s cubic-bezier(.34,1.32,.5,1) */
+.fbar-thumb{transition:transform .34s cubic-bezier(.34,1.32,.5,1),width .34s cubic-bezier(.34,1.32,.5,1)}
+
+/* ========================= CARDS / TILES ========================= */
+.tile{width:158px;background:#fff;border-radius:var(--r-2xl);box-shadow:var(--sh-card);border:1px solid var(--line)} /* img 3/4 */
+.tile .pin{position:absolute;top:10px;right:10px;width:34px;height:34px;border-radius:11px;background:#fff;box-shadow:var(--sh-card);transition:background .18s,transform .16s} /* hover scale 1.06; .pinned bg ink */
+.tile .pinstatus{transition:opacity .2s,transform .2s} /* slide-in -3px→0; ok dot su-200 */
+
+/* ========================= AVATAR ========================= */
+.avatar{border-radius:50%} /* av-lg 88 (icon40/initials30), av-sm 44 (icon22/initials16); initials bg ink/p-50 */
+
+/* ========================= DIALOG / SHEET / SNACKBAR / ACTION-SHEET / TOAST ========================= */
+.dialog{width:300px;background:var(--surface-2);border-radius:var(--r-3xl);padding:24px;box-shadow:var(--sh-dialog)} /* actions btn h48 */
+.sheet{width:300px;background:var(--surface-2);border-radius:var(--r-3xl) var(--r-3xl) 0 0;box-shadow:var(--sh-sheet)} /* grab 36x4 n-300 */
+.snackbar{display:flex;align-items:center;gap:16px;background:var(--n-800);color:var(--p-50);border-radius:var(--r-md);padding:14px 16px 14px 18px;min-width:320px;box-shadow:var(--sh-raised)} /* act su-200; .mint bg #4CF4D3 dark text */
+.asheet{width:300px;background:var(--surface-2);border-radius:var(--r-3xl)} /* ahead centered; arow divider line-cream; .danger da-400; acancel bg n-50 */
+.atoast{display:flex;flex-direction:column;align-items:center;gap:11px;background:rgba(29,31,35,.92);color:var(--p-50);padding:20px 22px;border-radius:14px;box-shadow:var(--sh-raised);opacity:0;transform:scale(.9);transition:opacity .2s,transform .2s} /* .show opacity1 scale1; .text-only row+r-full */
+.atoast .spin{width:32px;height:32px;border-radius:50%;border:3px solid rgba(242,239,236,.25);border-top-color:var(--p-50);animation:atoastSpin .8s linear infinite}
+@keyframes atoastSpin{to{transform:rotate(360deg)}}
+
+/* ========================= DATE PICKER (calendar) ========================= */
+.cal{width:300px;background:var(--surface-2);border-radius:var(--r-2xl);padding:18px;box-shadow:var(--sh-card)} /* day aspect1 r50; .sel ink/p-50; .today inset ring n-300; .mut n-400 */
+
+/* ========================= KEYBOARD ========================= */
+.kbd{width:340px;background:#d1d4db;border-radius:8px;padding:7px 4px 8px} /* key white r5 h40 max30; .wide flex1.6 #aab0bc; .space flex5 */
