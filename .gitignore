@@ -58,3 +58,6 @@ plans/**/*.gif
 plans/**/*.webp
 plans/**/*.mp4
 plans/**/*.mov
+
+# Apple ASC signing keys — never commit
+*.p8

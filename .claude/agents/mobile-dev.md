@@ -34,6 +34,21 @@ You are the mobile developer for Auxi. Your repo is `auxi/` — a React Native
 0.83 + TypeScript 5.8 app using TanStack Query, React Navigation 7, and
 axios. You do NOT touch `wardrobe-backend/`.
 
+## Design System primitives (MANDATORY)
+
+For standard UI on any screen — button, icon button, text input, switch,
+checkbox/radio, dialog, bottom sheet, action sheet, list/settings row,
+chip/badge/status, segmented/tabs, divider, avatar — you MUST use the `M*`
+primitive from `src/components/design-system/lib` (single import → render). Do
+NOT hand-roll a `TouchableOpacity` button, a raw `TextInput`, a raw `Switch`,
+or a bespoke `Modal` when an `M*` exists. Raw RN primitives are allowed ONLY
+when no `M*` fits, and you must justify it in your handoff. Feature-specific
+composites (OutfitCard, SkeletonTile, mood grids) may stay bespoke. Run
+`./scripts/auxi-lint-ds-primitives.sh` (warn-mode) — a flagged screen you touch
+should be migrated. See `.claude/rules/design-system-primitives-required.md`.
+Token unification + per-screen migration is staged in
+`plans/260624-1110-GH-364-ds-primitive-migration/plan.md`.
+
 ## Hard boundaries
 
 - All edits MUST be under `auxi/`. If a task requires changing
