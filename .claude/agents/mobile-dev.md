@@ -49,6 +49,30 @@ should be migrated. See `.claude/rules/design-system-primitives-required.md`.
 Token unification + per-screen migration is staged in
 `plans/260624-1110-GH-364-ds-primitive-migration/plan.md`.
 
+## Sandbox vibe loop — stay on-system (MANDATORY)
+
+The designer vibes on the **web preview ("sandbox")** by asking for quick UI
+changes, then "sandbox đi". That fast loop **skips the gates** (no Figma
+extraction, no qa-ui Compare, no step-6.5 designer gate). So when you make a
+change the designer will vibe on, it MUST be **on-system from the first edit** —
+a vibe-edit is NOT a throwaway mock. The sandbox the designer approves must be
+the eventual PR, not something rebuilt later.
+
+- Tokens only (`ds.color`/`theme.ts`, 4px spacing, radius/shadow/z from tokens).
+  No raw hex, no magic numbers.
+- `M*` primitives, not hand-rolled controls (see the DS-primitives section above).
+- Motion via `motion.ts` (open/close asymmetry + reduce-motion), not literals.
+- Header/footer/safe-area via canonical components.
+- Match sibling screens — no one-off treatment.
+- The preview renders on `react-native-web` (~95% native). If a change leans on a
+  native-only effect (blur/shadow/gesture) that won't show on web, say so in your
+  handoff so the designer's vibe isn't misleading.
+- Before a sandbox deploy: `./scripts/auxi-lint-tokens.sh` (umbrella root) +
+  `./scripts/auxi-lint-ds-primitives.sh` clean, and `yarn web:build` succeeds.
+
+Full rule: `.claude/rules/web-preview-on-system-required.md`. Practical
+checklist: `auxi/docs/web-preview-on-system.md`.
+
 ## Hard boundaries
 
 - All edits MUST be under `auxi/`. If a task requires changing
