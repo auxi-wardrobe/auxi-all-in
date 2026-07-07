@@ -1,0 +1,1134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Auxi Backend — Architecture on Railway + Database Schema</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  /* ============ THEME (light default · deep blue + gold) ============ */
+  :root {
+    --font-body: 'DM Sans', system-ui, sans-serif;
+    --font-mono: 'Fira Code', 'SF Mono', Consolas, monospace;
+
+    --bg: #f3f6fb;
+    --surface: #ffffff;
+    --surface2: #e8eef6;
+    --surface-elevated: #fbfcfe;
+    --border: rgba(20, 45, 80, 0.10);
+    --border-bright: rgba(20, 45, 80, 0.20);
+    --text: #14202f;
+    --text-dim: #5e7088;
+    --text-bright: #0a1420;
+    --accent: #1e5aa0;
+    --accent-dim: rgba(30, 90, 160, 0.08);
+
+    --node-a: #1e5aa0;   --node-a-dim: rgba(30, 90, 160, 0.08);
+    --node-b: #b07d10;   --node-b-dim: rgba(176, 125, 16, 0.09);
+    --node-c: #0f766e;   --node-c-dim: rgba(15, 118, 110, 0.08);
+
+    --green: #3f7d20;    --green-dim: rgba(63, 125, 32, 0.09);
+    --red: #b3261e;      --red-dim: rgba(179, 38, 30, 0.09);
+    --amber: #b45309;    --amber-dim: rgba(180, 83, 9, 0.10);
+    --sage: #5b7d10;     --sage-dim: rgba(91, 125, 16, 0.09);
+    --teal: #0f766e;     --teal-dim: rgba(15, 118, 110, 0.08);
+    --plum: #8a1f4f;     --plum-dim: rgba(138, 31, 79, 0.09);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0e1622;
+      --surface: #16202e;
+      --surface2: #1e2a3a;
+      --surface-elevated: #1f2c3d;
+      --border: rgba(150, 180, 220, 0.10);
+      --border-bright: rgba(150, 180, 220, 0.20);
+      --text: #d6e2f0;
+      --text-dim: #7d92ac;
+      --text-bright: #f0f6fc;
+      --accent: #5fa0e0;
+      --accent-dim: rgba(95, 160, 224, 0.14);
+
+      --node-a: #5fa0e0;   --node-a-dim: rgba(95, 160, 224, 0.14);
+      --node-b: #e0b84a;   --node-b-dim: rgba(224, 184, 74, 0.12);
+      --node-c: #5eead4;   --node-c-dim: rgba(94, 234, 212, 0.10);
+
+      --green: #86c34a;    --green-dim: rgba(134, 195, 74, 0.12);
+      --red: #f08a82;      --red-dim: rgba(240, 138, 130, 0.12);
+      --amber: #f0b65a;    --amber-dim: rgba(240, 182, 90, 0.12);
+      --sage: #b6d35a;     --sage-dim: rgba(182, 211, 90, 0.12);
+      --teal: #5eead4;     --teal-dim: rgba(94, 234, 212, 0.10);
+      --plum: #f08ab0;     --plum-dim: rgba(240, 138, 176, 0.12);
+    }
+  }
+
+  [data-theme="dark"] {
+    --bg: #0e1622;
+    --surface: #16202e;
+    --surface2: #1e2a3a;
+    --surface-elevated: #1f2c3d;
+    --border: rgba(150, 180, 220, 0.10);
+    --border-bright: rgba(150, 180, 220, 0.20);
+    --text: #d6e2f0;
+    --text-dim: #7d92ac;
+    --text-bright: #f0f6fc;
+    --accent: #5fa0e0;
+    --accent-dim: rgba(95, 160, 224, 0.14);
+
+    --node-a: #5fa0e0;   --node-a-dim: rgba(95, 160, 224, 0.14);
+    --node-b: #e0b84a;   --node-b-dim: rgba(224, 184, 74, 0.12);
+    --node-c: #5eead4;   --node-c-dim: rgba(94, 234, 212, 0.10);
+
+    --green: #86c34a;    --green-dim: rgba(134, 195, 74, 0.12);
+    --red: #f08a82;      --red-dim: rgba(240, 138, 130, 0.12);
+    --amber: #f0b65a;    --amber-dim: rgba(240, 182, 90, 0.12);
+    --sage: #b6d35a;     --sage-dim: rgba(182, 211, 90, 0.12);
+    --teal: #5eead4;     --teal-dim: rgba(94, 234, 212, 0.10);
+    --plum: #f08ab0;     --plum-dim: rgba(240, 138, 176, 0.12);
+  }
+
+  /* ============ THEME TOGGLE ============ */
+  .theme-toggle {
+    position: fixed; top: 16px; right: 16px; z-index: 300;
+    width: 36px; height: 36px; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--surface);
+    color: var(--text-dim); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; transition: background 0.15s, color 0.15s;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  }
+  .theme-toggle:hover { background: var(--surface2); color: var(--text); }
+
+  /* ============ RESET + BASE ============ */
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background-color: var(--bg);
+    background-image: radial-gradient(circle, var(--border) 1px, transparent 1px);
+    background-size: 26px 26px;
+    color: var(--text);
+    font-family: var(--font-body);
+    padding: 48px 40px 80px;
+    min-height: 100vh;
+    overflow-wrap: break-word;
+  }
+  .grid > *, .flex > * { min-width: 0; }
+
+  /* ============ ANIMATION ============ */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .animate { animation: fadeUp 0.4s ease-out both; animation-delay: calc(var(--i, 0) * 0.05s); }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important; animation-delay: 0ms !important; transition-duration: 0.01ms !important;
+    }
+  }
+
+  /* ============ LAYOUT ============ */
+  .container { max-width: 1080px; margin: 0 auto; }
+
+  h1 {
+    font-size: 40px; font-weight: 700; letter-spacing: -1.2px;
+    margin-bottom: 6px; text-wrap: balance; color: var(--text-bright);
+  }
+  .subtitle {
+    color: var(--text-dim); font-family: var(--font-mono);
+    font-size: 12.5px; margin-bottom: 24px; letter-spacing: 0.2px;
+  }
+  .lead {
+    font-size: 16px; line-height: 1.7; color: var(--text-dim);
+    max-width: 760px; margin-bottom: 32px;
+  }
+  .lead strong { color: var(--text); font-weight: 600; }
+  .lead code, .desc code {
+    font-family: var(--font-mono); font-size: 12.5px;
+    background: var(--accent-dim); color: var(--accent);
+    padding: 1px 5px; border-radius: 3px;
+  }
+
+  /* ============ SECTION HEADERS ============ */
+  .section { margin-top: 48px; }
+  .section-label {
+    font-family: var(--font-mono); font-size: 12px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 1.8px; color: var(--node-a);
+    display: flex; align-items: center; gap: 9px; margin-bottom: 6px;
+  }
+  .section-label::before {
+    content: ''; width: 9px; height: 9px; border-radius: 50%;
+    background: currentColor;
+  }
+  .section h2 {
+    font-size: 23px; font-weight: 700; letter-spacing: -0.5px;
+    color: var(--text-bright); margin-bottom: 8px;
+  }
+  .desc {
+    font-size: 14.5px; line-height: 1.65; color: var(--text-dim);
+    max-width: 780px; margin-bottom: 20px;
+  }
+
+  /* ============ KPI ROW ============ */
+  .kpi-row {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 14px; margin-bottom: 8px;
+  }
+  .kpi-card {
+    background: var(--surface-elevated); border: 1px solid var(--border);
+    border-radius: 11px; padding: 18px 20px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  }
+  .kpi-card__value {
+    font-size: 34px; font-weight: 700; letter-spacing: -1px; line-height: 1.05;
+    font-variant-numeric: tabular-nums; color: var(--text-bright);
+  }
+  .kpi-card__value span { font-size: 15px; color: var(--text-dim); font-weight: 500; }
+  .kpi-card__label {
+    font-family: var(--font-mono); font-size: 10.5px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 1.2px; color: var(--text-dim); margin-top: 7px;
+  }
+
+  /* ============ CARDS ============ */
+  .ve-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 11px; padding: 16px 20px; position: relative;
+  }
+  .ve-card--hero {
+    background: color-mix(in srgb, var(--surface) 92%, var(--accent) 8%);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.07), 0 1px 3px rgba(0, 0, 0, 0.04);
+    border-color: color-mix(in srgb, var(--border) 50%, var(--accent) 50%);
+    padding: 22px 26px; margin-bottom: 28px;
+  }
+  .ve-card--hero p { font-size: 15px; line-height: 1.7; color: var(--text); }
+  .ve-card--hero p + p { margin-top: 12px; }
+  .ve-card--hero strong { color: var(--text-bright); }
+  .ve-card--hero code {
+    font-family: var(--font-mono); font-size: 12.5px;
+    background: var(--accent-dim); color: var(--accent); padding: 1px 5px; border-radius: 3px;
+  }
+  .ve-card__label {
+    font-family: var(--font-mono); font-size: 11px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 9px;
+    display: flex; align-items: center; gap: 7px; color: var(--node-a);
+  }
+  .ve-card__label::before {
+    content: ''; width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex-shrink: 0;
+  }
+  .ve-card--b .ve-card__label { color: var(--node-b); }
+  .ve-card--c .ve-card__label { color: var(--node-c); }
+  .ve-card--plum .ve-card__label { color: var(--plum); }
+  .ve-card p.k {
+    font-size: 13.5px; line-height: 1.55; color: var(--text-dim); margin-bottom: 8px;
+  }
+  .ve-card .meta {
+    font-family: var(--font-mono); font-size: 11px; color: var(--text-dim);
+    display: block; margin-top: 6px;
+  }
+  .ve-card .meta b { color: var(--text); font-weight: 600; }
+
+  .card-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(248px, 1fr)); gap: 14px;
+  }
+  .card-grid--2 { grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); }
+
+  .node-list { list-style: none; padding: 0; margin: 6px 0 0; font-size: 13px; line-height: 1.7; }
+  .node-list li { padding-left: 14px; position: relative; color: var(--text); }
+  .node-list li::before { content: '›'; color: var(--text-dim); font-weight: 600; position: absolute; left: 0; }
+  .node-list code {
+    font-family: var(--font-mono); font-size: 11px; background: var(--accent-dim);
+    color: var(--accent); padding: 1px 5px; border-radius: 3px;
+  }
+  .tag {
+    font-family: var(--font-mono); font-size: 10px; font-weight: 500;
+    padding: 2px 7px; border-radius: 4px; background: var(--node-b-dim); color: var(--node-b);
+    white-space: nowrap;
+  }
+
+  /* ============ MERMAID ============ */
+  .diagram-shell { position: relative; margin-bottom: 20px; }
+  .diagram-shell__hint {
+    font-family: var(--font-mono); font-size: 11px; color: var(--text-dim);
+    margin-bottom: 8px; opacity: 0.75;
+  }
+  .mermaid-wrap {
+    position: relative; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 30px 22px; overflow: auto;
+    display: flex; justify-content: center; align-items: center; min-height: 400px;
+    cursor: grab;
+  }
+  .mermaid-wrap.is-panning { cursor: grabbing; user-select: none; }
+  .zoom-controls {
+    position: absolute; top: 8px; right: 8px; display: flex; gap: 2px; z-index: 10;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 2px;
+  }
+  .zoom-controls button {
+    width: 28px; height: 28px; border: none; background: transparent; color: var(--text-dim);
+    font-family: var(--font-mono); font-size: 14px; cursor: pointer; border-radius: 4px;
+    display: flex; align-items: center; justify-content: center; transition: background 0.15s, color 0.15s;
+  }
+  .zoom-controls button:hover { background: var(--border); color: var(--text); }
+  .mermaid-viewport { position: relative; overflow: hidden; width: 100%; height: 100%; min-height: 320px; }
+  .mermaid-canvas { position: absolute; top: 0; left: 0; }
+  .zoom-label { font-family: var(--font-mono); font-size: 10px; color: var(--text-dim); padding: 0 6px; white-space: nowrap; }
+
+  .mermaid .nodeLabel { font-family: var(--font-body) !important; font-size: 15px !important; color: var(--text) !important; }
+  .mermaid .edgeLabel { font-family: var(--font-mono) !important; font-size: 12px !important; color: var(--text-dim) !important; background-color: var(--bg) !important; }
+  .mermaid .edgeLabel rect { fill: var(--bg) !important; }
+  .mermaid .node rect, .mermaid .node circle, .mermaid .node polygon { stroke-width: 1.5px !important; }
+  .mermaid .edge-pattern-solid { stroke-width: 1.5px !important; }
+  .mermaid .messageText { font-family: var(--font-mono) !important; font-size: 12px !important; }
+  .mermaid .er.entityBox { stroke-width: 1.5px !important; }
+  .mermaid .entityLabel { font-family: var(--font-body) !important; }
+
+  /* ============ LEGEND ============ */
+  .legend { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 6px; }
+  .legend-item { display: flex; align-items: center; gap: 7px; font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); }
+  .legend-swatch { width: 13px; height: 13px; border-radius: 3px; flex-shrink: 0; }
+  .legend-swatch--dash { background: transparent; border: 1.5px dashed var(--text-dim); }
+
+  /* ============ DATA TABLE ============ */
+  .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .data-table { width: 100%; border-collapse: collapse; font-size: 13.5px; line-height: 1.5; }
+  .data-table th {
+    background: var(--surface-elevated); font-family: var(--font-mono); font-size: 11px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); text-align: left;
+    padding: 11px 16px; border-bottom: 2px solid var(--border-bright); white-space: nowrap;
+  }
+  .data-table td { padding: 11px 16px; border-bottom: 1px solid var(--border); vertical-align: top; color: var(--text); }
+  .data-table td.tbl { font-family: var(--font-mono); font-size: 12.5px; color: var(--accent); white-space: nowrap; }
+  .data-table td.cols { font-family: var(--font-mono); font-size: 11.5px; color: var(--text-dim); }
+  .data-table tbody tr:last-child td { border-bottom: none; }
+  .data-table tbody tr:hover { background: var(--accent-dim); }
+  .grp-row td {
+    background: var(--surface2); font-family: var(--font-mono); font-size: 11px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 1.3px; color: var(--text-bright);
+    padding: 8px 16px; border-bottom: 1px solid var(--border-bright);
+  }
+  .grp-row td .gc { color: var(--text-dim); font-weight: 400; letter-spacing: 0.5px; text-transform: none; }
+
+  /* ============ COLLAPSIBLE ============ */
+  details.collapsible { border: 1px solid var(--border); border-radius: 11px; overflow: hidden; margin-top: 14px; }
+  details.collapsible summary {
+    padding: 14px 20px; background: var(--surface); font-family: var(--font-mono); font-size: 12px; font-weight: 600;
+    cursor: pointer; list-style: none; display: flex; align-items: center; gap: 9px; color: var(--text); transition: background 0.15s;
+  }
+  details.collapsible summary:hover { background: var(--surface-elevated); }
+  details.collapsible summary::-webkit-details-marker { display: none; }
+  details.collapsible summary::before { content: '▸'; font-size: 11px; color: var(--text-dim); transition: transform 0.15s; }
+  details.collapsible[open] summary::before { transform: rotate(90deg); }
+  details.collapsible .body { padding: 4px 20px 18px; border-top: 1px solid var(--border); }
+  .enum-row { padding: 11px 0; border-bottom: 1px dashed var(--border); }
+  .enum-row:last-child { border-bottom: none; }
+  .enum-row .k { font-family: var(--font-mono); font-size: 12px; color: var(--node-b); font-weight: 600; }
+  .enum-row .v { font-size: 13px; color: var(--text-dim); margin-top: 3px; line-height: 1.6; }
+  .enum-row .v code {
+    font-family: var(--font-mono); font-size: 11px; background: var(--surface2); color: var(--text);
+    padding: 1px 5px; border-radius: 3px; margin: 0 1px;
+  }
+  .mig-list { list-style: none; padding: 0; margin: 0; }
+  .mig-list li {
+    font-family: var(--font-mono); font-size: 12px; color: var(--text-dim);
+    padding: 7px 0; border-bottom: 1px dashed var(--border); display: flex; gap: 12px;
+  }
+  .mig-list li:last-child { border-bottom: none; }
+  .mig-list .rev { color: var(--accent); flex-shrink: 0; min-width: 168px; }
+  .mig-list .head-badge { color: var(--node-b); font-weight: 600; }
+
+  /* ============ CALLOUT ============ */
+  .callout {
+    padding: 16px 20px; border-radius: 9px; border-left: 4px solid var(--accent);
+    background: var(--accent-dim); margin-top: 40px;
+  }
+  .callout__title { font-weight: 600; margin-bottom: 6px; color: var(--accent); font-size: 14px; }
+  .callout p { font-size: 13.5px; line-height: 1.65; color: var(--text-dim); }
+  .callout code { font-family: var(--font-mono); font-size: 11.5px; color: var(--text); background: var(--surface); padding: 1px 5px; border-radius: 3px; }
+
+  .footer { margin-top: 36px; font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); opacity: 0.7; }
+
+  /* ============ RESPONSIVE ============ */
+  @media (max-width: 768px) {
+    body { padding: 24px 16px 60px; }
+    h1 { font-size: 27px; }
+    .mermaid-wrap { padding: 16px 12px; }
+    .section { margin-top: 36px; }
+  }
+</style>
+</head>
+<body>
+<button class="theme-toggle" id="themeToggle" title="Toggle theme" aria-label="Toggle light/dark theme"></button>
+<script>
+(function() {
+  var t = document.getElementById('themeToggle');
+  var s = localStorage.getItem('theme');
+  var i = s || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  if (s) document.documentElement.setAttribute('data-theme', i);
+  t.textContent = i === 'dark' ? '☀' : '☾';
+  t.addEventListener('click', function() {
+    var c = document.documentElement.getAttribute('data-theme')
+      || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    var n = c === 'light' ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', n);
+    localStorage.setItem('theme', n);
+    t.textContent = n === 'dark' ? '☀' : '☾';
+  });
+})();
+</script>
+
+<div class="container">
+
+  <h1 class="animate" style="--i:0">Auxi Backend — Architecture &amp; Schema</h1>
+  <p class="subtitle animate" style="--i:1">fastapi · postgres · redis · gemini / openai · railway &nbsp;&mdash;&nbsp; system map as deployed · 2026-06-30</p>
+
+  <div class="ve-card ve-card--hero animate" style="--i:2">
+    <p>The backend is a <strong>FastAPI</strong> monolith fronting two clients — the <strong>Auxi</strong> React Native app over <code>/api/*</code> and the internal <strong>wardrobe-admin</strong> SPA over <code>/api/admin</code> — backed by <strong>PostgreSQL</strong> (SQLAlchemy + Alembic) and <strong>Redis</strong>. Heavy AI work never runs in the request path: the web tier enqueues jobs to Redis, and two long-running <strong>worker services</strong> (<code>ai_worker</code>, <code>notification_worker</code>) drain those queues out-of-band.</p>
+    <p>Everything runs on <strong>Railway</strong> from a single Docker image — the web process plus the workers are separate service instances of the same codebase. An Alembic <code>upgrade head</code> runs as a Railway <strong>pre-deploy</strong> step, so the schema migrates before new code serves traffic.</p>
+  </div>
+
+  <div class="kpi-row animate" style="--i:3">
+    <div class="kpi-card"><div class="kpi-card__value">5</div><div class="kpi-card__label">Railway services<br>3 app · 2 data</div></div>
+    <div class="kpi-card"><div class="kpi-card__value">24</div><div class="kpi-card__label">Postgres tables</div></div>
+    <div class="kpi-card"><div class="kpi-card__value">20</div><div class="kpi-card__label">API router groups</div></div>
+    <div class="kpi-card"><div class="kpi-card__value">8</div><div class="kpi-card__label">External integrations</div></div>
+    <div class="kpi-card"><div class="kpi-card__value">3</div><div class="kpi-card__label">Recommendation engines</div></div>
+    <div class="kpi-card"><div class="kpi-card__value">3</div><div class="kpi-card__label">Alembic heads</div></div>
+  </div>
+
+  <!-- ============ DIAGRAM 1: TOPOLOGY ============ -->
+  <section class="section animate" style="--i:0">
+    <div class="section-label">01 · Deployment topology</div>
+    <h2>Railway services &amp; external edges</h2>
+    <p class="desc">What runs on Railway and what it talks to. The web tier handles HTTP, persistence, and queueing; the two workers own all provider calls (AI, push). Solid edges are synchronous; dashed nodes are third-party services outside Railway.</p>
+
+    <div class="diagram-shell">
+      <p class="diagram-shell__hint">Ctrl/Cmd + wheel to zoom · drag to pan · double-click to fit · ⛶ opens full size.</p>
+      <div class="mermaid-wrap">
+        <div class="zoom-controls">
+          <button type="button" data-action="zoom-in" title="Zoom in">+</button>
+          <button type="button" data-action="zoom-out" title="Zoom out">&minus;</button>
+          <button type="button" data-action="zoom-fit" title="Smart fit">&#8634;</button>
+          <button type="button" data-action="zoom-one" title="1:1 zoom">1:1</button>
+          <button type="button" data-action="zoom-expand" title="Open full size">&#x26F6;</button>
+          <span class="zoom-label">Loading...</span>
+        </div>
+        <div class="mermaid-viewport"><div class="mermaid mermaid-canvas"></div></div>
+      </div>
+      <script type="text/plain" class="diagram-source">
+graph TD
+  mobile["Auxi Mobile<br/><small>React Native</small>"]
+  admin["Wardrobe Admin<br/><small>React SPA · Cloudflare</small>"]
+
+  subgraph railway["Railway Platform"]
+    web["FastAPI Web<br/><small>gunicorn + uvicorn</small>"]
+    aiw["ai_worker<br/><small>AI job consumer</small>"]
+    nw["notification_worker<br/><small>+ APScheduler</small>"]
+    pg[("PostgreSQL<br/><small>SQLAlchemy + Alembic</small>")]
+    redis[("Redis<br/><small>queues + session cache</small>")]
+  end
+
+  gemini["Google Gemini"]:::ext
+  openai["OpenAI<br/><small>gpt-image-1 · gpt-4o-mini</small>"]:::ext
+  kling["Kling AI<br/><small>VTON fallback</small>"]:::ext
+  s3["S3 / Cloudflare R2"]:::ext
+  fcm["Firebase FCM"]:::ext
+  weather["OpenWeather"]:::ext
+  email["ElasticEmail / SMTP"]:::ext
+  sentry["Sentry"]:::ext
+
+  mobile -->|"HTTPS /api/*"| web
+  admin -->|"HTTPS /api/admin"| web
+  web -->|SQL| pg
+  web -->|enqueue + cache| redis
+  web -->|presign upload| s3
+  web -->|weather proxy| weather
+  web -->|verify + reset| email
+  web -.->|traces| sentry
+
+  redis --> aiw
+  redis --> nw
+  aiw -->|try-on + metadata| openai
+  aiw -.->|fallback| gemini
+  aiw -.->|VTON fallback| kling
+  aiw -->|images| s3
+  aiw -->|SQL| pg
+  nw -->|push| fcm
+  nw -->|SQL| pg
+
+  classDef ext fill:none,stroke-dasharray:5 5
+      </script>
+    </div>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-swatch" style="background:var(--node-a)"></div> Web / app service</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:var(--node-b)"></div> Worker</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:var(--node-c)"></div> Data store</div>
+      <div class="legend-item"><div class="legend-swatch legend-swatch--dash"></div> External service</div>
+    </div>
+  </section>
+
+  <!-- ============ DIAGRAM 2: ASYNC JOB FLOW ============ -->
+  <section class="section animate" style="--i:0">
+    <div class="section-label">02 · Async pipeline</div>
+    <h2>Virtual try-on render — enqueue &amp; poll</h2>
+    <p class="desc">The canonical async path. The web tier returns <code>202</code> immediately and a <code>job_id</code>; <code>ai_worker</code> does the slow provider call off the request thread; the client polls for the result. Wardrobe-item AI extraction (<code>ai_metadata</code>) and body-shape generation follow the same enqueue → worker → S3 → DB shape.</p>
+
+    <div class="diagram-shell">
+      <p class="diagram-shell__hint">Ctrl/Cmd + wheel to zoom · drag to pan · double-click to fit.</p>
+      <div class="mermaid-wrap mermaid-wrap--tall" style="min-height:520px">
+        <div class="zoom-controls">
+          <button type="button" data-action="zoom-in" title="Zoom in">+</button>
+          <button type="button" data-action="zoom-out" title="Zoom out">&minus;</button>
+          <button type="button" data-action="zoom-fit" title="Smart fit">&#8634;</button>
+          <button type="button" data-action="zoom-one" title="1:1 zoom">1:1</button>
+          <button type="button" data-action="zoom-expand" title="Open full size">&#x26F6;</button>
+          <span class="zoom-label">Loading...</span>
+        </div>
+        <div class="mermaid-viewport"><div class="mermaid mermaid-canvas"></div></div>
+      </div>
+      <script type="text/plain" class="diagram-source">
+sequenceDiagram
+  participant M as Mobile
+  participant W as FastAPI Web
+  participant R as Redis Queue
+  participant K as ai_worker
+  participant P as AI Provider
+  participant S as S3 / R2
+  participant D as Postgres
+  M->>W: POST /api/tryon/highres
+  W->>R: enqueue tryon_render job
+  W-->>M: 202 Accepted plus job_id
+  K->>R: BRPOP ai_processing_queue
+  K->>S: fetch body and garment images
+  K->>P: generate composite via gpt-image-1
+  P-->>K: rendered image
+  Note over K,P: Gemini or Kling on failure
+  K->>S: upload result image
+  K->>D: save TryOnImage row
+  M->>W: GET tryon result by job_id
+  W->>D: lookup job result
+  W-->>M: presigned image URL
+      </script>
+    </div>
+  </section>
+
+  <!-- ============ EXTERNAL INTEGRATIONS ============ -->
+  <section class="section animate" style="--i:0">
+    <div class="section-label">03 · External integrations</div>
+    <h2>Eight third-party services</h2>
+    <p class="desc">Each integration is wired through a dedicated client/service module and gated by env vars — missing config degrades gracefully (e.g. email driver falls back to <code>noop</code>, Sentry disables itself).</p>
+    <div class="card-grid">
+      <div class="ve-card"><div class="ve-card__label">Google Gemini</div><p class="k">Multimodal try-on fallback + extraction fallback; recommendation judge (<code>gemini-2.0-flash</code>); chat agent LLM.</p><span class="meta"><b>env:</b> GOOGLE_STUDIO_KEY · GEMINI_MODEL</span></div>
+      <div class="ve-card"><div class="ve-card__label">OpenAI</div><p class="k"><code>gpt-image-1</code> primary try-on render; <code>gpt-4o-mini</code> for body-photo person guard, item extraction &amp; LLM-3 picker.</p><span class="meta"><b>env:</b> OPENAI_API_KEY</span></div>
+      <div class="ve-card"><div class="ve-card__label">Kling AI</div><p class="k">Alternate virtual try-on provider (<code>kolors-virtual-try-on</code>) — fallback when OpenAI render fails.</p><span class="meta"><b>env:</b> KLING_API_KEY · KLING_API_BASE</span></div>
+      <div class="ve-card ve-card--c"><div class="ve-card__label">S3 / Cloudflare R2</div><p class="k">Persistent object store — wardrobe images, body photos, try-on composites. Presigned URLs via CDN domain.</p><span class="meta"><b>env:</b> S3_BUCKET · S3_ENDPOINT_URL · S3_PUBLIC_DOMAIN</span></div>
+      <div class="ve-card ve-card--b"><div class="ve-card__label">Firebase FCM</div><p class="k">Push delivery — driven by <code>notification_worker</code> against registered device tokens.</p><span class="meta"><b>env:</b> FIREBASE_CREDENTIALS_JSON</span></div>
+      <div class="ve-card ve-card--b"><div class="ve-card__label">OpenWeather</div><p class="k">Weather context for climate-aware recommendations. Cached ~4h (stale 12h), proxied via <code>/api/weather</code>.</p><span class="meta"><b>env:</b> OPENWEATHER_API_KEY</span></div>
+      <div class="ve-card ve-card--c"><div class="ve-card__label">ElasticEmail / SMTP</div><p class="k">Transactional email (verify, password reset). Driver factory: <code>elasticemail | smtp | mock | noop</code>.</p><span class="meta"><b>env:</b> EMAIL_SERVICE_DRIVER · EMAIL_FROM</span></div>
+      <div class="ve-card ve-card--plum"><div class="ve-card__label">Sentry</div><p class="k">Error tracking + 10% perf traces, PII-redacted. Disabled when DSN unset to keep local dev quiet.</p><span class="meta"><b>env:</b> SENTRY_DSN · SENTRY_ENVIRONMENT</span></div>
+    </div>
+  </section>
+
+  <!-- ============ API SURFACE ============ -->
+  <section class="section animate" style="--i:0">
+    <div class="section-label">04 · API surface</div>
+    <h2>Public <code style="font-size:0.8em">/api/*</code> router groups</h2>
+    <p class="desc">~20 routers under a service → repository pattern (routers parse + auth, services hold logic + AI/queue calls, repositories own SQLAlchemy). Auth is JWT HS256 (60-min access, 7-day refresh); <code>/api/admin</code> requires the admin role. Legacy recommendation/try-on engines live in <code>blueprints/</code>.</p>
+    <div class="card-grid card-grid--2">
+      <div class="ve-card"><div class="ve-card__label">Identity &amp; auth</div>
+        <ul class="node-list">
+          <li><code>/api/auth</code> — register, login, refresh, email verify, password reset</li>
+          <li><code>/api/admin</code> — internal ops (admin role enforced)</li>
+        </ul>
+      </div>
+      <div class="ve-card"><div class="ve-card__label">Wardrobe &amp; content</div>
+        <ul class="node-list">
+          <li><code>/api/wardrobe</code> — items, metadata, common-item catalog, AI extraction</li>
+          <li><code>/api/upload</code> — image upload + item creation</li>
+          <li><code>/api/favorites</code> · <code>/api/creations</code> · <code>/api/schedule</code></li>
+        </ul>
+      </div>
+      <div class="ve-card ve-card--b"><div class="ve-card__label">Recommendation</div>
+        <ul class="node-list">
+          <li><code>/api/recommendation</code> — V2 stateful (axis rotation)</li>
+          <li><code>/api/v05/...</code> — onboarding · build · try_another · outcome · feedback</li>
+          <li><code>/api/recommendation/feedback</code> · <code>/api/mood/...</code></li>
+        </ul>
+      </div>
+      <div class="ve-card ve-card--c"><div class="ve-card__label">Visualization &amp; try-on</div>
+        <ul class="node-list">
+          <li><code>/api/body</code> · <code>/api/body-shape</code> — self-visualization</li>
+          <li><code>/api/tryon/highres</code> — async render submit + poll</li>
+        </ul>
+      </div>
+      <div class="ve-card ve-card--plum"><div class="ve-card__label">Engagement &amp; ops</div>
+        <ul class="node-list">
+          <li><code>/api/notifications</code> — device token register/unregister</li>
+          <li><code>/api/app-feedback</code> · <code>/api/weather</code></li>
+        </ul>
+      </div>
+      <div class="ve-card"><div class="ve-card__label">Cross-cutting</div>
+        <ul class="node-list">
+          <li>CORS · request-id middleware · rate limiter (Redis-backed)</li>
+          <li><code>/health</code> · <code>/docs</code> · <code>/openapi.json</code></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ WORKERS ============ -->
+  <section class="section animate" style="--i:0">
+    <div class="section-label">05 · Background workers</div>
+    <h2>Two Redis-backed consumers</h2>
+    <div class="card-grid card-grid--2">
+      <div class="ve-card ve-card--b"><div class="ve-card__label">ai_worker</div>
+        <p class="k">Drains <code>ai_processing_queue</code> (BRPOP). Dispatches by job type to the AI services and writes results back to S3 + Postgres.</p>
+        <ul class="node-list">
+          <li><span class="tag">ai_metadata</span> wardrobe item extraction + background removal</li>
+          <li><span class="tag">tryon_render</span> gpt-image-1 → Kling/Gemini fallback</li>
+          <li><span class="tag">body_shape_generation</span> self-visualization render</li>
+        </ul>
+      </div>
+      <div class="ve-card ve-card--plum"><div class="ve-card__label">notification_worker</div>
+        <p class="k">Drains <code>notification_queue</code> + runs an in-process <strong>APScheduler</strong> that produces daily-reminder / planned-outfit jobs per user timezone.</p>
+        <ul class="node-list">
+          <li>Loads device tokens → FCM send → writes <code>notification_deliveries</code></li>
+          <li>Retry 3× with exponential backoff (max 30s)</li>
+          <li>Also: V05 session pools cached in Redis (TTL ~1h, diversity signatures)</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ ER DIAGRAMS ============ -->
+  <section class="section animate" style="--i:0">
+    <div class="section-label">06 · Data model</div>
+    <h2>Database schema — 24 tables, by domain</h2>
+    <p class="desc">All identifiers are UUID strings. <code>users</code> is the hub — almost every table carries a <code>user_id</code>. Split into three views for readability; each Mermaid pane zooms &amp; pans independently. JSON columns (canvas layouts, scheduled outfits, context snapshots) are mobile-owned blobs the backend stores verbatim.</p>
+
+    <!-- ER 1 -->
+    <h3 style="font-size:15px;font-family:var(--font-mono);color:var(--text-dim);margin:18px 0 8px;letter-spacing:0.5px">6a · Identity &amp; wardrobe</h3>
+    <div class="diagram-shell">
+      <p class="diagram-shell__hint">Ctrl/Cmd + wheel to zoom · drag to pan · double-click to fit.</p>
+      <div class="mermaid-wrap mermaid-wrap--tall" style="min-height:540px">
+        <div class="zoom-controls">
+          <button type="button" data-action="zoom-in" title="Zoom in">+</button>
+          <button type="button" data-action="zoom-out" title="Zoom out">&minus;</button>
+          <button type="button" data-action="zoom-fit" title="Smart fit">&#8634;</button>
+          <button type="button" data-action="zoom-one" title="1:1 zoom">1:1</button>
+          <button type="button" data-action="zoom-expand" title="Open full size">&#x26F6;</button>
+          <span class="zoom-label">Loading...</span>
+        </div>
+        <div class="mermaid-viewport"><div class="mermaid mermaid-canvas"></div></div>
+      </div>
+      <script type="text/plain" class="diagram-source">
+erDiagram
+  USERS ||--o{ AUTH_TOKENS : "verify / reset"
+  USERS ||--o{ REFRESH_TOKENS : "jwt refresh"
+  USERS ||--o{ WARDROBE_ITEMS : owns
+  USERS ||--o{ BODIES : "body photos"
+  USERS ||--o{ TRYON_IMAGES : renders
+  USERS {
+    string id PK
+    string email UK
+    string password_hash
+    string role
+    string oauth_provider
+    json user_metadata
+  }
+  AUTH_TOKENS {
+    string id PK
+    string user_id FK
+    string token_hash UK
+    string kind
+    datetime expires_at
+  }
+  REFRESH_TOKENS {
+    string id PK
+    string user_id FK
+    string jti UK
+    datetime expires_at
+    datetime revoked_at
+  }
+  WARDROBE_ITEMS {
+    string id PK
+    string user_id FK
+    string owner_id
+    string category_family
+    string usage_frequency
+    json colors
+    bool is_deleted
+  }
+  BODIES {
+    string id PK
+    string user_id FK
+    string image_url
+    string body_shape
+    bool is_primary
+  }
+  TRYON_IMAGES {
+    string id PK
+    string user_id FK
+    string job_id
+    string image_url
+  }
+      </script>
+    </div>
+
+    <!-- ER 2 -->
+    <h3 style="font-size:15px;font-family:var(--font-mono);color:var(--text-dim);margin:24px 0 8px;letter-spacing:0.5px">6b · Outfits, planning &amp; notifications</h3>
+    <div class="diagram-shell">
+      <p class="diagram-shell__hint">Ctrl/Cmd + wheel to zoom · drag to pan · double-click to fit.</p>
+      <div class="mermaid-wrap mermaid-wrap--tall" style="min-height:560px">
+        <div class="zoom-controls">
+          <button type="button" data-action="zoom-in" title="Zoom in">+</button>
+          <button type="button" data-action="zoom-out" title="Zoom out">&minus;</button>
+          <button type="button" data-action="zoom-fit" title="Smart fit">&#8634;</button>
+          <button type="button" data-action="zoom-one" title="1:1 zoom">1:1</button>
+          <button type="button" data-action="zoom-expand" title="Open full size">&#x26F6;</button>
+          <span class="zoom-label">Loading...</span>
+        </div>
+        <div class="mermaid-viewport"><div class="mermaid mermaid-canvas"></div></div>
+      </div>
+      <script type="text/plain" class="diagram-source">
+erDiagram
+  USERS ||--o{ FAVORITES : saves
+  FAVORITES ||--o{ FAVORITE_ITEMS : contains
+  WARDROBE_ITEMS ||--o{ FAVORITE_ITEMS : "appears in"
+  USERS ||--o{ CREATIONS : composes
+  USERS ||--o{ SCHEDULE_ENTRIES : plans
+  USERS ||--o{ DEVICE_TOKENS : registers
+  NOTIFICATIONS ||--o{ NOTIFICATION_DELIVERIES : "fans out"
+  USERS ||--o{ NOTIFICATION_DELIVERIES : receives
+  USERS ||--o{ NOTIFICATIONS : "created_by"
+  USERS { string id PK }
+  WARDROBE_ITEMS { string id PK }
+  FAVORITES {
+    string id PK
+    string user_id FK
+    string title
+    json outfit_context
+  }
+  FAVORITE_ITEMS {
+    string favorite_id FK
+    string wardrobe_item_id FK
+  }
+  CREATIONS {
+    string id PK
+    string user_id FK
+    json items
+    json tags
+    float canvas_width
+  }
+  SCHEDULE_ENTRIES {
+    string id PK
+    string user_id FK
+    date scheduled_date
+    string kind
+    json outfit
+  }
+  DEVICE_TOKENS {
+    string id PK
+    string user_id FK
+    string token UK
+    string platform
+    string timezone
+  }
+  NOTIFICATIONS {
+    string id PK
+    string source
+    string type
+    string status
+    datetime scheduled_for
+  }
+  NOTIFICATION_DELIVERIES {
+    string id PK
+    string notification_id FK
+    string user_id FK
+    string status
+    datetime read_at
+  }
+      </script>
+    </div>
+
+    <!-- ER 3 -->
+    <h3 style="font-size:15px;font-family:var(--font-mono);color:var(--text-dim);margin:24px 0 8px;letter-spacing:0.5px">6c · Recommendation, sessions &amp; signals</h3>
+    <div class="diagram-shell">
+      <p class="diagram-shell__hint">Ctrl/Cmd + wheel to zoom · drag to pan · double-click to fit.</p>
+      <div class="mermaid-wrap mermaid-wrap--tall" style="min-height:560px">
+        <div class="zoom-controls">
+          <button type="button" data-action="zoom-in" title="Zoom in">+</button>
+          <button type="button" data-action="zoom-out" title="Zoom out">&minus;</button>
+          <button type="button" data-action="zoom-fit" title="Smart fit">&#8634;</button>
+          <button type="button" data-action="zoom-one" title="1:1 zoom">1:1</button>
+          <button type="button" data-action="zoom-expand" title="Open full size">&#x26F6;</button>
+          <span class="zoom-label">Loading...</span>
+        </div>
+        <div class="mermaid-viewport"><div class="mermaid mermaid-canvas"></div></div>
+      </div>
+      <script type="text/plain" class="diagram-source">
+erDiagram
+  USERS ||--o{ RECOMMENDATION_LOGS : generates
+  USERS ||--o{ RECOMMENDATION_FEEDBACK : rates
+  USERS ||--o{ OUTFIT_MOOD_SIGNALS : tags
+  FAVORITES ||--o{ OUTFIT_MOOD_SIGNALS : "about"
+  USERS ||--o{ V05_USER_STYLE_SIGNALS : "style prefs"
+  USERS ||--o{ V05_OUTCOME_EVENTS : "build / pick / wear"
+  USERS ||--o{ DECISION_SESSIONS : opens
+  DECISION_SESSIONS ||--o{ DECISIONS : yields
+  USERS { string id PK }
+  FAVORITES { string id PK }
+  RECOMMENDATION_LOGS {
+    string id PK
+    string user_id FK
+    string session_id
+    string outfit_hash
+    json outfit_items
+  }
+  RECOMMENDATION_FEEDBACK {
+    string id PK
+    string user_id FK
+    string outfit_hash
+    string feedback_type
+    json reason_chips
+  }
+  OUTFIT_MOOD_SIGNALS {
+    string id PK
+    string user_id FK
+    string favorite_id FK
+    json mood_tags
+    datetime decay_at
+  }
+  V05_USER_STYLE_SIGNALS {
+    string id PK
+    string user_id
+    json axis_likes
+    json axis_dislikes
+    float confidence
+  }
+  V05_OUTCOME_EVENTS {
+    string id PK
+    string user_id
+    string event_type
+    string outfit_id
+  }
+  DECISION_SESSIONS {
+    string id PK
+    string user_id FK
+    string status
+    int reject_count
+  }
+  DECISIONS {
+    string id PK
+    string session_id FK
+    json outfit_json
+    string action
+  }
+      </script>
+    </div>
+    <p class="desc" style="margin-top:14px">Four analytics / config tables stand apart (weak or no FK edges): <code>v05_pool_insufficient_events</code> &amp; <code>v05_outfit_eval_scores</code> (eval telemetry, JSONB GIN-indexed), <code>algorithm_configs</code> (DRAFT/ACTIVE/ARCHIVED engine params), and <code>app_feedback</code> (nullable user). <code>v05_*</code> signal tables reference <code>user_id</code> as an un-enforced logical key, not a DB foreign key.</p>
+  </section>
+
+  <!-- ============ SCHEMA REFERENCE TABLE ============ -->
+  <section class="section animate" style="--i:0">
+    <div class="section-label">07 · Schema reference</div>
+    <h2>All 24 tables at a glance</h2>
+    <div class="table-wrap">
+      <div class="table-scroll">
+        <table class="data-table">
+          <thead><tr><th>Table</th><th>Key columns</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr class="grp-row"><td colspan="3">Identity &amp; auth <span class="gc">— 3 tables</span></td></tr>
+            <tr><td class="tbl">users</td><td class="cols">id PK · email UK · role · oauth_provider · user_metadata</td><td>Account hub; password or Google/Apple OAuth; JSON metadata bag</td></tr>
+            <tr><td class="tbl">auth_tokens</td><td class="cols">id · user_id FK · token_hash UK · kind · expires_at</td><td>Email-verify (24h) &amp; password-reset (30m) one-time tokens</td></tr>
+            <tr><td class="tbl">refresh_tokens</td><td class="cols">id · user_id FK · jti UK · expires_at · revoked_at</td><td>Rotating JWT refresh tokens with revocation chain</td></tr>
+
+            <tr class="grp-row"><td colspan="3">Wardrobe &amp; visualization <span class="gc">— 3 tables</span></td></tr>
+            <tr><td class="tbl">wardrobe_items</td><td class="cols">id · user_id FK · owner_id · category_family · usage_frequency · colors · is_deleted</td><td>Clothing items; <code>owner_id=SYSTEM</code> for shared common items; rich AI metadata; soft-delete</td></tr>
+            <tr><td class="tbl">bodies</td><td class="cols">id · user_id FK · image_url · body_shape · is_primary</td><td>Self-visualization body photos / profiles</td></tr>
+            <tr><td class="tbl">tryon_images</td><td class="cols">id · user_id FK · job_id · image_url</td><td>Rendered virtual try-on results (S3 URLs)</td></tr>
+
+            <tr class="grp-row"><td colspan="3">Outfits, saving &amp; planning <span class="gc">— 4 tables</span></td></tr>
+            <tr><td class="tbl">favorites</td><td class="cols">id · user_id FK · title · outfit_context</td><td>Saved outfits; M:N to items via join table</td></tr>
+            <tr><td class="tbl">favorite_items</td><td class="cols">favorite_id FK · wardrobe_item_id FK</td><td>Association table: favorites ↔ wardrobe_items</td></tr>
+            <tr><td class="tbl">creations</td><td class="cols">id · user_id FK · items (json) · tags · canvas_width</td><td>"My Creations" canvas layouts; items blob is mobile-owned</td></tr>
+            <tr><td class="tbl">schedule_entries</td><td class="cols">id · user_id FK · scheduled_date · kind · outfit (json)</td><td>Outfit calendar; kind = favourite | creation</td></tr>
+
+            <tr class="grp-row"><td colspan="3">Notifications &amp; push <span class="gc">— 3 tables</span></td></tr>
+            <tr><td class="tbl">notifications</td><td class="cols">id · source · type · status · scheduled_for · created_by FK</td><td>System &amp; admin notifications; deep-link data payload</td></tr>
+            <tr><td class="tbl">notification_deliveries</td><td class="cols">id · notification_id FK · user_id FK · status · read_at</td><td>Per-user fan-out of a notification + read receipts</td></tr>
+            <tr><td class="tbl">device_tokens</td><td class="cols">id · user_id FK · token UK · platform · timezone</td><td>FCM tokens; timezone drives daily-reminder scheduler</td></tr>
+
+            <tr class="grp-row"><td colspan="3">Recommendation &amp; feedback <span class="gc">— 4 tables</span></td></tr>
+            <tr><td class="tbl">recommendation_logs</td><td class="cols">id · user_id FK · session_id · outfit_hash · outfit_items</td><td>Every served outfit (V2): context, axis, items, timing</td></tr>
+            <tr><td class="tbl">recommendation_feedback</td><td class="cols">id · user_id FK · outfit_hash · feedback_type · reason_chips</td><td>Thumbs up/down + reason chips on stable outfits</td></tr>
+            <tr><td class="tbl">outfit_mood_signals</td><td class="cols">id · user_id FK · favorite_id FK · mood_tags · decay_at</td><td>Mood feeling per outfit; 30-day decay weighting</td></tr>
+            <tr><td class="tbl">app_feedback</td><td class="cols">id · user_id FK? · category · message · rating · status</td><td>General product feedback (bug/idea/praise) triage</td></tr>
+
+            <tr class="grp-row"><td colspan="3">V05 engine &amp; eval <span class="gc">— 4 tables</span></td></tr>
+            <tr><td class="tbl">v05_user_style_signals</td><td class="cols">id · user_id · axis_likes · axis_dislikes · confidence · decay_at</td><td>LLM-extracted style prefs from feedback / voluntary input</td></tr>
+            <tr><td class="tbl">v05_outcome_events</td><td class="cols">id · user_id · event_type · outfit_id · *_ts</td><td>Funnel measurement: build → pick → wear → abandon</td></tr>
+            <tr><td class="tbl">v05_pool_insufficient_events</td><td class="cols">id · user_id · climate_bucket · failure_reason · event_json</td><td>Diagnostic telemetry when the pool can't fill (JSONB GIN)</td></tr>
+            <tr><td class="tbl">v05_outfit_eval_scores</td><td class="cols">id · outfit_id · p1..p6 · final_score · verdict</td><td>LLM-3 batch outfit scoring (weather/coherence/occasion/…)</td></tr>
+
+            <tr class="grp-row"><td colspan="3">Decision sessions &amp; config <span class="gc">— 3 tables</span></td></tr>
+            <tr><td class="tbl">decision_sessions</td><td class="cols">id (sess_) · user_id FK · status · reject_count · variation_history</td><td>Stateful try-on/decision session; custom-context history</td></tr>
+            <tr><td class="tbl">decisions</td><td class="cols">id (dec_) · session_id FK · outfit_json · axis_used · action</td><td>Each presented outfit within a session + accept/reject</td></tr>
+            <tr><td class="tbl">algorithm_configs</td><td class="cols">id · name · version · status · parameters</td><td>Tunable engine params; one ACTIVE config serves prod</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <details class="collapsible">
+      <summary>Alembic migration heads &amp; recent revisions</summary>
+      <div class="body">
+        <p class="desc" style="margin:10px 0">Three independent heads — parallel feature branches not yet merged. Railway runs <code>alembic upgrade head</code> as a pre-deploy step.</p>
+        <ul class="mig-list">
+          <li><span class="rev head-badge">au349a1b2c3d ◀ HEAD</span> add wardrobe exploration-pool fields (AU-349)</li>
+          <li><span class="rev head-badge">c8d4e5f6a9b3 ◀ HEAD</span> add v05_outfit_eval_scores (LLM-3 batch eval)</li>
+          <li><span class="rev head-badge">notif1a2b3c4d ◀ HEAD</span> add push-notification tables</li>
+          <li><span class="rev">58a0f76949ab</span> add is_preparing flag to wardrobe_items</li>
+          <li><span class="rev">au318a1b2c3d</span> add outfit_mood_signals (AU-318)</li>
+          <li><span class="rev">b3c4d5e6f7a8</span> add recommendation_feedback table</li>
+          <li><span class="rev">297648513a7b</span> add image_png column to wardrobe_items</li>
+          <li><span class="rev">au242a1b2c3d</span> AU-242 user UAC fields (OAuth, email_verified_at)</li>
+          <li><span class="rev">v05a1b2c3d4e</span> V05 taxonomy columns (category_family, tag_status)</li>
+          <li><span class="rev">02248e7676e0</span> add v05_pool_insufficient_events</li>
+          <li><span class="rev">b7e3f4a8c9d2</span> add v05_outcome_events</li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="collapsible">
+      <summary>Key enums &amp; vocabularies</summary>
+      <div class="body">
+        <div class="enum-row"><div class="k">wardrobe_items.category_family</div><div class="v"><code>TOP</code> <code>BOTTOM</code> <code>OUTER</code> <code>FULL_BODY</code> <code>FOOTWEAR</code> <code>ACCESSORY</code> · layer_code <code>L1/L2/L3/BT/SH</code></div></div>
+        <div class="enum-row"><div class="k">wardrobe_items.usage_frequency</div><div class="v"><code>NORMAL</code> <code>LESS_USED</code> · tag_status <code>pending</code> <code>tagged</code> <code>needs_review</code> · gender_tags <code>M / W / U</code></div></div>
+        <div class="enum-row"><div class="k">users.oauth_provider</div><div class="v"><code>password</code> <code>google</code> <code>apple</code></div></div>
+        <div class="enum-row"><div class="k">notifications.type</div><div class="v"><code>daily_reminder</code> <code>planned_outfit</code> <code>admin_broadcast</code> <code>admin_direct</code> <code>admin_segment</code> · status <code>queued/sending/sent/failed</code></div></div>
+        <div class="enum-row"><div class="k">recommendation_feedback.feedback_type</div><div class="v"><code>like</code> <code>dislike</code> + reason chips (wrong_occasion, color_clash, too_bold, …)</div></div>
+        <div class="enum-row"><div class="k">v05_outcome_events.event_type</div><div class="v"><code>build</code> <code>pick</code> <code>wear</code> <code>abandon</code></div></div>
+        <div class="enum-row"><div class="k">v05_outfit_eval_scores.verdict</div><div class="v"><code>Exceptional</code> <code>Strong</code> <code>Acceptable</code> <code>Poor</code> <code>Bad</code> <code>Hard Reject</code></div></div>
+        <div class="enum-row"><div class="k">algorithm_configs.status</div><div class="v"><code>DRAFT</code> <code>ACTIVE</code> <code>ARCHIVED</code> · schedule_entries.kind <code>favourite</code> <code>creation</code></div></div>
+      </div>
+    </details>
+  </section>
+
+  <div class="callout animate" style="--i:0">
+    <div class="callout__title">Source of truth &amp; drift note</div>
+    <p>This map is reverse-engineered from <code>railway.toml</code>, <code>Dockerfile</code>, <code>routers/</code>, <code>models/</code> and <code>migrations/</code> in <code>wardrobe-backend</code>. The API contract for the mobile client lives in <code>API_DOCUMENTATION.md</code> (no codegen, no shared SDK) — the doc is the contract. The three open Alembic heads should be merged before they diverge further; <code>admin/*</code> routes are internal and don't go through the same drift-prevention process as public <code>/api</code>.</p>
+  </div>
+
+  <p class="footer">Generated by /preview · plans/visuals/backend-architecture-railway-db-schema.html · diagrams zoom &amp; pan independently</p>
+
+</div>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  import elkLayouts from 'https://cdn.jsdelivr.net/npm/@mermaid-js/layout-elk/dist/mermaid-layout-elk.esm.min.mjs';
+
+  const config = {
+    fitPadding: 28, minHeight: 360, maxHeightPx: 1100, maxHeightVh: 0.86,
+    maxInitialZoom: 1.8, minZoom: 0.08, maxZoom: 6.5, zoomStep: 0.14, readabilityFloor: 0.52
+  };
+  const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
+  let activeDrag = null;
+  addEventListener('mousemove', (e) => activeDrag?.onMove(e));
+  addEventListener('mouseup', () => { activeDrag?.onEnd(); activeDrag = null; });
+
+  const isDark = (document.documentElement.getAttribute('data-theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')) === 'dark';
+
+  mermaid.registerLayoutLoaders(elkLayouts);
+  mermaid.initialize({
+    startOnLoad: false,
+    theme: 'base',
+    look: 'classic',
+    layout: 'elk',
+    themeVariables: {
+      fontFamily: "'DM Sans', system-ui, sans-serif",
+      fontSize: '15px',
+      primaryColor:        isDark ? '#16314d' : '#dce8f5',
+      primaryBorderColor:  isDark ? '#5fa0e0' : '#1e5aa0',
+      primaryTextColor:    isDark ? '#d6e2f0' : '#14202f',
+      secondaryColor:      isDark ? '#3a2f12' : '#f7eccd',
+      secondaryBorderColor:isDark ? '#e0b84a' : '#b07d10',
+      secondaryTextColor:  isDark ? '#f0f6fc' : '#14202f',
+      tertiaryColor:       isDark ? '#103a36' : '#d8efe9',
+      tertiaryBorderColor: isDark ? '#5eead4' : '#0f766e',
+      tertiaryTextColor:   isDark ? '#f0f6fc' : '#14202f',
+      lineColor:           isDark ? '#7d92ac' : '#5e7088',
+      noteBkgColor:        isDark ? '#3a2f12' : '#fbf3da',
+      noteTextColor:       isDark ? '#f0f6fc' : '#14202f',
+      noteBorderColor:     isDark ? '#e0b84a' : '#b07d10',
+    }
+  });
+
+  function initDiagram(shell) {
+    const wrap = shell.querySelector('.mermaid-wrap');
+    const viewport = shell.querySelector('.mermaid-viewport');
+    const canvas = shell.querySelector('.mermaid-canvas');
+    const source = shell.querySelector('.diagram-source');
+    const label = shell.querySelector('.zoom-label');
+    if (!wrap || !viewport || !canvas || !source || !label) return;
+
+    let zoom = 1, fitMode = 'contain', panX = 0, panY = 0, svgW = 0, svgH = 0;
+    let sx = 0, sy = 0, spx = 0, spy = 0, touchDist = 0, touchCx = 0, touchCy = 0;
+
+    function constrainPan() {
+      const vpW = viewport.clientWidth, vpH = viewport.clientHeight;
+      const rW = svgW * zoom, rH = svgH * zoom, pad = config.fitPadding;
+      panX = (rW + pad * 2 <= vpW) ? (vpW - rW) / 2 : clamp(panX, vpW - rW - pad, pad);
+      panY = (rH + pad * 2 <= vpH) ? (vpH - rH) / 2 : clamp(panY, vpH - rH - pad, pad);
+    }
+    function applyTransform() {
+      const svg = canvas.querySelector('svg');
+      if (!svg || !svgW) return;
+      constrainPan();
+      svg.style.width = (svgW * zoom) + 'px';
+      svg.style.height = (svgH * zoom) + 'px';
+      canvas.style.transform = `translate(${panX}px, ${panY}px)`;
+      label.textContent = Math.round(zoom * 100) + '% — ' + fitMode;
+    }
+    function canPan() {
+      const rW = svgW * zoom, rH = svgH * zoom;
+      return rW + config.fitPadding * 2 > viewport.clientWidth || rH + config.fitPadding * 2 > viewport.clientHeight;
+    }
+    function computeSmartFit() {
+      const vpW = viewport.clientWidth, vpH = viewport.clientHeight;
+      const aW = Math.max(80, vpW - config.fitPadding * 2), aH = Math.max(80, vpH - config.fitPadding * 2);
+      const contain = Math.min(aW / svgW, aH / svgH);
+      let z = contain, mode = 'contain';
+      if (contain < config.readabilityFloor) {
+        const chartR = svgH / svgW, vpR = vpH / Math.max(vpW, 1);
+        if (chartR >= vpR) { z = aW / svgW; mode = 'width-priority'; }
+        else { z = aH / svgH; mode = 'height-priority'; }
+      }
+      return { zoom: clamp(z, config.minZoom, config.maxInitialZoom), mode };
+    }
+    function fitDiagram() {
+      if (!svgW) return;
+      const fit = computeSmartFit();
+      zoom = fit.zoom; fitMode = fit.mode;
+      panX = (viewport.clientWidth - svgW * zoom) / 2;
+      panY = (viewport.clientHeight - svgH * zoom) / 2;
+      applyTransform();
+    }
+    function setOneToOne() {
+      zoom = clamp(1, config.minZoom, config.maxZoom); fitMode = '1:1';
+      panX = (viewport.clientWidth - svgW * zoom) / 2;
+      panY = (viewport.clientHeight - svgH * zoom) / 2;
+      applyTransform();
+    }
+    function zoomAround(factor, cx, cy) {
+      const next = clamp(zoom * factor, config.minZoom, config.maxZoom);
+      const ratio = next / zoom;
+      panX = cx - ratio * (cx - panX); panY = cy - ratio * (cy - panY);
+      zoom = next; fitMode = 'custom'; applyTransform();
+    }
+    function readSvgNaturalSize(svg) {
+      let w = 0, h = 0;
+      if (svg.viewBox?.baseVal?.width > 0) { w = svg.viewBox.baseVal.width; h = svg.viewBox.baseVal.height; }
+      if (!w) { w = parseFloat(svg.getAttribute('width')) || 0; h = parseFloat(svg.getAttribute('height')) || 0; }
+      if (!w) { const b = svg.getBBox(); w = b.width; h = b.height; }
+      if (!w) { const r = svg.getBoundingClientRect(); w = r.width || 1000; h = r.height || 700; }
+      if (!svg.getAttribute('viewBox')) svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+      return { w, h };
+    }
+    function setAdaptiveHeight() {
+      if (!svgW) return;
+      const usableW = Math.max(280, wrap.getBoundingClientRect().width - 2);
+      const idealH = (svgH / svgW) * usableW + config.fitPadding * 2;
+      const maxVp = Math.floor(innerHeight * config.maxHeightVh);
+      const hardMax = Math.min(config.maxHeightPx, Math.max(config.minHeight + 40, maxVp));
+      wrap.style.height = Math.round(clamp(idealH, config.minHeight, hardMax)) + 'px';
+    }
+    function openInNewTab() {
+      const svg = canvas.querySelector('svg');
+      if (!svg) return;
+      const clone = svg.cloneNode(true);
+      clone.style.width = ''; clone.style.height = '';
+      const bg = isDark ? '#0e1622' : '#f3f6fb';
+      const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Diagram</title>
+        <style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:${bg};padding:40px;box-sizing:border-box}svg{max-width:100%;max-height:90vh;height:auto}</style>
+        </head><body>${clone.outerHTML}</body></html>`;
+      open(URL.createObjectURL(new Blob([html], { type: 'text/html' })), '_blank');
+    }
+    async function render() {
+      try {
+        const code = source.textContent.trim();
+        if (!code) { label.textContent = 'Error: Empty source'; return; }
+        const id = 'diagram-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+        const { svg } = await mermaid.render(id, code);
+        canvas.innerHTML = svg;
+        const svgNode = canvas.querySelector('svg');
+        if (!svgNode) { label.textContent = 'Error: No SVG'; return; }
+        const size = readSvgNaturalSize(svgNode);
+        svgW = size.w; svgH = size.h;
+        svgNode.removeAttribute('width'); svgNode.removeAttribute('height');
+        svgNode.style.maxWidth = 'none'; svgNode.style.display = 'block';
+        setAdaptiveHeight(); fitDiagram();
+      } catch (err) {
+        console.error('Mermaid render failed:', err);
+        label.textContent = 'Error: ' + (err.message || 'Render failed');
+      }
+    }
+    const actions = {
+      'zoom-in': () => zoomAround(1 + config.zoomStep, viewport.clientWidth / 2, viewport.clientHeight / 2),
+      'zoom-out': () => zoomAround(1 / (1 + config.zoomStep), viewport.clientWidth / 2, viewport.clientHeight / 2),
+      'zoom-fit': fitDiagram, 'zoom-one': setOneToOne, 'zoom-expand': openInNewTab
+    };
+    Object.entries(actions).forEach(([action, handler]) => {
+      wrap.querySelector(`[data-action="${action}"]`)?.addEventListener('click', handler);
+    });
+    viewport.addEventListener('dblclick', fitDiagram);
+    viewport.addEventListener('wheel', (e) => {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        const rect = viewport.getBoundingClientRect();
+        const factor = e.deltaY < 0 ? 1 + config.zoomStep : 1 / (1 + config.zoomStep);
+        zoomAround(factor, e.clientX - rect.left, e.clientY - rect.top);
+        return;
+      }
+      if (canPan()) { e.preventDefault(); panX -= e.deltaX; panY -= e.deltaY; applyTransform(); }
+    }, { passive: false });
+    viewport.addEventListener('mousedown', (e) => {
+      if (e.target.closest('.zoom-controls') || !canPan()) return;
+      wrap.classList.add('is-panning');
+      sx = e.clientX; sy = e.clientY; spx = panX; spy = panY; e.preventDefault();
+      activeDrag = {
+        onMove: (ev) => { panX = spx + (ev.clientX - sx); panY = spy + (ev.clientY - sy); applyTransform(); },
+        onEnd: () => { wrap.classList.remove('is-panning'); }
+      };
+    });
+    viewport.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 1) { sx = e.touches[0].clientX; sy = e.touches[0].clientY; spx = panX; spy = panY; }
+      else if (e.touches.length === 2) {
+        const dx = e.touches[0].clientX - e.touches[1].clientX, dy = e.touches[0].clientY - e.touches[1].clientY;
+        touchDist = Math.sqrt(dx * dx + dy * dy);
+        const r = viewport.getBoundingClientRect();
+        touchCx = (e.touches[0].clientX + e.touches[1].clientX) / 2 - r.left;
+        touchCy = (e.touches[0].clientY + e.touches[1].clientY) / 2 - r.top;
+      }
+    }, { passive: true });
+    viewport.addEventListener('touchmove', (e) => {
+      if (e.touches.length === 1 && canPan()) {
+        if (touchDist > 0) { sx = e.touches[0].clientX; sy = e.touches[0].clientY; spx = panX; spy = panY; touchDist = 0; }
+        e.preventDefault();
+        panX = spx + (e.touches[0].clientX - sx); panY = spy + (e.touches[0].clientY - sy); applyTransform();
+      } else if (e.touches.length === 2 && touchDist > 0) {
+        e.preventDefault();
+        const dx = e.touches[0].clientX - e.touches[1].clientX, dy = e.touches[0].clientY - e.touches[1].clientY;
+        const d = Math.sqrt(dx * dx + dy * dy);
+        zoomAround(d / touchDist, touchCx, touchCy); touchDist = d;
+      }
+    }, { passive: false });
+    new ResizeObserver(() => { if (svgW) { setAdaptiveHeight(); fitDiagram(); } }).observe(wrap);
+    render();
+  }
+  document.querySelectorAll('.diagram-shell').forEach(initDiagram);
+</script>
+
+</body>
+</html>

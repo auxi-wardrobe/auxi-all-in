@@ -10,3 +10,7 @@
 	path = wardrobe-backend
 	url = https://github.com/ducga1998/wardrobe-backend.git
 	branch = main
+[submodule "homepage"]
+	path = homepage
+	url = https://github.com/auxi-wardrobe/homepage.git
+	branch = main

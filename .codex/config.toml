@@ -1,0 +1,24 @@
+[shell_environment_policy]
+inherit = "core"
+
+[shell_environment_policy.set]
+MIXPANEL_MACGIE_AUTH = "YWRtaW4uMGM0MDRhLm1wLXNlcnZpY2UtYWNjb3VudDoySHluSEU4TmpFRDhyUWFzMFp3UVluV0MyTnhGTzdESA=="
+ECC_GATEGUARD = "off"
+
+[mcp_servers.mobile-mcp]
+command = "npx"
+args = [
+    "-y",
+    "@mobilenext/mobile-mcp@0.0.56",
+]
+
+[mcp_servers.slack]
+command = "npx"
+args = [
+    "-y",
+    "@modelcontextprotocol/server-slack@2025.4.25",
+]
+env_vars = ["SLACK_BOT_TOKEN"]
+
+[mcp_servers.slack.env]
+SLACK_TEAM_ID = "T0AD40Z9NCA"
