@@ -22,7 +22,9 @@ wardrobe_project/                      # ← this repo (umbrella)
     │   ├── qa-mobile.md               # mobile QA on auxi/, executes Maestro
     │   ├── qa-ui.md                   # visual fidelity, authors Maestro YAML
     │   ├── qa-ux.md                   # UX heuristic + a11y review
-    │   └── pm.md                      # senior PM, owns Linear tickets
+    │   ├── pm.md                      # senior PM, owns Linear tickets
+    │   ├── designer.md                # post-code design-system craft gate (step 6.5)
+    │   └── business-analyst.md        # product analytics on Mixpanel (EU) — funnels, dashboards, diagnostics
     └── skills/                        # role-specific workflows
         ├── auxi-rn-patterns.md
         ├── wardrobe-fastapi-patterns.md
@@ -115,7 +117,9 @@ git commit -m "chore: bump submodules"
 | `qa-mobile` | `auxi/` (read + test runs) | iOS/Android smoke, regression, mobile-mcp UI verification |
 | `qa-ui` | `auxi/` (read-only on src) · Figma-fluent | Visual fidelity sweeps, Figma-vs-actual diff, alignment/icon/typography/color/overflow bugs |
 | `qa-ux` | `auxi/` (read-only on src) | UX heuristic + a11y review — Nielsen's 10, mobile patterns, state coverage, IA, touch targets, contrast, VoiceOver, Dynamic Type. Findings only, no fix code |
+| `designer` | `auxi/` (read-only on src) · Figma-fluent | Post-code design-system craft gate (step 6.5) — token tier, motion language, color semantics, header/footer/layout, cross-screen consistency, component states. Findings only, HARD GATE (FAIL blocks PR), routes fixes → mobile-dev, taste → CEO |
 | `pm` | Linear board (project-wide) | New US, subtask splits, status sweeps, verified close |
+| `business-analyst` | Mixpanel (Auxi EU project) · read-mostly | Build a funnel/dashboard, analyze drop-off, diagnose a conversion problem, read what the data says. Verifies events are tracked before funnelling, distinguishes correlation/causation. Creates dashboards/metrics; never writes app code or changes tracking (routes that → mobile-dev) |
 
 **Figma note**: the designer is the CEO. `mobile-dev` is wired for the
 Figma MCP and follows two skills together — `figma-design-extraction`
@@ -131,12 +135,14 @@ tier that fits the role**. Don't bulk-grant.
 
 | Tier | Use case | Agent | Tools |
 |---|---|---|---|
-| **Read-only screenshot** | Visual fidelity compare | `qa-ui` | `launch_app`, `take_screenshot`, `save_screenshot`, `list_available_devices`, `list_elements_on_screen`, `click_on_screen_at_coordinates` |
+| **Read-only screenshot** | Visual fidelity compare · design-system craft review | `qa-ui`, `designer` | `launch_app`, `take_screenshot`, `save_screenshot`, `list_available_devices`, `list_elements_on_screen`, `click_on_screen_at_coordinates` |
 | **Navigate + screenshot** | UX heuristic walks | `qa-ux` | Read-only + `swipe_on_screen`, `press_button`, `get_screen_size`, `list_apps`, `open_url` |
 | **Full exploratory** | Smoke verify, ticket close-out | `qa-mobile` | Navigate + `type_keys`, `terminate_app`, `get_crash`, `list_crashes` |
 
 `mobile-dev` does NOT have mobile-mcp — it writes code; sim verify hands
-off to `qa-mobile` or `qa-ui`. `tech-lead`, `backend-dev`, `devops`, `pm`
+off to `qa-mobile`, `qa-ui`, or `designer`. `designer` carries the same
+read-only screenshot tier as `qa-ui` (+ Figma MCP) to view the rendered
+screen for its craft review. `tech-lead`, `backend-dev`, `devops`, `pm`
 never need mobile-mcp. `devops` instead carries Railway + Cloudflare +
 Sentry MCP grants — same "smallest tier that fits" rule applies (it gets
 read + common-mutate Railway tools; destructive deletes are withheld to
@@ -170,6 +176,11 @@ defeats the gate.
    ↓
 6. qa-ui Compare mode Pass 2+3 (code vs Figma, sim screenshot)
    ↓
+6.5 designer design-review — HARD GATE (after qa-ui Compare PASS, before qa-mobile)
+   → 8-lens product-experience pass: design-system → motion → hierarchy → color → states → cross-screen → native-feel → recommendation (+ journey continuity)
+   → PASS / FAIL (blocks PR) / ESCALATE (taste → CEO)
+   → findings to auxi/docs/design-reviews/<date>-<screen>.md
+   ↓
 7. qa-mobile smoke verify on sim (mobile-mcp exploratory)
    ↓
 8. PR with template checklist all green → merge
@@ -183,6 +194,8 @@ defeats the gate.
 - `figma-code-connect-setup` — map Figma component → RN primitive in inspector
 - `auxi-rn-patterns` — primitives-first rule, screen registration, services
 - `auxi-figma-audit` — 3-pass Compare mode audit (post-code)
+- `auxi-design-review` — designer's 8-lens product-experience pass (step 6.5 hard gate); rule
+  `design-review-required.md`; design-system docs in `auxi/docs/design-system/`
 
 **Supporting scripts:**
 - `./scripts/auxi-lint-tokens.sh` — hex literal + font family drift check
@@ -194,6 +207,7 @@ defeats the gate.
 - Extraction artifact path
 - qa-ui review-extraction PASS
 - `auxi-lint-tokens.sh` clean
+- designer design-review PASS (step 6.5 hard gate)
 - Sim screenshot / qa-mobile verify ID
 
 The agents are NOT generic — they refuse work outside their scope and route
