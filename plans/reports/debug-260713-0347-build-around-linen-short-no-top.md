@@ -2,8 +2,61 @@
 
 - **Date:** 2026-07-13
 - **User:** vietdesign81@gmail.com
-- **Symptom:** Uploads linen shorts (tagged **`BOTTOM`**, correct). Uses **Build around this**. First suggestion = **short + sandal only (2 items, no top)**. After swiping 3–4× → **short + shirt + sandal (3 items, ok)**. Weather **34°C**.
-- **Scope:** findings only. Backend code (`wardrobe-backend`) is a separate submodule, not clonable in this session — reasoned from umbrella reports + deployed-code analysis already on file. DB/prod-event verification requires backend-dev/devops.
+- **Symptom:** Uploads linen shorts (display tag **`bottom`**, correct). Uses **Build around this**. First suggestion = **short + sandal only (2 items, no top)**. After swiping 3–4× → **short + shirt + sandal (3 items, ok)**. Weather **34°C**.
+
+> **⚠️ SUPERSEDED — read §FINAL first.** §1–§5 below were an early hypothesis
+> (HOT warmth-gate starvation) written before the backend repo was accessible.
+> Once `auxi-wardrobe/auxi-backend` was cloned, the warmth-gate fix was found
+> **already merged to `main`**, and the true root cause was located in code and
+> **fixed**. §FINAL is authoritative; §1–§5 kept only as investigation trail.
+
+---
+
+## FINAL — confirmed root cause + fix delivered
+
+**Root cause (confirmed in code):** `utils/category_taxonomy.py :: resolve_category_family`
+had a blind-trust hole. It validates a `category_family='FULL_BODY'` claim against
+structured codes, but when an item has **no `category_code`/`layer_code`** it
+**trusted the FULL_BODY column** (old line 125-126) and **never consulted the
+display `category` column**. The linen short was auto-tagged
+`category_family='FULL_BODY'` with null codes while its display `category='bottom'`
+was correct. So the engine bucketed it as a **one-piece anchor** → composed
+`[short, sandal]` (2 items, no top). The swipe's `try_another` recompose cycled to
+the **`layering` axis**, which adds an **OUTER** over the "one-piece" → the 3-item
+`[short, shirt, sandal]` the user saw (the "shirt" is an outer layered on the
+mis-classified short). This is why the primary was broken but the swipe looked ok.
+
+My first instinct (engine treats the short as a one-piece) was right about the
+*mechanism*; it was wrong about the *layer* — not the Gemini tag (`bottom` is
+correct) but a `category_family` column drift the resolver failed to catch.
+
+**Fix (delivered — repo `auxi-wardrobe/auxi-backend`, branch `claude/short-linen-build-outfit-g50r9x`, commit `1c47b6d`):**
+- `resolve_category_family(...)` now takes the display `category` and uses it as a
+  tiebreaker when a FULL_BODY claim has **no structured codes**: a non-one-piece
+  display (`bottom`, `top`, …) contradicts the claim → re-derive family; a
+  one-piece display (`dress`, `onepiece`) corroborates → keep FULL_BODY. Structured
+  codes stay the strongest signal (checked first). Rows with no codes AND no
+  known display value are unchanged (legacy/fixtures). Added
+  `DISPLAY_CATEGORY_TO_FAMILY` (structured enum, not name-parsing — AU-299 safe).
+- Threaded `item.category` through the 3 resolver call sites: engine L1 bucketing
+  (`engine_v05_layers._category_family`), signature `is_one_piece`
+  (`engine_v05_signature`), onboarding quota (`v05_onboarding_service`).
+- **Read-side fix → repairs existing drifted rows (incl. this user's) at query
+  time**, no data backfill needed to stop the bad outfit.
+- Tests: resolver display-tiebreaker cases + engine regression that a drifted
+  linen short at 34°C buckets `BOTTOM` and is never served as `[short, sandal]`.
+  Verified green: `test_category_taxonomy` 23 passed, engine-unit 93, onboarding 22,
+  build+try-another 65. (7 unrelated failures confirmed pre-existing on clean `main`.)
+
+**Follow-ups (not required to fix this bug, worth a ticket):**
+1. Data backfill: re-derive `category_family` for rows where it's `FULL_BODY` but
+   `category` is a separates value + codes are null (data hygiene; the read-side
+   fix already neutralizes them at runtime).
+2. Write-side: `ai_service._validate_taxonomy` could cross-check a FULL_BODY
+   extraction against the display category too, to stop new drift at the source.
+
+- **Scope note (original):** the §1–§5 analysis below reasoned from on-file reports
+  before backend code access; superseded by §FINAL.
 
 ---
 
