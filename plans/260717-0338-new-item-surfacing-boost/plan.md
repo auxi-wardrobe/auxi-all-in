@@ -96,13 +96,17 @@ dùng eval/log:
       nhận lỗ hổng có thật (report V05 luôn nhấn "measure before re-tuning").
 
 **Phase 1 — Đếm surface_count (backend-dev)**
-- [ ] Xác minh log serve có chứa item_ids. Nếu có → derive count từ `v05_outcome_events`. Nếu chưa
-      → thêm counter table nhẹ + tăng ở serve time.
+- [ ] **GATE (chốt trước khi code):** Xác minh log serve có thực sự lưu `item_ids` của outfit. Chỉ
+      khi xác nhận xong mới khóa quyết định **derive vs counter mới**. Nếu có → derive count từ
+      `v05_outcome_events`. Nếu chưa → thêm counter table nhẹ + tăng ở serve time.
 
 **Phase 2 — Scoring hook (backend-dev)**
 - [ ] Thêm 3 hằng số §2.3 vào `engine_v05_constants.py`.
 - [ ] Áp `boost` §2.2 trong `engine_v05_layers.py` (sau gate, trước rank), chỉ item user-owned đủ ĐK.
 - [ ] Sau feature flag `NEW_ITEM_BOOST_ENABLED`.
+- [ ] **Test bắt buộc (bất biến chất lượng §3):** assert hard gate chạy trước & độc lập — một item
+      bị gate loại (sai warmth/gender/rain/formality) KHÔNG bao giờ được boost đưa trở lại; boost chỉ
+      đổi thứ tự các survivor. Test này chặn refactor tương lai vô tình đẩy boost lên TRƯỚC gate.
 
 **Phase 3 — Observability (backend-dev)**
 - [ ] Debug flag + `surface_count` trên item serve.
@@ -121,4 +125,8 @@ dùng eval/log:
 - Log serve hiện đã lưu đầy đủ item_ids của outfit chưa? (quyết định Phase 1 derive vs thêm counter.)
 - Giá trị `NEW_ITEM_BOOST_MAX`/`COVERAGE_TARGET` cuối — chờ eval Phase 0/4.
 - Có cần cả cận trên thời gian (hybrid) không, hay coverage-only là đủ? (Mặc định: coverage-only, YAGNI.)
-- Linear/GH issue id để trace.
+
+## 8. Traceability
+- **GH PR:** `auxi-wardrobe/auxi-all-in#35` (spec này).
+- **Branch:** `claude/upload-item-prioritization-aiudnm`.
+- **Linear ticket:** _TBD — PM tạo & gán_ để 4 phase track được ngoài doc (Linear MCP chưa auth ở session này).
