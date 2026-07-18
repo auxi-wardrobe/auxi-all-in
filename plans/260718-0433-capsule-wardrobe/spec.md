@@ -34,9 +34,13 @@ patterns (Flask-SQLAlchemy `db.Model`, `db.Table` M2M, `batch_alter_table`,
 | missing_categories | JSON default [] | populated on success_with_gaps |
 | created_at / updated_at | DateTime | |
 
-**status states**: `draft` → `generating` → `success` \| `success_with_gaps` \| `failed`.
-(We persist the row already in `generating`; `draft` reserved/unused server-side —
-the client holds the draft until Create.)
+**status states**: `generating` → `success` \| `success_with_gaps` \| `failed`.
+`draft` exists ONLY as the column default and is **never persisted** — `create_capsule`
+constructs the row directly in `generating` (shipped: `capsule_service.create_capsule`,
+`status='generating'`), so the server never observes a `draft` row. The "draft" of the
+create wizard (name entered, not yet submitted) is **client-side only** — the mobile app
+holds it in navigation state and no row exists until Create. The default is kept for
+schema clarity; treat `draft` as client-vocabulary, not a server lifecycle state.
 
 ### `capsule_items` (M2M capsule ↔ wardrobe_items)
 `capsule_id` FK capsules.id, `wardrobe_item_id` FK wardrobe_items.id, PK(both).
@@ -48,9 +52,17 @@ An item may belong to multiple capsules (product decision: supported).
 |---|---|---|
 | id | String(36) PK | |
 | capsule_id | String(36) FK capsules.id, indexed | cascade-delete with capsule |
-| outfit_hash | String(64) | 12+ char sha over sorted item ids — dedup/identity |
+| outfit_hash | String(64) | dedup/identity — see note |
 | styling_note | Text nullable | |
 | created_at | DateTime | |
+
+**`outfit_hash` — width vs value (deliberate).** The value is the **first 12 hex
+chars of `sha256(sorted item-id list)`** (48 bits) — that is the identity/dedup
+key, and BOTH sides must derive it identically (sha256, sort item ids, take
+`[:12]`). The `String(64)` column is only headroom for a full digest; do NOT
+store the full 64 on one side and 12 on the other. 48 bits is ample for
+per-capsule dedup (a capsule holds tens of outfits, not millions); collision risk
+is negligible at this scope. Shipped: `capsule_generation_service.outfit_hash()`.
 
 ### `capsule_outfit_items` (M2M capsule_outfits ↔ wardrobe_items)
 `capsule_outfit_id` FK, `wardrobe_item_id` FK, PK(both). Lets us count
@@ -205,6 +217,18 @@ Update `docs/analytics/mixpanel-tracking-plan.md` §5 (shipped) accordingly.
 - Backend: `tests/test_capsules.py` (copy `tests/test_creations.py` harness) covering create→success, success_with_gaps, list, get, delete-preserves-items, add-items dedup, add-from-outfits all-existing, remove used/unused, change scope. Run `python test_server.py` clean if runnable.
 - Mobile: `npx tsc --noEmit` clean; jest tests for `capsuleService` (unwrapping) + generation-copy helpers; a `maestro/flows/capsule/` create flow (best-effort, testID-driven).
 - Contract doc: append all capsule endpoints to `API_DOCUMENTATION.md` in the per-endpoint format.
+
+### 7.1 Cross-repo enforcement (anti-drift)
+This spec is only anti-drift if the implementation PRs point back to it and the
+mandated doc updates ship WITH their code (not after):
+- **Both implementation PRs must link this file** (`plans/260718-0433-capsule-wardrobe/spec.md`)
+  in their description so "do not drift" is enforceable.
+- **Backend** (`auxi-backend` branch `claude/capsule-wardrobe-creation-fyhrsm`): the
+  `API_DOCUMENTATION.md` append (§7) ships in the same commit as `routers/capsule.py`.
+  ✅ Done — the capsule commit includes the "Capsule Wardrobe" API_DOCUMENTATION.md section.
+- **Mobile** (`auxi-mobile` branch `claude/capsule-wardrobe-creation-fyhrsm`): the
+  tracking-plan §5 update (§6) ships in the same commit as the analytics wrappers.
+  ✅ Done — the capsule commit includes `docs/analytics/mixpanel-tracking-plan.md` §5.24.
 
 ## 8. Out of scope (documented, not built)
 - Redis-worker true background generation (client-side React-Query continuation +
