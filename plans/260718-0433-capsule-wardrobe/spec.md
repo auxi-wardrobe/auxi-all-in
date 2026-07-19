@@ -131,6 +131,7 @@ CapsuleFull      = CapsuleSummary + { requirements, category_groups, summary:Cap
 | POST | `/api/capsules/{id}/items/from-outfits` | `{outfit_source:'favourites'\|'creations', outfit_ids:[...]}` | 200 `{items_added, already_existed, new_outfits, capsule:CapsuleFull}` | extract items from selected saved outfits (favorites/creations), dedup, add unique, regenerate. If all items already present → items_added=0, new_outfits=0. |
 | DELETE | `/api/capsules/{id}/items/{itemId}` | — | 200 `{removed:true, capsule:CapsuleFull}` | remove item from capsule; drop outfits that used it; regenerate suggestions. Preserves saved outfits (favorites). |
 | POST | `/api/capsules/{id}/items/{itemId}/change` | `{replacement_item_id, scope:'outfit'\|'all', outfit_id?}` | 200 `CapsuleFull` | swap item. scope=outfit needs outfit_id (that outfit only); scope=all → every capsule outfit using item. Adds replacement to capsule pool if absent. |
+| PATCH | `/api/capsules/{id}` | `{name?, temp_min?, temp_max?, formalness_level?, outfit_target?, shoe_limit?}` | 200 `CapsuleFull` | **edit** settings — see §9.1 for full semantics (regenerates iff a constraint changed; name-only skips regen). |
 
 **Concurrency / risk mitigations** (spec high-risk list):
 - All mutations are transactional; on error `db.rollback()` + 500 with request_id
@@ -229,6 +230,16 @@ mandated doc updates ship WITH their code (not after):
 - **Mobile** (`auxi-mobile` branch `claude/capsule-wardrobe-creation-fyhrsm`): the
   tracking-plan §5 update (§6) ships in the same commit as the analytics wrappers.
   ✅ Done — the capsule commit includes `docs/analytics/mixpanel-tracking-plan.md` §5.24.
+
+**§9 surface (design revision) — same enforcement:**
+- **Backend** `PATCH /api/capsules/{id}` (§9.1): `API_DOCUMENTATION.md` append ships with the
+  PATCH commit. ✅ Done — the edit-endpoint commit includes the PATCH section.
+- **Mobile** the 3 new events `capsule_switcher_opened`, `wardrobe_context_selected`,
+  `capsule_settings_edited` (§9.2): tracking-plan §5 update ships with the switcher/edit commit.
+  ✅ Done — the switcher/edit commit updates `docs/analytics/mixpanel-tracking-plan.md` §5.
+- Naming note: `wardrobe_context_selected` intentionally sits outside the `capsule_*` family — it
+  is a wardrobe-level event (fires for `context:'entire'` too), not capsule-specific. Property is a
+  bounded enum (`entire`|`capsule`), no PII. Deliberate, not drift.
 
 ## 8. Out of scope (documented, not built)
 - Redis-worker true background generation (client-side React-Query continuation +
