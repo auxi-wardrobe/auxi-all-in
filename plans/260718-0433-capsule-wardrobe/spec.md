@@ -236,3 +236,54 @@ mandated doc updates ship WITH their code (not after):
 - LLM/Gemini stylist prose (rule-based generator ships; LLM swap is a later drop-in
   behind `CapsuleGenerationService`).
 - Weather automation (product decision: future version).
+
+## 9. Design revision — 260719 (wardrobe switcher + capsule edit)
+
+Design pivot: capsules are reached through a **wardrobe switcher** on the Wardrobe
+header (not only a separate menu), and a capsule's settings are **editable**.
+Decisions (CEO mockup "Choose a wardrobe" + edit request):
+- Selecting a capsule in the switcher → **navigates to the existing CapsuleDetail**
+  (reuses item grid + summary + outfits + Add/Delete). Switcher lives on the
+  Wardrobe header AND the CapsuleDetail header.
+- Editing constraints → **regenerate to match** (preserve valid outfits, add new).
+- Switcher is the primary entry; the existing `CapsuleWardrobe` list + sidebar
+  entry are **kept** (non-destructive), not removed.
+
+### 9.1 Backend — new endpoint
+| Method | Path | Body (all optional) | Success | Notes |
+|---|---|---|---|---|
+| PATCH | `/api/capsules/{id}` | `{name?, temp_min?, temp_max?, formalness_level?, outfit_target?, shoe_limit?}` | 200 `CapsuleFull` | update provided fields; **if any of the 5 constraints changed value → re-run generation** (preserve still-valid outfits, add new distinct ones; recompute `missing_categories` + status `success`/`success_with_gaps`). Name-only change → no regeneration. 404 not-owned. Write rate-limit. |
+
+Service: `CapsuleService.update_capsule(user_id, capsule_id, **fields)` — apply non-None
+fields, diff constraints, regenerate iff changed, return `to_dict()`. Repo gains an
+update path. Schema `UpdateCapsuleRequest` (all Optional, same validators as create).
+Append to `API_DOCUMENTATION.md`. Add `tests/test_capsules.py` cases: name-only (no
+regen), constraint change (regen), 404.
+
+### 9.2 Mobile — surface
+- **Service**: `capsuleService.updateCapsule(id, patch)` → `PATCH /capsules/{id}` →
+  `unwrapCapsule`. Hook `useUpdateCapsule(id)` (invalidate `detail(id)` + `all`).
+- **Wardrobe switcher** `src/screens/wardrobe/WardrobeSwitcherSheet.tsx` (MBottomSheet):
+  title "Choose a wardrobe"; rows — **Entire Wardrobe · {{count}} items** (count =
+  wardrobe items length) + each capsule **{{name}} · {{count}} items**, radio-selected
+  for the active context; footer row **+ Create Capsule** / "Create one for travel,
+  work, events, and more." Entire → set context + close; capsule → `navigate('CapsuleDetail',{capsuleId})`;
+  create → `navigate('CapsuleCreate')`.
+- **Wardrobe header**: make the `Header.MenuTitleAction` title tappable with a chevron
+  (extend Header minimally: optional `onTitlePress` + `titleChevron`) → opens the sheet.
+- **CapsuleDetail**: add an **Edit** button next to **Delete** at the bottom →
+  `navigate('CapsuleEdit',{capsuleId})`. Put the same switcher on the capsule header
+  (title = capsule name + chevron).
+- **CapsuleEdit** `src/screens/capsule/CapsuleEditScreen.tsx` + route `CapsuleEdit: {capsuleId}`:
+  prefilled name + requirements (reuse CapsuleInfo field layout), **Save** →
+  `useUpdateCapsule` → back to detail + toast `capsule.settings_updated_toast`.
+- **i18n (en/fr/vi)** `boilerplate.capsule.*`: `switcher_title`="Choose a wardrobe",
+  `entire_wardrobe`="Entire Wardrobe", `items_count`="{{count}} items",
+  `create_capsule_row`="Create Capsule", `create_capsule_subtitle`="Create one for
+  travel, work, events, and more.", `edit`="Edit", `edit_title`="Edit capsule",
+  `save`="Save", `settings_updated_toast`="Capsule updated."
+- **Analytics** (`trackCapsule*` wrappers, no PII): `capsule_switcher_opened {}`;
+  `wardrobe_context_selected { context: 'entire'|'capsule' }`;
+  `capsule_settings_edited { changed_constraints }`. Update tracking-plan §5.
+- **Verify**: `tsc --noEmit` clean, no new lint; jest for `updateCapsule` unwrap +
+  switcher row/count logic.
