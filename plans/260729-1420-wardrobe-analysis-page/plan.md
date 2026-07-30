@@ -27,7 +27,7 @@ fresh `git submodule update` broken.
 ```bash
 cd auxi
 git checkout -b claude/wardrobe-analysis-page-b7tbiy   # or reuse if it exists
-git am ../plans/260729-1420-wardrobe-analysis-page/auxi-wardrobe-analysis.patch
+git am ../plans/260729-1420-wardrobe-analysis-page/auxi-wardrobe-analysis.patch   # 2 commits
 git push -u origin claude/wardrobe-analysis-page-b7tbiy
 # then, from the umbrella, bump the pointer:
 cd .. && git add auxi && git commit -m "chore: bump auxi submodule → wardrobe analysis page"
@@ -112,6 +112,31 @@ Also pending as a result: qa-ui Compare (no Figma URL was supplied — the
 request came with screenshots), the designer step-6.5 gate, and qa-mobile
 smoke. Those are hard gates for the PR per
 `.claude/rules/design-review-required.md`; they need a machine with the sim.
+
+### Web-preview capture (done)
+
+The screen WAS rendered and captured — from the real `yarn web:build` output
+driven in Chromium, not a mock-up. `wardrobe-analysis` is now registered in
+`web/share/shareable-screens.ts`, so it has a shareable link:
+`?screen=wardrobe-analysis` (add `&embed=1` to drop the device frame).
+
+Harness: `preview.mjs` in the session scratchpad (deliberately NOT committed —
+throwaway tooling, and adding playwright to `auxi/package.json` would churn
+`yarn.lock`, which is the Cloudflare build-cache key per
+`.claude/rules/yarn-lock-cache-management.md`). Two findings worth keeping:
+
+- **On web the app calls its OWN origin.** `src/config/env.web.ts` sets
+  `BASE_URL='/api'`; a Cloudflare proxy forwards to the backend. So a local
+  harness intercepts same-origin `/api/**`, and it structurally cannot reach
+  production.
+- **`LoadableRemoteImage` never settles on a `data:` URI.** It holds
+  `SkeletonTile` until `Image`'s `onLoadEnd` fires, and RN-web doesn't fire it
+  for data URIs — every tile stays on the skeleton. Fixture images have to be
+  served over real HTTP. Relevant to anyone writing future preview harnesses.
+
+Sample fixture data only (75 items shaped to exercise all 6 categories, 5
+styles, 13 colour buckets and a wide wear range); the numbers on the capture are
+computed by the real derivation modules from those items.
 
 ## Notes on two derivations worth knowing about
 

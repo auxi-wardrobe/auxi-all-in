@@ -1,8 +1,8 @@
 From 41206ea212b4bbbbab12866cbcdaeeb31c4c0e0f Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Wed, 29 Jul 2026 14:46:09 +0000
-Subject: [PATCH] feat(wardrobe): add Wardrobe Analysis page behind the grid
- chip row
+Subject: [PATCH 1/2] feat(wardrobe): add Wardrobe Analysis page behind the
+ grid chip row
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
@@ -2856,6 +2856,41 @@ index c585290..053ef39 100644
    // `returnToSchedule` is set when the user reached this page via the Schedule
    // "+" source picker — after scheduling an outfit we send them back to
    // Schedule (focused on the chosen day) instead of staying here. `scheduleDate`
+-- 
+2.43.0
+
+
+From dd4720e0b5aa595ef5f2117b083c11af8eea0c73 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Thu, 30 Jul 2026 03:23:21 +0000
+Subject: [PATCH 2/2] feat(web-review): register wardrobe-analysis in the
+ shareable-screens picker
+
+The screen is param-free and lives in the App stack, so it meets the registry's
+v1 scope rule. Without the entry the sandbox picker can't reach it and there is
+no shareable ?screen= link for the designer to review it at.
+---
+ web/share/shareable-screens.ts | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/web/share/shareable-screens.ts b/web/share/shareable-screens.ts
+index c036d3a..f0a6b4b 100644
+--- a/web/share/shareable-screens.ts
++++ b/web/share/shareable-screens.ts
+@@ -94,6 +94,13 @@ export const SHAREABLE_SCREENS: ShareableScreen[] = [
+     authState: 'app',
+     target: { kind: 'app', name: 'Wardrobe' },
+   },
++  {
++    key: 'wardrobe-analysis',
++    label: 'Wardrobe · analysis',
++    group: 'App',
++    authState: 'app',
++    target: { kind: 'app', name: 'WardrobeAnalysis' },
++  },
+   {
+     key: 'favourite',
+     label: 'Favourite',
 -- 
 2.43.0
 
