@@ -121,6 +121,14 @@ aggressive for real wardrobes — that's the metric to watch after deploy.
 - **Engine V2/V3 untouched.** Confirmed the mobile HomeScreen only calls
   `recommendV05` / `resetV05Session`; the legacy `/recommendation/next` path is
   not reachable from the suggestions surface.
+- **Submodule pointer NOT bumped**, deliberately — the backend branch is
+  unmerged; bump `wardrobe-backend` after that PR lands.
+- **`.gitmodules` URLs are stale.** All four submodules point at
+  `ducga1998/*`, but the live repos are `auxi-wardrobe/*` (`wardrobe-backend`
+  → `auxi-wardrobe/auxi-backend`, which does contain the currently-pinned
+  commit `a950a7e` — same repo, transferred owner). `git submodule update
+  --init` fails auth against the old URLs. Worth a `chore:` pass to repoint
+  them.
 - **Item-level favourite (`is_favorited`)** is the sibling gap flagged in the
   PR #148 plan §8 — still unaddressed, still a candidate for the inverse
   (promotion) treatment.
