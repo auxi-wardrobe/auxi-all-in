@@ -76,6 +76,18 @@ thứ làm UI hiện màu mới ngay sau khi Save (che mất lỗi), rồi lộ 
   override = tiếp tục che lỗi loại này trong tương lai.
 - Cân nhắc: nếu response không echo field vừa gửi → hiện toast lỗi thay vì báo success.
 
+### 4.1 Follow-up tracking
+
+Hai việc dưới đây KHÔNG nằm trong PR này (PR này chỉ là artifact điều tra). Phải mở ticket
+riêng, nếu không sẽ rơi mất sau khi backend xanh:
+
+- [ ] **BE** — `auxi-backend`: color fields vào `updatable_fields` + request schema +
+      `user_edits`; test PATCH → GET → re-tagging; cập nhật `API_DOCUMENTATION.md`.
+      Đây là nơi 3 giả thuyết §3 được xác nhận/loại bỏ trên code thật.
+- [ ] **Mobile** — `auxi-mobile`: gỡ block override `ItemDetailScreen.tsx:521-535`.
+      **Gate: chỉ làm SAU khi BE ticket ở trên đã merge và verify.** Gỡ sớm sẽ khiến màu
+      revert ngay tại màn hình thay vì lúc mở lại — lộ lỗi rõ hơn nhưng UX tệ hơn.
+
 ## 5. Blocker
 
 `auxi-wardrobe/auxi-backend` (private) không đọc được từ session này:
