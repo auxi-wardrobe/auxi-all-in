@@ -243,3 +243,10 @@ Không viết dòng code nào trước khi trả lời xong:
 - **Follow-up chưa chạy:** `plans/reports/v05-eval-260602-1703-prod-fix-verification.md:47`
 - **Branch:** `claude/outfit-recommendation-analysis-o7x103`
 - **Linear ticket:** _TBD — PM tạo & gán_ (Linear MCP chưa auth ở session này)
+
+---
+
+## 10. Cập nhật ưu tiên
+
+F6 (plan này) đứng **trước** F1 — xem `plans/260822-0958-v05-coherence-floor/plan.md` §2.4.
+F1 vẫn nên làm, nhưng là lớp phòng thủ thứ hai, không phải lớp đầu.
