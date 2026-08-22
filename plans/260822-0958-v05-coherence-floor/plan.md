@@ -2,8 +2,8 @@
 
 **Date:** 2026-08-22
 **Branch (umbrella):** `claude/outfit-recommendation-analysis-o7x103`
-**Scope:** `wardrobe-backend/` — scoring + serve path. Không đụng mobile.
-**Owner routing:** backend → `backend-dev` · tuning sign-off → `tech-lead` · ngưỡng → CEO
+**Scope:** `wardrobe-backend/` (Phase 1-4) + `auxi/` (Phase 5 — nhãn trung thực, ship SAU khi đo)
+**Owner routing:** backend → `backend-dev` · mobile → `mobile-dev` · design gate → `designer` · tuning sign-off → `tech-lead` · ngưỡng + copy + Figma → CEO
 **Status:** Planned, not started
 **Ưu tiên:** 🔴 **P0 — cao hơn F1** (`plans/260822-0951-v05-occasion-contract-fix/`), xem §2.4
 
@@ -162,7 +162,34 @@ triệt tiêu.
 → Biến một lỗi chất lượng **vô hình** thành tín hiệu **đo được** — và đó chính là dữ liệu để nói
 với user "tủ bạn thiếu món gì", hoặc để gợi ý mua sắm.
 
-### 3.5 Hằng số
+### 3.5 Mobile — hiển thị trung thực khi `relaxed_coherence` (CEO chốt 2026-08-22)
+
+**Nguyên tắc:** không đổ lỗi cho user, không xin lỗi vòng vo, phải **hành động được**.
+
+| Kiểu | Ví dụ | Đánh giá |
+|---|---|---|
+| ❌ Báo lỗi | "Không tìm được bộ đồ phù hợp" | Đọc như app hỏng |
+| ❌ Tự phủ nhận | "Bộ này có thể không hợp" | Làm mất tin, không giúp gì |
+| ✅ Trung thực + chỉ nguyên nhân | "Hết bộ thật hợp rồi — đây là phương án gần nhất" | Đặt kỳ vọng đúng, quy về **tủ** chứ không phải gu của app |
+
+**Phiên bản mạnh nhất:** nối nhãn với **CTA bổ sung tủ đã có sẵn** (pattern `wardrobe_gap` →
+"add items", `HomeScreen.tsx:649-686`). `relaxed_coherence` **chính là** tín hiệu thiếu đồ —
+biến điểm yếu thành vòng lặp giá trị của sản phẩm thay vì một lời thú nhận cụt.
+
+**Ràng buộc quy trình (đừng bỏ qua — đây là UI mới):**
+
+- 🔴 **`designer` design-review là HARD GATE** (`.claude/rules/design-review-required.md`) — thêm
+  pill/label mới trên outfit card thuộc diện "component với visual treatment riêng". FAIL chặn PR.
+- Cần **Figma từ CEO** (CEO là designer) trước khi `mobile-dev` code — hoặc chấp nhận MVP text-only
+  rồi polish sau, như tiền lệ WearPromptModal (`260515-1530-v05-phase-0` Task 2.5).
+- **Mixpanel event** (`.claude/rules/analytics-tracking-required.md`): nhãn là hiển thị thụ động,
+  không phải handler — nhưng **nên** track impression để đo tương quan với hành vi
+  (user thấy nhãn → bấm "try another" nhiều hơn? bỏ đi?). Đề xuất `outfit_compromise_shown`
+  (`object_verb`, quá khứ, snake_case) + property `coherence_score` (số, không PII).
+  Cập nhật `auxi/docs/analytics/mixpanel-tracking-plan.md`.
+- i18n: chuỗi tiếng Việt + tiếng Anh, không hardcode.
+
+### 3.6 Hằng số
 
 | Hằng số | Đề xuất | Ghi chú |
 |---|---|---|
@@ -181,6 +208,7 @@ với user "tủ bạn thiếu món gì", hoặc để gợi ý mua sắm.
 | `style_tags` thưa → archetype vô dụng | Đo độ phủ ở Phase 0. Thưa → chạy formality-spread trước, archetype sau |
 | Chọi với novelty (§2.3) | Test bắt buộc: coherence **nhân sau** novelty, không để novelty bù lại được |
 | TIER 2 rate cao → user thấy toàn bộ miễn cưỡng | Đó là **sự thật về cái tủ**, không phải lỗi engine. Đo được ⇒ chuyển thành gợi ý bổ sung tủ. Trước F6 sự thật này bị giấu |
+| **Nhãn trung thực gây nhiễu** nếu `relaxed_coherence` rate cao | 🔴 **Đo TRƯỚC khi ship nhãn.** Phase 5 bị chặn bởi số liệu Phase 4. rate thấp (<15%) → nhãn rõ + CTA. rate cao → nhãn kín đáo, và ưu tiên thật sự là vá tủ/catalog chứ không phải nhãn |
 
 ---
 
@@ -211,9 +239,24 @@ với user "tủ bạn thiếu món gì", hoặc để gợi ý mua sắm.
 **Phase 4 — Eval gate**
 - [ ] Coherence P2 tăng
 - [ ] `pool_insufficient_rate` + `wardrobe_gap` rate **không tăng** (thiết kế nói phải bằng — lệch ⇒ có bug)
-- [ ] `relaxed_coherence` rate: ghi nhận baseline (đây là số mới, chưa từng đo)
+- [ ] **`relaxed_coherence` rate: ghi nhận baseline** (số mới, chưa từng đo) — 🔴 **gate của Phase 5**
 - [ ] `pytest` + `python test_server.py` xanh
 - [ ] CEO chốt `V05_MIN_COHERENCE` sau khi đọc eval
+
+**Phase 5 — Nhãn trung thực trên mobile** ← *CEO chốt "nên thành thật", 2026-08-22*
+
+> 🔴 **BỊ CHẶN bởi số liệu Phase 4.** Không ship nhãn khi chưa biết tần suất nó xuất hiện.
+
+- [ ] Đọc `relaxed_coherence` rate từ Phase 4 → quyết mức độ nổi bật:
+      **rate thấp (<15%)** → nhãn rõ + CTA bổ sung tủ ·
+      **rate cao** → nhãn kín đáo, và ưu tiên thật sự chuyển sang vá tủ/catalog, không phải nhãn
+- [ ] CEO chốt copy (VN + EN) + Figma cho nhãn
+- [ ] `mobile-dev`: đọc `fallback_flags.includes('relaxed_coherence')` trong `v05Api.ts`
+      (cùng chỗ đã map `cycled`/`wardrobe_gap`), render nhãn trên outfit card
+- [ ] Mixpanel `outfit_compromise_shown` + cập nhật `auxi/docs/analytics/mixpanel-tracking-plan.md`
+- [ ] i18n VN + EN, không hardcode chuỗi
+- [ ] 🔴 `designer` design-review — **HARD GATE**, FAIL chặn PR
+- [ ] `npx tsc --noEmit && yarn lint` xanh
 
 ---
 
@@ -224,6 +267,8 @@ với user "tủ bạn thiếu món gì", hoặc để gợi ý mua sắm.
 - Khi buộc phải miễn cưỡng: serve bộ **ít tệ nhất** + flag `relaxed_coherence`
 - `wardrobe_gap` **chỉ** khi không compose nổi bộ nào; **không bao giờ** 422
 - `pool_insufficient_rate` + `wardrobe_gap` rate **không tăng** so với baseline
+- Khi TIER 2: user được **nói thật** — nhãn trung thực, chỉ đúng nguyên nhân (tủ thiếu đồ),
+  kèm hành động, không đổ lỗi cũng không xin lỗi vòng vo
 
 ---
 
@@ -239,9 +284,9 @@ với user "tủ bạn thiếu món gì", hoặc để gợi ý mua sắm.
 2. Mood `creative` có được nới floor không? (táo bạo vs ngớ ngẩn — ranh giới là quyết định của CEO)
 3. ~~Serve bộ dưới floor kèm nhãn hay ẩn hẳn?~~ ✅ **CEO chốt 2026-08-22:** serve, nhưng **chỉ khi
    đã dùng hết lựa chọn hợp thời trang** → thiết kế TIER 1/TIER 2 (§3.3).
-4. Mobile có nên **hiển thị** nhãn khi `relaxed_coherence=true` không (vd "chưa có bộ nào thật hợp
-   — đây là gần nhất")? Backend cứ gửi flag; UI là quyết định riêng của CEO + `mobile-dev`.
-   Không block F6.
+4. ~~Mobile có nên hiển thị nhãn khi `relaxed_coherence=true`?~~ ✅ **CEO chốt 2026-08-22: "nên
+   thành thật"** → Phase 5 (§3.5). Còn treo: **copy chính xác** + **mức độ nổi bật** — cả hai chờ
+   `relaxed_coherence` rate từ Phase 4.
 5. Sửa gốc §2.1 (chấm cả anchor) thay vì vá bằng coherence cấp outfit — sâu hơn nhiều, đáng một
    epic riêng. F6 cố tình **không** đụng vào để giữ minimal.
 
