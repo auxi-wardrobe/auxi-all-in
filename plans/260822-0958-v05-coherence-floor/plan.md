@@ -18,9 +18,6 @@
 
 > *"Nếu hết lựa chọn cũng không nên đưa ra gợi ý quá ngớ ngẩn."*
 > *"Trong tủ đồ rõ ràng còn nhiều lựa chọn phù hợp hơn, nhưng nó lại đưa ra lựa chọn không phù hợp này quá sớm."*
-
-Hai vế, hai vấn đề khác nhau:
-
 > *"Chỉ đưa ra lựa chọn miễn cưỡng để đủ tạo thành 1 bộ đồ khi nó thực sự dùng hết các lựa chọn
 > phù hợp về mặt thời trang."*
 
