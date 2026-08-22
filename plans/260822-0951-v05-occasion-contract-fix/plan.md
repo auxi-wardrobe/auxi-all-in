@@ -246,7 +246,7 @@ Không viết dòng code nào trước khi trả lời xong:
 
 ---
 
-## 10. Cập nhật ưu tiên
+## 12. Cập nhật ưu tiên
 
 F6 (plan này) đứng **trước** F1 — xem `plans/260822-0958-v05-coherence-floor/plan.md` §2.4.
 F1 vẫn nên làm, nhưng là lớp phòng thủ thứ hai, không phải lớp đầu.
