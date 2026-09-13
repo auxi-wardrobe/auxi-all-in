@@ -266,3 +266,72 @@ Nhánh `off` chỉ tắt **block directive theo món**. Các sửa **vô điều
 4. Compact prompt **2646/2700** — thêm directive nữa là tràn, FLUX hard-reject ở 3000. Có log cảnh báo + trim, nhưng trim sẽ cắt mất phần cuối (chỗ quan trọng nhất). Cần theo dõi.
 5. Item user upload cũ chưa có `length_type`; backfill mới chỉ làm `normalized_fit`.
 6. `routers/recommendation.py:117` còn từ vựng `SLM|REG|OVS` song song với `FIT_PREFERRED`.
+
+---
+
+# Phần 5 — Prompt live bị cắt cụt (commit `2050b55`) 🔴 nặng nhất
+
+Đi kiểm câu hỏi *"có cần đưa key mới test được không"* thì lòi ra lỗi nặng nhất cả loạt.
+
+## 5.1 Provider live KHÔNG phải openai
+
+`settings.py:117` → `TRYON_RENDER_PROVIDER = "flux_kontext"` (khớp `.env.example:66` + doc quyết định CEO 2026-06-30).
+
+Hệ quả: đường chạy thật là **template COMPACT**, không phải template full 10k chars. Và `flux_kontext` là provider **một ảnh + TEXT** — **không hề nhận ảnh món đồ**. Trên đường này directive của tôi không phải "bổ sung cho ảnh tham chiếu", **nó là toàn bộ tín hiệu về món đồ**.
+
+## 5.2 Đường đó đang cắt cụt prompt bằng `prompt[:2700]`
+
+Đo trên payload thực tế (2 món + `body_shape` + `height` + `gender`):
+
+| | |
+|---|---|
+| Prompt dựng ra | **2986 chars** |
+| Bị cắt còn | 2700 |
+| **Mất hẳn** | câu đóng `"Generate one full-body studio photo…"` |
+| **Đứt giữa chừng** | cảnh báo hem, cụt ở `"a lon"` |
+
+**Một món** kèm params thật đã 2840 → cũng bị cắt. Block silhouette nằm cùng đuôi, nhiều món hơn là tới lượt nó.
+
+Nghĩa là: **toàn bộ thứ tôi sửa suốt 4 commit trước đang bị băm trên đường truyền**, trong khi đọc code review thì thấy hoàn toàn đúng. Trim này có **trước** khi tôi vào, nhưng phần tôi thêm đẩy nó qua ngưỡng.
+
+## 5.3 Sửa cấu trúc, không phải cắt chữ
+
+Template compact giờ lắp từ **section có khoá + thứ tự hy sinh tường minh**:
+
+```
+bỏ trước: raw_params (4) → priority, OUTPUT (3) → BACKGROUND, COMPOSITION (2) → FACE, BODY, POSE (1)
+KHÔNG BAO GIỜ bỏ (0): intro · inputs · GARMENT · SILHOUETTE · hem · câu đóng
+```
+
+Không bao giờ cắt giữa chữ. Section bị bỏ **ghi log tên**. Nếu chỉ còn section được bảo vệ mà vẫn quá ngân sách → **log ERROR và gửi nguyên**: prompt quá dài ồn ào còn hơn prompt bị cắt âm thầm.
+
+Đo sau khi sửa:
+
+| Số món | Chars | SILHOUETTE | Câu đóng | Hy sinh |
+|---|---|---|---|---|
+| 1 | 2687 | ✅ | ✅ | OUTPUT |
+| 2 | 2568 | ✅ | ✅ | OUTPUT |
+| 3 | 2697 | ✅ | ✅ | OUTPUT, priority, COMPOSITION |
+| 4 | 2546 | ✅ | ✅ | — |
+
+## 5.4 Eval giờ đo đúng đường đang chạy
+
+- `--provider`, **mặc định lấy từ `settings.TRYON_RENDER_PROVIDER`**. Đo một đường production không dùng thì tệ hơn không đo.
+- Text provider cần `--body` là **URL** (nó tự fetch ảnh) và trả về **CDN link** thay vì bytes → judge nhận cả hai dạng. Bỏ qua tải ảnh món đồ vì không bao giờ gửi.
+- Description dựng **trung lập**: `màu + category`, lọc từ khoá fit, và **tuyệt đối không dùng tên món đồ**. `"Wide-leg linen trousers"` trong description sẽ đưa nhãn cho **nhánh control** → delta sập về 0 vì lý do không liên quan đến thay đổi prompt.
+
+## Kiểm chứng
+
+- 12 test mới. Một test **fail vì assertion của tôi sai**, không phải code: `n=1` chỉ có áo nên "wide-leg" đương nhiên chưa xuất hiện.
+- Full suite **21 failed / 1916 passed** vs baseline **21 failed / 1838 passed**.
+- Script smoke: guard URL cho flux đúng, default provider đúng theo settings.
+- Vẫn **không có pixel nào** — không có `OPENAI_API_KEY` lẫn `FLUX_API_KEY`.
+
+## Chưa giải quyết
+
+1. **Chưa có số.** Năm phần, không một tấm ảnh.
+2. **Prod thật chạy provider gì — chưa xác minh.** Railway env có thể override `settings.py`. Devops kiểm biến `TRYON_RENDER_PROVIDER`.
+3. **`config.py:77` mặc định `kling_image`, `settings.py:117` mặc định `flux_kontext`.** Hai file hai giá trị. Đường try-on dùng `settings.py` nên flux thắng, nhưng là nợ nên dọn.
+4. Ngân sách compact vẫn chỉ 2700/3000. Thêm chỉ thị nữa là bắt đầu hy sinh section thật (FACE/BODY/POSE). Cần cân nhắc nâng budget lên ~2900 sau khi đo thực tế FLUX chịu được bao nhiêu.
+5. Nhãn sai giờ lái ảnh sai — chất lượng tagger thành thứ phải đo.
+6. `routers/recommendation.py:117` còn từ vựng `SLM|REG|OVS` song song.
