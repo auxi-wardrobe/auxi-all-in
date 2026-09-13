@@ -153,3 +153,56 @@ Engine V05 đọc **cùng field** và hiện mặc định item user = `REGULAR`
 4. **Độ phủ thật chưa đo.** Phải chạy dry-run trên prod-mirror để biết bao nhiêu item rơi vào `low-confidence` — đó là con số quyết định có đáng làm re-extraction không.
 5. Vẫn **chưa có eval set**. Không đo được cải thiện thật của cả Phần 1 lẫn Phần 2.
 6. `.gitmodules` còn trỏ `ducga1998/wardrobe-backend` (đã migrate sang `auxi-wardrobe/auxi-backend`).
+
+---
+
+# Phần 3 — Gấu quần bị cắt ngắn để lộ giày (commit `55df600`)
+
+CEO báo lại chính xác hơn: *"quần ống rộng, **phủ giày**, nhưng see on me thì vừa vặn và **lộ giày**"*.
+
+Tức là **hai** thuộc tính mất, không phải một. Phần 1–2 chỉ trị độ rộng. **Độ dài gấu là trục độc lập và chưa ai đụng.**
+
+## Nguyên nhân: lại là xung đột chỉ thị
+
+Prompt đòi thấy giày **hai lần**, một lần ở **câu đóng** — vị trí trọng số cao nhất:
+
+```
+COMPOSITION — full body visible head-to-toe including shoes …
+… full body head to toe with feet in frame …
+```
+
+Với gấu quần phủ giày, "phải thấy giày" và "tái hiện đúng món đồ" **loại trừ nhau**. Model chọn cách rẻ: **cắt ngắn quần**.
+
+`head-to-toe` là chỉ thị **khung hình**, đang bị đọc thành chỉ thị **trang phục**. Cùng đúng lớp bug với va chạm token `silhouette` ở Phần 1 — lần thứ ba trong cùng file.
+
+## Đã làm
+
+1. **Gỡ xung đột** (cả full + compact template): nói rõ `head-to-toe` là khung hình; gấu đủ dài phủ giày **phải giữ nguyên** — không cắt, không xắn, không bóp. → **Chạy được kể cả khi item không có nhãn nào.** Đây là phần quan trọng nhất.
+2. **`length_type`** (đã có trong v05 tagger, chưa bao giờ nối vào try-on — y hệt `normalized_fit` trước đó) → directive theo món, mô tả gấu rơi **ở đâu so với giày**:
+   - `LONG` → *"reaches the top of the shoe and breaks over it, resting on the instep… must NOT stop at or above the ankle"*
+   - `MAXI` → *"fully covers the shoes. The footwear may be completely hidden — that is correct, do not shorten the hem to reveal it"*
+3. `length_type` vào extraction schema cho item user upload.
+
+## Bug tôi tự gây ra, suite có sẵn bắt được
+
+Lần chạy đầu: **25 failed** (baseline 21). 4 test hỏng do tôi.
+
+`_attr` viết `(value or "").strip()` — với object non-str truthy thì trả về chính object đó, không phải `str`, rồi `" ".join()` nổ. Path fit không lộ vì nó return sớm ở `normalized_fit`; path length mới đi tới đó.
+
+Nguy hiểm ở chỗ: `_render_via_openai` **nuốt exception** thành `success: False`. Nên nó sẽ ship dưới dạng *"try-on thỉnh thoảng lỗi"*, không phải crash thấy ngay.
+
+Sửa: coerce kiểu ở biên (`_attr`, `_phys`, `_code` mới). Pin bằng 4 test regression.
+
+## Kiểm chứng
+
+- 51 test fit-suite (12 mới) + 4 test type-safety.
+- Full suite **21 failed / 1892 passed** vs baseline **21 failed / 1838 passed** → về đúng baseline sau khi sửa, không regression.
+- Vẫn **chưa có một tấm ảnh nào** để xác nhận. Không có key trong session.
+
+## Chưa giải quyết (cập nhật)
+
+1. **Chưa đo được gì.** Cả ba phần đều sửa theo cơ chế, bằng chứng là test string trên prompt — không phải pixel. Đây là nợ lớn nhất.
+2. **`_BODY_TYPE_GARMENT_BEHAVIOR["slim"]`** vẫn chứa *"cleaner drape, less fabric tension, **sharper silhouette**"* — còn kéo ngược với user dáng gầy mặc oversized. Chưa gỡ.
+3. **Nhãn sai giờ nguy hiểm hơn trước.** Trước đây `normalized_fit`/`length_type` sai thì vô hại (không ai đọc). Giờ nó lái ảnh, và được khẳng định giọng "non-negotiable". Chất lượng tagger vừa thành thứ phải đo.
+4. Item user upload cũ **không có `length_type`** → chỉ được cứu bởi fix xung đột (mục 1), không có directive. Backfill hiện chỉ làm `normalized_fit`, chưa làm length.
+5. `routers/recommendation.py:117` dùng `fit_preference: "SLM"|"REG"|"OVS"` — từ vựng khác với `FIT_PREFERRED` trong onboarding. Hai hệ song song, là nợ.
