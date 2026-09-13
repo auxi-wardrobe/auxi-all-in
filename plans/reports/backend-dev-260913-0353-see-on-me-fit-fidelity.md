@@ -206,3 +206,63 @@ Sửa: coerce kiểu ở biên (`_attr`, `_phys`, `_code` mới). Pin bằng 4 t
 3. **Nhãn sai giờ nguy hiểm hơn trước.** Trước đây `normalized_fit`/`length_type` sai thì vô hại (không ai đọc). Giờ nó lái ảnh, và được khẳng định giọng "non-negotiable". Chất lượng tagger vừa thành thứ phải đo.
 4. Item user upload cũ **không có `length_type`** → chỉ được cứu bởi fix xung đột (mục 1), không có directive. Backfill hiện chỉ làm `normalized_fit`, chưa làm length.
 5. `routers/recommendation.py:117` dùng `fit_preference: "SLM"|"REG"|"OVS"` — từ vựng khác với `FIT_PREFERRED` trong onboarding. Hai hệ song song, là nợ.
+
+---
+
+# Phần 4 — Eval harness + gỡ xung đột cuối (commit `fe7ecc2`)
+
+## 4.1 `_BODY_TYPE_GARMENT_BEHAVIOR` — chỗ cuối cùng prompt tự suy ra dáng đồ từ dáng người
+
+Nguyên văn cũ cho `slim`:
+
+> *"…a longer vertical **silhouette** — garments should show a cleaner drape, less fabric tension, and a **sharper silhouette**"*
+
+Hai lỗi trong một câu: (a) lại dùng chữ `silhouette` cho dáng **người** — đúng va chạm đã gỡ ở `_build_body_line`, nhưng ở chỗ thứ hai; (b) khẳng định dáng **đồ** ("sharper silhouette") — kéo áo oversized về ôm body, đúng với nhóm user hay mặc oversized nhất.
+
+Sửa: giữ nguyên phần mô tả **cơ thể**, chỉ viết lại mệnh đề garment-behaviour thành "vải **ở chỗ nó chạm** cơ thể" — đúng bất kể món đồ rộng đến đâu. Thêm guard:
+
+> *This describes the BODY UNDERNEATH the clothes only: it never makes a garment narrower, looser, shorter or longer than that garment actually is.*
+
+Compact template mang guard rút gọn, còn **2646/2700** chars — sát trần, đáng theo dõi.
+
+## 4.2 `scripts/eval-tryon-fit-fidelity.py`
+
+Bốn quyết định phương pháp, mỗi cái chống một cách eval có thể nói dối:
+
+| Quyết định | Chống điều gì |
+|---|---|
+| **Classification, không verification** — judge chọn từ enum, **không bao giờ thấy đáp án**; so sánh làm trong code | Hỏi *"cái này có wide-leg không?"* là mớm đáp án → điểm ảo |
+| **Một món / một render**, một ảnh body cố định | Render nhiều món thì sai không quy được cho ai |
+| **Per-fit breakdown**, không chỉ tổng | Trung bình che mất việc các cực (WIDE, OVERSIZED) mới là ca khó |
+| **Fixture trải đều theo fit**, không lấy N cái đầu | Catalog lệch về fit nào thì kết quả lệch theo |
+
+Manifest mẫu cố ý có **cả hai cực** (WIDE/OVERSIZED **và** SKINNY/FITTED) — bộ chỉ toàn đồ rộng sẽ thưởng cho prompt nào bias mọi thứ thành rộng.
+
+`--from-db` dựng fixture từ item đã tag v05: catalog **chính là** bộ fixture có nhãn sẵn.
+
+### Bug harness suýt làm mọi con số vô nghĩa
+
+Nhánh `off` ban đầu viết bằng monkeypatch `garment_fit.build_silhouette_section`. Nhưng `openai_service` dùng `from … import build_silhouette_section` — **bind tên lúc import**, patch không tới được prompt.
+
+Hậu quả nếu lọt: **cả hai nhánh đều có directive, delta luôn ≈ 0, eval báo "fix không ăn thua" bất kể sự thật.**
+
+Test tôi viết để bắt đúng chuyện đó đã bắt được. Sửa: nhánh `off` **giữ lại nhãn** (`garment_fits=None`) — đúng đường mà item chưa tag đi trong production, không thể hỏng kiểu đó. Có test pin lại cái bẫy để không ai quay lại cách cũ.
+
+### Giới hạn của delta — in ra sau mỗi lần chạy
+
+Nhánh `off` chỉ tắt **block directive theo món**. Các sửa **vô điều kiện** (body-outline, GARMENT FIDELITY, shoe-visibility) nằm ở **cả hai nhánh** → delta **không** đo chúng. Muốn đo phải checkout `7f09391^`. Ghi trong docstring và in ra mỗi lần chạy để con số không bị trích dẫn quá mức nó đáng.
+
+## Kiểm chứng
+
+- 12 test harness mới. Full suite **21 failed / 1904 passed** vs baseline **21 failed / 1838 passed**.
+- Script chạy thật: `--dry-run` liệt kê đúng 5 fixture × 2 nhánh, guard thiếu key thoát đúng.
+- **CHƯA CHẠY THẬT** — không có `OPENAI_API_KEY` trong session. Vẫn **không có một pixel nào** làm bằng chứng.
+
+## Chưa giải quyết
+
+1. **Chưa có số.** Bốn phần đều sửa theo cơ chế. Harness đã sẵn sàng, cần một câu lệnh + key.
+2. **Cần một ảnh body và các ảnh garment thật** để điền manifest, hoặc `DATABASE_URL` cho `--from-db`.
+3. **Nhãn sai giờ nguy hiểm hơn.** `--from-db` dùng nhãn của tagger, nên tagger sai sẽ đọc thành render sai. Muốn tách hai thứ phải dùng `--manifest` với nhãn người kiểm.
+4. Compact prompt **2646/2700** — thêm directive nữa là tràn, FLUX hard-reject ở 3000. Có log cảnh báo + trim, nhưng trim sẽ cắt mất phần cuối (chỗ quan trọng nhất). Cần theo dõi.
+5. Item user upload cũ chưa có `length_type`; backfill mới chỉ làm `normalized_fit`.
+6. `routers/recommendation.py:117` còn từ vựng `SLM|REG|OVS` song song với `FIT_PREFERRED`.
