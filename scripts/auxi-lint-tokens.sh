@@ -7,6 +7,9 @@
 # Scope:
 #   - Scans auxi/src/screens/** and auxi/src/components/features|layout/**
 #     (excludes primitives/ + atoms/ — those CAN hold tokens by design)
+#   - Skips __tests__/ — a hex in a test is a FIXTURE (input to a colour
+#     classifier, an expected value), not a styling decision. Flagging those
+#     would push test authors to obfuscate their inputs to appease the lint.
 #   - Whitelist: theme.ts is the ONLY file allowed to declare hex / fontFamily literals
 #   - Allowed in JSX: 'transparent', 'currentColor', rgba()/hsl() forms (intentional
 #     designer escape hatches — not subject to token system)
@@ -39,6 +42,9 @@ HEX_PATTERN="'#[0-9a-fA-F]{3,8}'"
 # Pattern 2: font family string literal (Poppins, Inter, Archivo, Manrope, etc.)
 FONT_PATTERN="fontFamily:\s*['\"][A-Za-z][^'\"]+['\"]"
 
+# __tests__ dirs hold fixtures, not rendered styling — see the scope note above.
+EXCLUDE_TESTS=(--exclude-dir="__tests__")
+
 VIOLATIONS=0
 
 echo "▸ Scanning ${SCAN_PATHS[*]}..."
@@ -52,14 +58,14 @@ for path in "${SCAN_PATHS[@]}"; do
     [[ -z "$file" ]] && continue
     fail_line "HEX     $file:$line   $(echo "$content" | sed -E 's/^[[:space:]]+//' | cut -c1-100)"
     VIOLATIONS=$((VIOLATIONS+1))
-  done < <(grep -rEn "$HEX_PATTERN" "$path" --include="*.tsx" --include="*.ts" 2>/dev/null || true)
+  done < <(grep -rEn "$HEX_PATTERN" "$path" --include="*.tsx" --include="*.ts" "${EXCLUDE_TESTS[@]}" 2>/dev/null || true)
 
   # Font family violations
   while IFS=: read -r file line content; do
     [[ -z "$file" ]] && continue
     fail_line "FONT    $file:$line   $(echo "$content" | sed -E 's/^[[:space:]]+//' | cut -c1-100)"
     VIOLATIONS=$((VIOLATIONS+1))
-  done < <(grep -rEn "$FONT_PATTERN" "$path" --include="*.tsx" --include="*.ts" 2>/dev/null || true)
+  done < <(grep -rEn "$FONT_PATTERN" "$path" --include="*.tsx" --include="*.ts" "${EXCLUDE_TESTS[@]}" 2>/dev/null || true)
 done
 
 echo
