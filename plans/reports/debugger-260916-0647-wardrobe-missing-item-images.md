@@ -267,3 +267,32 @@ Giữ nguyên 4 bước ở phần trên, không đổi. Bằng chứng mới ch
 
 5. Có bao nhiêu item **của user** mà `image_url` cũng đã cutout sẵn (import-from-web có thể trả PNG trong suốt)? Ảnh hưởng tới việc có dám nới bước 1 sang row user-owned hay không.
 6. Vì sao 67 object `processed/` lại là bản sao y hệt input? Pipeline tách nền có phát hiện "đã có alpha, bỏ qua" rồi vẫn ghi ra một copy không — nếu vậy đó là lãng phí storage + là đường dẫn nghi ngờ số 1 cho 94 lần ghi hụt.
+
+---
+
+# Repair script (2026-09-16)
+
+`scripts/repair-dangling-image-png.py` — nulls `image_png` on catalog items whose R2 object is gone.
+
+Blocked on credentials, not on knowledge: `PATCH /api/admin/common-items/{id}` requires an admin bearer
+token, and this session has none. Verified against prod with the exact intended payload — returns
+`401 {"error":"Unauthorized","message":"Missing authorization token"}`, nothing was modified.
+
+```bash
+python3 scripts/repair-dangling-image-png.py                      # dry run, touches nothing
+ADMIN_TOKEN=<jwt> python3 scripts/repair-dangling-image-png.py --apply
+```
+
+Design notes:
+- Re-derives the broken set live each run (fetch catalog → ranged-GET every `image_png`) instead of
+  trusting a baked-in id list, so it stays correct as the catalog drifts and is safe to re-run.
+- Only a literal 404 counts as "object gone". 403 / 5xx / throttling raise instead of silently
+  nulling a row — absence of evidence is not evidence of absence.
+- `SYS_AC_BAG_BLK_BCK_01` is excluded by default: it is the one dangling item whose `image_url` is
+  NOT background-removed, so clearing it trades a blank tile for a garment on an opaque background.
+  Pass `--include-opaque` to clear it too.
+- Sends an explicit User-Agent — Cloudflare fronts the public R2 bucket and 403s `Python-urllib/*`,
+  which would otherwise be indistinguishable from a real permission error.
+
+Dry run against prod, 2026-09-16: 196 items · 162 carry `image_png` · **94 dangling** · 93 would be
+cleared · 1 skipped as opaque-original.
