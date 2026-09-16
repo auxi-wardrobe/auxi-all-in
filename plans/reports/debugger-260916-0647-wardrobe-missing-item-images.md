@@ -186,3 +186,84 @@ Ordering: **1 is the unblock** (minutes, no release). 4 is the durable fix. 3 st
 | 92 | `SYS_SH_FRM_BLK_DRB_01` | Derby Shoes · Black | top | `c221ede4-dec9-425d-83c5-a6d65618ecda` | `processed/698fbf1e69fb4437a446d4c98bc62256.png` |
 | 93 | `SYS_SH_FRM_BRN_REG_01` | BRN FRM (STR) | top | `e1171095-c78f-4f93-984b-77eee99991b3` | `processed/95c08362793c4280b7eef8667738f4cd.png` |
 | 94 | `SYS_SH_TEE_RED_OVS_01` | Red VAR (Oversize) | top | `f926f73b-30cc-4015-bf87-24108e44f674` | `processed/3e0887aabce6485291b60b3ccd715c10.png` |
+
+---
+
+# Follow-up (2026-09-16) — "ảnh gốc trong admin đã tách nền rồi, chỉ lấy ảnh gốc được không?"
+
+**Verdict: đúng cho catalog, SAI nếu áp dụng toàn cục.** Bỏ `image_png` trên client sẽ sửa 94 món catalog và đồng thời làm hỏng mọi món do user tự chụp.
+
+## Kiểm chứng: ảnh gốc catalog đã tách nền chưa?
+
+Tải toàn bộ 196 `image_url` của catalog, đọc alpha channel (Pillow):
+
+| Kết quả | Count |
+|---|---|
+| PNG mode RGBA (có alpha channel) | **196 / 196** |
+| Nền thực sự trong suốt (>5% pixel alpha=0) | **194 / 196** |
+| Đặc (alpha toàn 255) | **2** |
+
+Tỉ lệ pixel trong suốt: min 0.000 · median **0.706** · max 0.991. Không có món nào rơi vào vùng 1–5% → phân tách nhị phân rõ ràng, không mơ hồ.
+
+**Người dùng nói đúng: 194/196 ảnh gốc catalog đã tách nền sẵn.**
+
+## Kiểm chứng mạnh hơn: `image_png` có đóng góp gì không?
+
+Tải 68 ảnh `processed/` còn sống, so pixel-by-pixel với `image_url` tương ứng:
+
+| Kết quả | Count |
+|---|---|
+| **Giống hệt từng pixel** với ảnh gốc | **67 / 68** |
+| Cùng kích thước | 68 / 68 |
+| Tách nền chặt hơn ảnh gốc | 1 |
+| Tách nền tệ hơn ảnh gốc | 0 |
+
+Cộng với 94 cái đã chết: **161 trong 162 giá trị `image_png` của catalog là vô dụng** — hoặc trỏ vào object không tồn tại, hoặc là bản sao y hệt ảnh gốc. `image_png` chỉ mang giá trị thật cho đúng **1** món.
+
+## 2 ngoại lệ — đều nằm trên prefix legacy `common_items/`, không phải `uploads/`
+
+| hrid | name | image_url prefix | gốc | image_png | Hệ quả nếu chỉ dùng ảnh gốc |
+|---|---|---|---|---|---|
+| `SYS_AC_BLT_BLK_WID_01` | Wide Statement Belt | `common_items/` | **đặc** | 206, cutout thật (83.6% trong suốt) | **regress** — mất tách nền |
+| `SYS_AC_BAG_BLK_BCK_01` | Black BAG (BCK) | `common_items/` | **đặc** | 404 | cải thiện (trắng → có ảnh, nhưng còn nền) |
+
+Cross-tab sạch tuyệt đối:
+
+```
+   1  image_url_prefix=common_items  image_png=206     original=OPAQUE
+   1  image_url_prefix=common_items  image_png=404     original=OPAQUE
+  67  image_url_prefix=uploads       image_png=206     original=cutout
+  93  image_url_prefix=uploads       image_png=404     original=cutout
+  34  image_url_prefix=uploads       image_png=no_png  original=cutout
+```
+
+Mọi món trên `uploads/` đều đã cutout; chỉ 2 món legacy `common_items/` là chưa.
+
+## Tại sao KHÔNG được bỏ `image_png` trên client
+
+Item do user tự chụp đi đường khác (xác nhận trong `wardrobeService.uploadWardrobeItem` + OpenAI spec prod):
+
+```
+POST /api/upload/            → ảnh RAW từ camera, lưu vào uploads/  → trả về image_url
+POST /api/wardrobe/items/ai-enhanced → enqueue AI processing (tách nền + auto-tag)
+                                      → sinh processed/…  → image_png
+```
+
+Với item của user, **`image_url` là ảnh chụp thô còn nguyên nền phòng ngủ/sàn nhà**; `image_png` mới là bản đã tách. Cờ `is_preparing` tồn tại chính xác để che giai đoạn này. Bỏ `image_png` toàn cục = mọi item user tự thêm hiện ảnh thô. Đó là regression nặng hơn 94 tile trắng rất nhiều.
+
+**Điểm mấu chốt:** catalog và user-item dùng CHUNG prefix `uploads/`, vì admin upload qua đúng endpoint `/api/upload/` — chỉ khác là admin upload file đã cutout sẵn. Nên **không thể nhìn URL mà biết `image_url` đã tách nền hay chưa**. Chỉ phân biệt được bằng alpha channel hoặc bằng `owner_id == 'SYSTEM'` / `is_common_item`.
+
+## Kết luận — sửa thế nào
+
+Giữ nguyên 4 bước ở phần trên, không đổi. Bằng chứng mới chỉ làm bước 1 và 4 mạnh hơn:
+
+- **Bước 1 (data, backend) — giờ an toàn hơn dự kiến.** `UPDATE ... SET image_png = NULL` cho catalog item có object chết: fallback về `image_url` đã cutout sẵn → **chất lượng hiển thị không giảm chút nào** cho 93/94 món trên `uploads/`. Có thể mở rộng: null luôn 67 cái identical để dọn con trỏ thừa. Chừa `SYS_AC_BLT_BLK_WID_01`.
+- **Bước 4 (client) — đúng cho CẢ HAI loại item**, đó là lý do nên làm nó thay vì đổi precedence:
+  - catalog có `image_png` chết → rơi về `image_url` đã cutout → hoàn hảo
+  - item user có `image_png` chết → rơi về ảnh thô → không đẹp, nhưng hơn hẳn tile trắng
+- **Thêm:** 2 món legacy `common_items/` cần admin upload lại bản đã cutout vào `image_url`.
+
+## Câu hỏi còn treo (bổ sung)
+
+5. Có bao nhiêu item **của user** mà `image_url` cũng đã cutout sẵn (import-from-web có thể trả PNG trong suốt)? Ảnh hưởng tới việc có dám nới bước 1 sang row user-owned hay không.
+6. Vì sao 67 object `processed/` lại là bản sao y hệt input? Pipeline tách nền có phát hiện "đã có alpha, bỏ qua" rồi vẫn ghi ra một copy không — nếu vậy đó là lãng phí storage + là đường dẫn nghi ngờ số 1 cho 94 lần ghi hụt.
