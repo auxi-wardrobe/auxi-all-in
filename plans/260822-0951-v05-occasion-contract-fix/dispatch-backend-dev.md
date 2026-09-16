@@ -100,7 +100,11 @@ measure Phase 2.
   is unknown or absent. **Required by the two-repo contract rule.**
 - The umbrella's `docs/system-architecture.md:194-300` describes the V05 pipeline **incorrectly**
   (claims Silhouette→Color→Layering→Footwear→Accessory; the real shape is L1 hard gates → L2
-  compose → L5 novelty → L6 rank). Different repo — file a follow-up ticket, don't leave it wrong.
+  compose → L5 novelty → L6 rank). Different repo, so it is not this session's to edit — tracked
+  as `auxi-wardrobe/auxi-all-in#46`. You are already reading the engine for Phase 0, so if you
+  have the cycles, drop the corrected `file:line` shape into that issue as a comment. That costs
+  you nothing extra and is the only way the doc gets fixed from real code rather than from
+  2026-05/06 reports.
 
 # The trap — do not "fix" this on mobile alone
 
