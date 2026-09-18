@@ -1,0 +1,181 @@
+diff --git a/src/screens/HomeScreen/__tests__/garment-preview.render.test.tsx b/src/screens/HomeScreen/__tests__/garment-preview.render.test.tsx
+index 3d925f8..0807d73 100644
+--- a/src/screens/HomeScreen/__tests__/garment-preview.render.test.tsx
++++ b/src/screens/HomeScreen/__tests__/garment-preview.render.test.tsx
+@@ -128,3 +128,45 @@ test('pinned item resolved from the wardrobe (R5 path) still resolves its status
+   });
+   expect(badgeTestIDs(r)).toEqual([]);
+ });
++
++/**
++ * The suggestion tile rendered blank while item detail showed the same garment
++ * fine: an onboarding clone copies the SYSTEM catalog item's `processed/` blob
++ * URLs, those blobs were deleted, and this tile picked the winner on string
++ * presence with no `onError` recovery. Item detail already walked the ordered
++ * chain, hence the asymmetry the CEO saw. Locks the chain + retire-on-error.
++ */
++const imageNode = (r: TestRenderer.ReactTestRenderer) =>
++  r.root.find(
++    n => typeof n.props?.source?.uri === 'string' && !!n.props.onError,
++  );
++
++test('dead cutout falls back to the still-alive original instead of rendering blank', () => {
++  const r = render({
++    ...baseItem,
++    image_url: 'https://x/common_items/original.png',
++    image_png: 'https://x/processed/dead.png',
++  });
++
++  // Best candidate first.
++  expect(imageNode(r).props.source.uri).toBe('https://x/processed/dead.png');
++
++  // It 404s — the tile retires it and shows the original, not a blank View.
++  act(() => {
++    imageNode(r).props.onError();
++  });
++  expect(imageNode(r).props.source.uri).toBe(
++    'https://x/common_items/original.png',
++  );
++});
++
++test('every candidate dead → no image node left, falls through to the blank tile', () => {
++  const r = render({ ...baseItem, image_url: 'https://x/only.png' });
++
++  act(() => {
++    imageNode(r).props.onError();
++  });
++  expect(
++    r.root.findAll(n => typeof n.props?.source?.uri === 'string'),
++  ).toHaveLength(0);
++});
+diff --git a/src/screens/HomeScreen/components/GarmentPreview.tsx b/src/screens/HomeScreen/components/GarmentPreview.tsx
+index 6c9e87c..ac9f9d8 100644
+--- a/src/screens/HomeScreen/components/GarmentPreview.tsx
++++ b/src/screens/HomeScreen/components/GarmentPreview.tsx
+@@ -1,7 +1,8 @@
+ import React from 'react';
+ import { Image, View } from 'react-native';
+ import { Item } from '../../../types/item';
+-import { resolveItemImage } from '../../../utils/url';
++import { resolveItemImageSources } from '../../../utils/url';
++import { useImageFallback } from '../../../hooks/useImageFallback';
+ import { resolveTileStatus } from '../../../utils/tile-status';
+ import { TileStatusBadge } from '../../../components/features/TileStatusBadge';
+ import { styles } from '../styles';
+@@ -11,7 +12,13 @@ import { styles } from '../styles';
+ // for precedence; pre-phase-03 backend responses (fields absent) degrade to
+ // "common" on every tile, matching today's behaviour.
+ export const GarmentPreview = ({ item }: { item: Item }) => {
+-  const imageUrl = resolveItemImage(item);
++  // Ordered chain, not a single winner: an onboarding clone copies the SYSTEM
++  // catalog item's `processed/` blob URLs, and those blobs can be dead while
++  // the `common_items/` original still loads. Picking on string presence alone
++  // rendered a blank suggestion tile even though the item opened fine in item
++  // detail (which already walks the chain).
++  const sources = resolveItemImageSources(item);
++  const { uri: imageUrl, onError } = useImageFallback(sources);
+   const status = resolveTileStatus(item);
+ 
+   return (
+@@ -21,6 +28,7 @@ export const GarmentPreview = ({ item }: { item: Item }) => {
+           source={{ uri: imageUrl }}
+           style={styles.cardImage}
+           resizeMode="contain"
++          onError={onError}
+         />
+       ) : (
+         <View style={styles.cardFallback} />
+diff --git a/src/screens/favourite/FavouriteOutfitCard.tsx b/src/screens/favourite/FavouriteOutfitCard.tsx
+index 9fc2ac2..226a07e 100644
+--- a/src/screens/favourite/FavouriteOutfitCard.tsx
++++ b/src/screens/favourite/FavouriteOutfitCard.tsx
+@@ -14,7 +14,7 @@ import { TFunction } from 'i18next';
+ import { useTranslation } from 'react-i18next';
+ import { theme } from '../../theme/theme';
+ import { LoadableRemoteImage } from '../../components/features/LoadableRemoteImage';
+-import { resolveItemImage } from '../../utils/url';
++import { resolveItemImage, resolveItemImageSources } from '../../utils/url';
+ import { HomeView } from '../../components/features/HomeViewToggleFooter';
+ import {
+   COLLAGE_ASPECT,
+@@ -145,7 +145,10 @@ const Tile: React.FC<{
+   style?: StyleProp<ViewStyle>;
+ }> = ({ item, testIDPrefix, onItemPress, style }) => {
+   const { t } = useTranslation();
+-  const imageUrl = resolveItemImage(item);
++  // Ordered chain: a clone's `processed/` cutout URL can be dead while the
++  // `common_items/` original still loads, so hand the lower-precedence URLs
++  // to the tile as fallbacks instead of rendering blank on the first 404.
++  const [imageUrl, ...imageFallbacks] = resolveItemImageSources(item);
+   const status = resolveTileStatus(item);
+ 
+   return (
+@@ -161,6 +164,7 @@ const Tile: React.FC<{
+       {imageUrl ? (
+         <LoadableRemoteImage
+           uri={imageUrl}
++          fallbackUris={imageFallbacks}
+           resizeMode="cover"
+           skeletonTestID={`${testIDPrefix}-image-skeleton-${item.id}`}
+         />
+diff --git a/src/screens/home/__tests__/todays-picks.test.ts b/src/screens/home/__tests__/todays-picks.test.ts
+index 9e6ddff..6225d75 100644
+--- a/src/screens/home/__tests__/todays-picks.test.ts
++++ b/src/screens/home/__tests__/todays-picks.test.ts
+@@ -31,6 +31,21 @@ const NOW = new Date('2026-09-12T09:00:00');
+ const TODAY = new Date('2026-09-12T07:30:00').getTime();
+ const YESTERDAY = new Date('2026-09-11T23:59:00').getTime();
+ 
++// `shouldColdStart` / `pickTodaysSheets` reach the clock through
++// `isPersistedStale`'s `now = new Date()` default — they take no `now`
++// parameter to thread `NOW` into. Without a frozen clock the fixtures above
++// are "today" only on 2026-09-12, so the two tests that exercise the
++// persisted-blob branch through those two functions started failing the day
++// after they were written. Freeze the clock to `NOW` so this suite asserts
++// the precedence rules, not the calendar.
++beforeAll(() => {
++  jest.useFakeTimers().setSystemTime(NOW);
++});
++
++afterAll(() => {
++  jest.useRealTimers();
++});
++
+ const input = (over: Partial<TodaysPicksInput> = {}): TodaysPicksInput => ({
+   scheduled: [],
+   deck: [],
+diff --git a/src/screens/home/components/TodaysPicksSection.tsx b/src/screens/home/components/TodaysPicksSection.tsx
+index 2a1af1b..7eb184d 100644
+--- a/src/screens/home/components/TodaysPicksSection.tsx
++++ b/src/screens/home/components/TodaysPicksSection.tsx
+@@ -11,7 +11,8 @@ import {
+ } from 'react-native';
+ import { useTranslation } from 'react-i18next';
+ import { Icons } from '../../../assets/icons';
+-import { resolveItemImage } from '../../../utils/url';
++import { resolveItemImageSources } from '../../../utils/url';
++import { useImageFallback } from '../../../hooks/useImageFallback';
+ import type { Item } from '../../../types/item';
+ import type { OutfitSheet } from '../../HomeScreen/types';
+ import type { TodaysPicksFailure, TodaysPicksSource } from '../todays-picks';
+@@ -43,7 +44,11 @@ const PickTile: React.FC<{
+   index: number;
+   onPress: () => void;
+ }> = ({ item, index, onPress }) => {
+-  const imageUrl = resolveItemImage(item);
++  // Ordered chain + retire-on-error: a clone's `processed/` cutout URL can be
++  // dead while the `common_items/` original still loads.
++  const { uri: imageUrl, onError } = useImageFallback(
++    resolveItemImageSources(item),
++  );
+   return (
+     <TouchableOpacity
+       style={styles.pickTile}
+@@ -58,6 +63,7 @@ const PickTile: React.FC<{
+           source={{ uri: imageUrl }}
+           style={styles.pickTileImage}
+           resizeMode="contain"
++          onError={onError}
+         />
+       ) : null}
+     </TouchableOpacity>
