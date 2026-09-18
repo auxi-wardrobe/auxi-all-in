@@ -67,3 +67,37 @@ Source: Figma sticky note `1064:1168` (section `909:11258` "wardrobe").
 Primary: `backend-dev` for verification + implementation in
 `wardrobe-backend/`. Secondary: `mobile-dev` if/when contract change
 requires client update.
+
+## Audit findings (2026-07-15)
+
+**Backend DOES run remove-bg on upload — no mobile work needed.** Pipeline is
+wired correctly end-to-end:
+
+- Mobile `wardrobeService.ts` → `POST /api/wardrobe/items/ai-enhanced` (verified
+  in `auxi-mobile`). The plain `POST /api/wardrobe/` create path has NO cutout,
+  but mobile does not use it.
+- `create_and_enhance_item` creates the item `is_preparing=True` + enqueues a
+  Redis job → `ai_worker.py` → `enhance_item_with_ai` runs metadata +
+  `remove_background` (rembg, local `isnet-general-use`) in parallel → stores the
+  transparent cutout in `image_png`. Mobile display precedence:
+  `image_studio → image_png → image_url`.
+- rembg code is correct; imports on Python 3.11; Dockerfile pre-fetches the model
+  at build time.
+
+**Why a user still sees a background:** the cutout is best-effort. On any failure
+`image_png` stays NULL, the item is kept Ready with its ORIGINAL image (AU-408),
+and recovery was only via a **manually-run** `scripts/backfill_cutout_images.py`
+(not scheduled anywhere) — so a single transient miss (network/S3 blip, worker
+flap, briefly-expired source URL) became permanent.
+
+**Fix shipped** (`auxi-backend` branch
+`claude/item-upload-background-removal-3rdyd1`): bounded automatic `cutout_retry`
+job that self-heals a missed cutout without waiting for the backfill. Additive to
+AU-408, no API contract change. Tests:
+`tests/test_ai_service_cutout_retry.py`.
+
+**Operational caveat (needs devops):** if the standalone `ai_worker.py` service
+is down/unhealthy in prod, NO async job (metadata, cutout, tryon) completes and
+EVERY upload keeps its background — no code change fixes that. Verify the Railway
+worker + Redis health, and consider scheduling `backfill_cutout_images.py` to
+recover items uploaded while any of the above was failing.
