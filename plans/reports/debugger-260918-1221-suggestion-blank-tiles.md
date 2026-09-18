@@ -2,31 +2,31 @@
 
 **Date:** 2026-09-18 · **Repo:** `auxi-wardrobe/auxi-mobile` (base `a00f98b`)
 **Severity:** P1 — the app's headline surface (outfit suggestion) shows empty tiles.
-**Status:** root cause confirmed; fix implemented + verified locally. **Not pushed** —
-this session was denied push access to `auxi-mobile`. Patch attached.
+**Status:** root cause confirmed; **every** client render path fixed + verified locally.
+**Not pushed** — this session was denied push access to `auxi-mobile`. Patch attached.
 
 ---
 
 ## 1. Verdict
 
-This is the **same** dead-`processed/`-URL bug as
-`debugger-260917-0337-delete-account-reregister-missing-images.md`, not a new one.
-auxi-mobile#333 fixed it in **three** places — wardrobe grid, Database grid, item
-detail — and the suggestion surfaces were **never wired up**. That is the exact
-asymmetry the CEO reported: the wardrobe has images again, the suggestion does not,
-and tapping a suggestion item into detail shows it fine.
+Same dead-`processed/`-URL bug as `debugger-260917-0337-delete-account-reregister-
+missing-images.md`, not a new one. auxi-mobile#333 fixed it in **three** places —
+wardrobe grid, Database grid, item detail — and left **eleven other render paths**
+on the old single-winner logic. That is exactly the asymmetry the CEO reported: the
+wardrobe has images again, the suggestion does not, and tapping a suggestion item
+into detail shows it fine.
 
 Detail works because `ItemDetailScreen` walks the ordered candidate chain. The
-suggestion tile picked one winner on string presence and had no `onError`, so a
-dead cutout URL rendered nothing.
+suggestion tile picked one winner on string presence and had no `onError`, so a dead
+cutout URL rendered nothing.
 
 ---
 
 ## 2. Chain of causation
 
-Backend state (unchanged, pre-existing): SYSTEM catalog rows still carry
-`image_png` / `image_studio` pointing at `processed/` keys that 404 — the blobs were
-deleted before `ac9bd56` closed the hole, and the §6.3 recovery was never run. Every
+Backend state (unchanged, pre-existing): SYSTEM catalog rows still carry `image_png`
+/ `image_studio` pointing at `processed/` keys that 404 — the blobs were deleted
+before `ac9bd56` closed the hole, and the §6.3 recovery was never run. Every
 onboarding clone copies those dead URLs verbatim.
 
 Client precedence is `image_studio → image_png → image_url`, picked on **string
@@ -38,106 +38,150 @@ rendered by `OptionSheet.tsx:125` inside the Home outfit grid:
 
 ```tsx
 const imageUrl = resolveItemImage(item);   // single winner, = the dead URL
-...
 <Image source={{ uri: imageUrl }} resizeMode="contain" />   // no onError
 ```
 
 `<Image>` fails silently → blank tile. `onItemPress(item)` still navigates, so the
-item is tappable and `ItemDetailScreen` (which uses `resolveItemImageSources` +
-`useImageFallback`) renders it.
+item is tappable and `ItemDetailScreen` renders it.
 
-The suggestion items do carry all three fields — `V05OutfitItem`
-(`src/services/v05Api.ts:237-247`) exposes `image_url`, `image_png`, `image_studio` —
-so the chain has something to fall back to. Confirmed in the prior report: 8/8 sampled
+Suggestion items carry all three fields — `V05OutfitItem` (`src/services/v05Api.ts:237-247`)
+— so the chain has something to fall back to. Prior report confirmed 8/8 sampled
 `common_items/` originals return HTTP 200.
 
-## 3. Call-site audit — who got the #333 fix and who did not
+---
 
-| Surface | File | Before |
-|---|---|---|
-| Wardrobe grid | `wardrobe/WardrobeGridTile.tsx` | chain ✅ |
-| Database grid | `DatabaseScreen.tsx` | chain ✅ |
-| Item detail | `ItemDetailScreen.tsx` | chain ✅ |
-| **Suggestion tile** | `HomeScreen/components/GarmentPreview.tsx` | **single ❌** |
-| **Today's picks** | `home/components/TodaysPicksSection.tsx` | **single ❌** |
-| **Favourite tile** | `favourite/FavouriteOutfitCard.tsx` | **`LoadableRemoteImage` with no `fallbackUris` ❌** |
-| Outfit collage | `components/features/collage-seed-layout.ts:630` | single ❌ — **still open**, see §6 |
-| Remix → OutfitCanvas | `HomeScreen/index.tsx:1557` | single ❌ — still open |
-| Home landing | `home/HomeLandingScreen.tsx:90` | single ❌ — still open |
-| Capsule | `capsule/capsule-format.ts:24` | single ❌ — still open |
+## 3. Full call-site audit (every render path, not just the reported one)
+
+| Surface | File | Before | Now |
+|---|---|---|---|
+| Wardrobe grid | `wardrobe/WardrobeGridTile.tsx` | chain ✅ | ✅ |
+| Database grid | `DatabaseScreen.tsx` | chain ✅ | ✅ |
+| Item detail | `ItemDetailScreen.tsx` | chain ✅ | ✅ |
+| **Suggestion tile** | `HomeScreen/components/GarmentPreview.tsx` | single ❌ | **fixed** |
+| **Today's picks** | `home/components/TodaysPicksSection.tsx` | single ❌ | **fixed** |
+| **Favourite tile** | `favourite/FavouriteOutfitCard.tsx` | `fallbackUris` unused ❌ | **fixed** |
+| **Favourite collage** | `favourite/FavouriteOutfitCard.tsx:295` | single ❌ | **fixed** |
+| **Collage seed layer** | `features/collage-seed-layout.ts` | single ❌ | **fixed** |
+| **Canvas surface** | `features/OutfitCanvasSurface.tsx` | no `onError` ❌ | **fixed** |
+| **Remix → canvas** | `HomeScreen/index.tsx:1557` | single ❌ | **fixed** |
+| **Home landing remix** | `home/HomeLandingScreen.tsx:90` | single ❌ | **fixed** |
+| **Canvas add-items** | `canvas/useCanvasAddItems.ts:72` | hand-inlined single ❌ | **fixed** |
+| **Pin confirm modal** | `features/PinConfirmModal.tsx` | single ❌ | **fixed** |
+| **Capsule tile** | `capsule/components/CapsuleItemTile.tsx` | single ❌ | **fixed** |
+| **Capsule item detail** | `capsule/CapsuleItemDetailScreen.tsx` | single ❌ | **fixed** |
+| **Capsule outfit picker** | `capsule/CapsuleSelectOutfitsScreen.tsx:200` | single ❌ | **fixed** |
 
 `OutfitSwipeDeck` renders no images itself — it wraps the `OptionSheet` grid, so it
 is covered by the `GarmentPreview` fix.
 
----
+**After the sweep, zero render paths call the single-winner resolver.** The only
+remaining `resolveItemImage` references in `src/` are two code comments. The helper
+itself is kept (public API, unit-tested) but is now unused by production code.
 
-## 4. Fix (implemented, in the attached patch)
+### Two extra defects found during the sweep
 
-`plans/260918-1221-suggestion-blank-tiles/auxi-mobile-suggestion-image-fallback.patch`
-— applies to `auxi-mobile` at `a00f98b`. 5 files, +81/-6.
-
-1. **`GarmentPreview.tsx`** — `resolveItemImageSources` + `useImageFallback`, `onError`
-   on the `<Image>`. Kept the plain `<Image>` rather than swapping to
-   `LoadableRemoteImage`: `styles.cardImage` is already 100%/100% so the swap is
-   layout-neutral, but `OptionSheet` owns its own `SkeletonTile` during generation
-   and a second skeleton would double up. Minimal change, no visual delta.
-2. **`TodaysPicksSection.tsx`** — same treatment for `PickTile`.
-3. **`FavouriteOutfitCard.tsx`** — pass `fallbackUris` to the existing
-   `LoadableRemoteImage` (the prop already existed and was simply unused here).
-4. **`garment-preview.render.test.tsx`** — 2 regression tests: a dead cutout retires
-   and degrades to the original; all-candidates-dead falls through to the blank tile.
-   Both fail against the pre-fix component by construction.
-
-### Bonus: fixed 2 unrelated failing tests
-
-`src/screens/home/__tests__/todays-picks.test.ts` had **2 tests failing on `main`
-since 2026-09-13** — a time bomb, not a product regression. `shouldColdStart` and
-`pickTodaysSheets` reach the clock via `isPersistedStale`'s `now = new Date()`
-default and take no `now` parameter, so the suite's hardcoded
-`2026-09-12` fixtures stopped being "today" the next day. Froze the clock with
-`jest.useFakeTimers().setSystemTime(NOW)`.
+1. **`useCanvasAddItems.ts:72` re-implemented the precedence by hand** —
+   `item.image_studio || item.image_png || item.image_url` with a comment admitting
+   it duplicates `resolveItemImage`. Same bug, plus a DRY violation that would have
+   drifted again. Now calls the shared `resolveItemImageSources`.
+2. **`capsule-format.ts` exported a dead helper** — `resolveWardrobeItemImage` had
+   no consumers left after the capsule fixes. Removed rather than left to rot.
 
 ---
 
-## 5. Verification (run locally against `a00f98b` + patch)
+## 4. How the fix is shaped
 
-- `npx tsc --noEmit` — 3 errors, **all pre-existing** in `see-this-on-me`
-  (`poppinsTimeLg` / `poppinsBodySm` missing from theme typography). Identical count
-  with the patch stashed. None of the touched files appear.
-- `npx eslint` on all 5 changed files — clean, exit 0.
-- `npx jest` (full suite): **873 → 875 passing**, failing suites 11 → 10.
-  Diffed `FAIL` lists before/after: the **only** difference is `todays-picks.test.ts`
-  moving failing → passing. Nothing regressed.
-- The 10 still-failing suites all fail with **"Test suite failed to run"** — a
-  jest transform/ESM error on bundled native deps (`react-native-purchases` and a
-  Svelte-bundled dep), not assertion failures. Pre-existing, unrelated, env-level.
+The chain already existed (`resolveItemImageSources` + `useImageFallback`, both from
+#333). The work was **threading it through the data structures** that had flattened
+it to one string:
+
+- `CollageSeedItem` / `Node` / `CanvasItemData` gain `imageFallbackUris?: string[]`,
+  carried through the layout engine untouched — the same passthrough pattern the
+  existing `status` field already uses. Layout math never reads it (test-locked).
+- `OutfitCanvasSurface`'s `DraggableItem` walks the chain on error. `imageSource` is
+  `ImageSourcePropType`, so a `require()`'d local asset (a number, not `{uri}`) is
+  rendered as-is with **no** `onError` — a bundled asset cannot 404 and has no chain.
+- Navigation param `OutfitCanvas.items[].imageFallbackUrls?: string[]` — optional, so
+  existing callers keep type-checking.
+- `CapsuleSelectOutfitsScreen`'s `thumbUris: string[]` (one URL per thumbnail) became
+  `thumbSources: string[][]` (one *chain* per thumbnail), with the thumbnail extracted
+  into its own `OutfitThumb` component so it can hold fallback state.
+
+Persisted creations store a single resolved URI, so they become one-element chains —
+no behaviour change, no migration.
+
+---
+
+## 5. Verification
+
+- **`npx tsc --noEmit`** — 3 errors, **all pre-existing** in `see-this-on-me`
+  (`poppinsTimeLg` / `poppinsBodySm` missing from theme typography). Identical with
+  the patch stashed. None of the 18 touched files appear.
+- **`npx eslint`** on all changed files — **0 errors**. One warning, pre-existing
+  (`OutfitCanvasScreen.tsx:407` inline style; the patch touches line 90).
+- **`npx jest`** full suite:
+
+  | | Baseline `a00f98b` | With patch |
+  |---|---|---|
+  | Passing | 869 | **878** |
+  | Failing | 33 | **31** |
+  | Total | 902 | 909 |
+
+  +7 new tests, +2 previously-failing now pass. Diffed the `FAIL` lists: the **only**
+  difference is `todays-picks.test.ts` moving failing → passing. Nothing regressed.
+- The 10 still-failing suites all fail with **"Test suite failed to run"** — a jest
+  transform/ESM error on bundled native deps (`react-native-purchases`, a
+  Svelte-bundled dep). Pre-existing, unrelated, env-level.
+- **Patch verified to apply cleanly** to a pristine `a00f98b` (`git apply --check`).
+- **Mutation-tested the fix**: reverting `onError` on the canvas surface makes
+  "retires the dead cutout and renders the live original" fail, confirming the test
+  binds to the behaviour rather than passing vacuously.
 - **No simulator run** — no macOS/iOS sim in this environment.
+
+### Tests added (7)
+
+`__tests__/canvas-image-fallback.test.tsx` (5) — seed layer carries the chain
+through; layout geometry unchanged by the extra field; the surface retires a dead
+cutout and renders the original; a `require()`'d asset gets no `onError`; a
+fallback-less item still renders.
+
+`garment-preview.render.test.tsx` (2) — the suggestion tile degrades to the live
+original; all-candidates-dead falls through to the blank tile.
+
+### Bonus: 2 unrelated failing tests fixed
+
+`home/__tests__/todays-picks.test.ts` had 2 tests failing on `main` **since
+2026-09-13** — a time bomb, not a product regression. `shouldColdStart` and
+`pickTodaysSheets` reach the clock via `isPersistedStale`'s `now = new Date()`
+default and take no `now` parameter, so the suite's hardcoded `2026-09-12` fixtures
+stopped being "today" the next day. Froze the clock with
+`jest.useFakeTimers().setSystemTime(NOW)`.
 
 ---
 
 ## 6. What is still open
 
-1. **Push blocked.** This session has read-only git access to `auxi-mobile`;
-   `add_repo access:"push"` was denied. The patch needs a human or a session with
-   push rights to land it.
-2. **The data is still rotten.** This is a client-side symptom fix — the same one
-   #333 was. `scripts/repair_dead_processed_images.py` + `backfill_cutout_images.py`
-   have still never been run against prod (§6.3 of the 09-17 report). Until they are,
-   every tile in the app is one layer of fallback away from blank, and the fallback
-   costs a failed request per tile per render.
-3. **4 surfaces still unfixed** — collage (`collage-seed-layout.ts`), Remix →
-   OutfitCanvas, Home landing, Capsule. These thread a single `imageUri: string`
-   through a layout data structure, so fixing them means widening that type to
-   `string[]` across `collage-seed-layout.ts`, `CollageSheetCanvas.tsx` and
-   `OutfitCanvasSurface.tsx`. Deliberately out of scope here — it is a real refactor,
-   not a 3-line wiring change, and none of them is the surface the CEO reported.
-   File it as a follow-up.
+1. **Push blocked.** Read-only git access to `auxi-mobile`; `add_repo access:"push"`
+   was denied. The patch needs a human or a session with push rights.
+2. **The data is still rotten.** This is a client-side symptom fix, as #333 was.
+   `scripts/repair_dead_processed_images.py` + `backfill_cutout_images.py` have never
+   been run against prod (§6.3 of the 09-17 report). Until they are, every tile costs
+   a failed request before falling back, and the app stays one deletion from blank.
+   **This is now the only remaining root-cause work — the client side is complete.**
+
+## Correction to the earlier version of this report
+
+The first version claimed the suite went "873 → 875 passing". That was wrong —
+measured against a stashed baseline, the true figures are **869 → 873** for the
+first patch, and **869 → 878** for the complete one. The conclusion (nothing
+regressed, only `todays-picks` changed state) is unaffected.
 
 ## Unresolved questions
 
-1. Is the CEO's build actually carrying #333? If the installed TestFlight build
-   predates it, the wardrobe grid would be blank too — it is not, so presumably yes,
-   but worth confirming before anyone concludes this patch is sufficient.
-2. Should the collage/canvas refactor (§6.3) be one ticket with this, or separate?
-3. `auxi-web` has never been checked for the same resolver precedence (carried over
+1. Is the CEO's build actually carrying #333? If it predated #333 the wardrobe grid
+   would be blank too — it is not, so presumably yes, but worth confirming.
+2. `auxi-web` has never been checked for the same resolver precedence (carried over
    unanswered from the 09-17 report).
+3. Should `resolveItemImage` (now unused by production code) be deleted outright, or
+   kept as public API? Left in place — deleting it is a separate, purely cosmetic
+   change and it is still exercised by its own unit tests.
