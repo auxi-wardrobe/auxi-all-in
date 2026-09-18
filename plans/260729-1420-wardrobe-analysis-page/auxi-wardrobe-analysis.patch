@@ -1,0 +1,2896 @@
+From 41206ea212b4bbbbab12866cbcdaeeb31c4c0e0f Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Wed, 29 Jul 2026 14:46:09 +0000
+Subject: [PATCH 1/2] feat(wardrobe): add Wardrobe Analysis page behind the
+ grid chip row
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Adds a third "Analysis" chip alongside the filter and sort chips on the
+wardrobe grid, opening a new WardrobeAnalysis screen with derived stats:
+headline counters, a category-balance donut, a style profile with an
+expandable insight, a colour distribution strip, and most/least worn rows.
+
+There is no backend analysis endpoint, so every figure is derived on the
+client from data the app already fetches — the wardrobe list (read from the
+grid's own query cache, so arriving from the grid paints instantly), the
+favourites total and the creations list. The four derivation modules are
+pure and unit-tested:
+
+- category: one bucket per item via the backend's category synonyms, with
+  precedence so overlapping families can't double-count
+- style: independent shares (an item can be both minimal and casual), with
+  the app's own control tags (fit:*, favorite, less-used) excluded
+- colour: normalises color_hex / dominant_color / colors into 13 named
+  buckets, testing chroma before hue so near-neutrals stay neutral
+- worn: delegates ordering to sortWardrobeItems so these rows and the
+  grid's "Most worn" sort can't disagree
+
+Also moves FAVOURITES_QUERY_KEY into favouriteService so the analysis
+counter and the Favourite page share one cache entry instead of each
+issuing its own GET /favorites.
+
+Chart and swatch palettes go in theme.ds.color; the token lint now skips
+__tests__, where a hex is a fixture rather than a styling decision.
+---
+ docs/analytics/mixpanel-tracking-plan.md      |  18 +
+ src/assets/icons/index.ts                     |   3 +
+ src/assets/images/icon_analysis.svg           |   6 +
+ src/navigation/AppNavigator.tsx               |   8 +
+ src/screens/FavouriteScreen.tsx               |   8 +-
+ src/screens/WardrobeAnalysisScreen.tsx        | 293 ++++++++++++++++
+ src/screens/WardrobeScreen.tsx                |  14 +
+ .../__tests__/WardrobeAnalysisScreen.test.tsx | 326 ++++++++++++++++++
+ src/screens/__tests__/WardrobeScreen.test.tsx |  46 +++
+ .../wardrobe/WardrobeFilterSortBar.tsx        |  36 +-
+ .../wardrobe/analysis/AnalysisSummaryCard.tsx |  98 ++++++
+ .../analysis/CategoryBalanceDonut.tsx         | 140 ++++++++
+ .../analysis/ColorDistributionStrip.tsx       | 105 ++++++
+ .../wardrobe/analysis/StyleInsightCard.tsx    |  91 +++++
+ .../wardrobe/analysis/StyleProfileBars.tsx    |  84 +++++
+ .../wardrobe/analysis/WornItemsRow.tsx        | 120 +++++++
+ .../wardrobe-analysis-category.test.ts        |  76 ++++
+ .../__tests__/wardrobe-analysis-color.test.ts | 101 ++++++
+ .../__tests__/wardrobe-analysis-style.test.ts |  81 +++++
+ .../__tests__/wardrobe-analysis-worn.test.ts  |  56 +++
+ .../analysis/wardrobe-analysis-category.ts    |  81 +++++
+ .../analysis/wardrobe-analysis-color.ts       | 216 ++++++++++++
+ .../analysis/wardrobe-analysis-style.ts       | 119 +++++++
+ .../analysis/wardrobe-analysis-worn.ts        |  43 +++
+ src/services/favouriteService.ts              |   8 +
+ src/theme/theme.ts                            |  56 +++
+ src/translations/en-EN.json                   |  64 ++++
+ src/translations/fr-FR.json                   |  64 ++++
+ src/translations/vi-VN.json                   |  64 ++++
+ src/types/navigation.ts                       |   6 +
+ 30 files changed, 2423 insertions(+), 8 deletions(-)
+ create mode 100644 src/assets/images/icon_analysis.svg
+ create mode 100644 src/screens/WardrobeAnalysisScreen.tsx
+ create mode 100644 src/screens/__tests__/WardrobeAnalysisScreen.test.tsx
+ create mode 100644 src/screens/wardrobe/analysis/AnalysisSummaryCard.tsx
+ create mode 100644 src/screens/wardrobe/analysis/CategoryBalanceDonut.tsx
+ create mode 100644 src/screens/wardrobe/analysis/ColorDistributionStrip.tsx
+ create mode 100644 src/screens/wardrobe/analysis/StyleInsightCard.tsx
+ create mode 100644 src/screens/wardrobe/analysis/StyleProfileBars.tsx
+ create mode 100644 src/screens/wardrobe/analysis/WornItemsRow.tsx
+ create mode 100644 src/screens/wardrobe/analysis/__tests__/wardrobe-analysis-category.test.ts
+ create mode 100644 src/screens/wardrobe/analysis/__tests__/wardrobe-analysis-color.test.ts
+ create mode 100644 src/screens/wardrobe/analysis/__tests__/wardrobe-analysis-style.test.ts
+ create mode 100644 src/screens/wardrobe/analysis/__tests__/wardrobe-analysis-worn.test.ts
+ create mode 100644 src/screens/wardrobe/analysis/wardrobe-analysis-category.ts
+ create mode 100644 src/screens/wardrobe/analysis/wardrobe-analysis-color.ts
+ create mode 100644 src/screens/wardrobe/analysis/wardrobe-analysis-style.ts
+ create mode 100644 src/screens/wardrobe/analysis/wardrobe-analysis-worn.ts
+
+diff --git a/docs/analytics/mixpanel-tracking-plan.md b/docs/analytics/mixpanel-tracking-plan.md
+index 0bd0611..b58b37f 100644
+--- a/docs/analytics/mixpanel-tracking-plan.md
++++ b/docs/analytics/mixpanel-tracking-plan.md
+@@ -139,6 +139,23 @@ Comprehensive instrumentation landed 2026-06-16 per `plans/260616-0950-mixpanel-
+ | `wardrobe_url_import_failed` (PR #215) | Web-image import threw (network / service) | `WardrobeScreen.tsx:192` | — |
+ | `add_item_method_selected` `import_web` | "Import from web" method picked in the add sheet | `WardrobeScreen.tsx:326` | `method` (`import_web`) |
+ 
++### 5.4.b Wardrobe Analysis (derived-stats page)
++
++Reached from the "Analysis" chip in the wardrobe grid's filter/sort row. Every
++figure on the page is derived client-side from the wardrobe / favourites /
++creations the app already holds — there is no analysis endpoint, so there are no
++server-side events to correlate against.
++
++| Event | Trigger | Location | Properties |
++|---|---|---|---|
++| `wardrobe_analysis_opened` | "Analysis" chip tapped in the wardrobe chip row | `WardrobeScreen.tsx` (`handleOpenAnalysis`) | `item_count` (wardrobe size at open), `category` (filter active on the grid — `All` or the joined selection) |
++| `wardrobe_analysis_viewed` | Analysis screen focused with its item query settled — fires on focus, so a back-navigation re-fires it | `WardrobeAnalysisScreen.tsx` | `item_count` |
++| `wardrobe_analysis_insight_toggled` | Style-insight card tapped (expands/collapses the longer explanation in place) | `WardrobeAnalysisScreen.tsx` (`handleToggleInsight`) | `expanded` (bool — state AFTER the tap), `style?` (`minimal`/`casual`/`classic`/`soft`/`bold` — omitted when no item carries a style signal) |
++| `wardrobe_analysis_item_opened` | Tile tapped in the most-worn or least-worn row → ItemDetail | `WardrobeAnalysisScreen.tsx` (`handleOpenItem`) | `item_id`, `source` (`most_worn` / `least_worn`) |
++
++No PII: no colour hex, no item names, no free-text. `style` is a fixed
++five-value enum, `source` a two-value enum.
++
+ ### 5.5 Favourite + try-on outcomes
+ 
+ | Event | Trigger | Location | Properties |
+@@ -463,6 +480,7 @@ Note: these still don't flow in production until `SHOW_UPGRADE_PAYWALL` is flipp
+ - **Reuse-on-return funnel (AU-354 pt.3):** on re-entry with a saved reusable body profile, `body_photo_reuse_confirmed` → `try_on_started` → `try_on_completed` measures returning-user conversion; `body_photo_retake_selected` is the drop-to-recapture branch (denominator: arrivals on the reuse-confirm screen). The reuse-confirm step is now a `ContextualBottomSheet`, so it has THREE mutually-exclusive exits off that denominator: `body_photo_reuse_confirmed` (proceed), `body_photo_retake_selected` (recapture), and `body_photo_reuse_dismissed` (backdrop-tap / swipe-down — leaves the flow). `body_photo_reuse_dismissed` ÷ arrivals is the silent-abandon rate that was invisible before the sheet dismiss was tracked.
+ - **Wardrobe-grow funnel (take-photo):** `add_item_opened` → `add_item_method_selected` (`take_photo`) → `add_item_upload_started` → `add_item_upload_succeeded` → `wardrobe_item_added` → `item_ready_toast_shown` (AU-361: background processing completed — tail of the take-photo funnel)
+ - **Wardrobe-grow funnel (database):** `wardrobe_search_initiated` → `wardrobe_search_result_selected` → `wardrobe_item_added`
++- **Wardrobe self-knowledge:** `wardrobe_analysis_opened` → `wardrobe_analysis_viewed` → (`wardrobe_analysis_insight_toggled` | `wardrobe_analysis_item_opened`) measures whether the analysis page is read or merely opened. `wardrobe_analysis_item_opened` with `source=least_worn` is the interesting one — it is the page doing its job, surfacing forgotten items back into use. Segment `wardrobe_analysis_opened` by `item_count` to separate curiosity opens on a near-empty wardrobe from genuine stat reads.
+ - **Wardrobe load-error recovery (design-review F7):** `wardrobe_load_failed` → `wardrobe_load_retry_tapped` measures how often a failed wardrobe load is recovered via the error-state Retry (denominator: `wardrobe_load_failed`). A high failure rate with low retry signals a journey dead-end.
+ - **Wardrobe-browse engagement:** `wardrobe_filter_changed` and `wardrobe_sort_changed` are wardrobe browse-engagement signals — track them together to understand how users navigate and organise their grid (filtering by category vs reordering by date/name/worn).
+ - **Refine-engagement funnel:** `refine_modal_opened` → `refine_chip_selected` ×N → `refine_submitted` (vs `refine_cancelled`, or `refine_skipped` on the after-6 gate). `refine_skipped` ÷ `refine_modal_opened` (source `viewed_threshold`) measures defer rate on the progressive gate; rising `skipped_count` flags users repeatedly dodging refinement.
+diff --git a/src/assets/icons/index.ts b/src/assets/icons/index.ts
+index 92f365f..cab32b8 100644
+--- a/src/assets/icons/index.ts
++++ b/src/assets/icons/index.ts
+@@ -51,6 +51,7 @@ import IconSearchDatabase from '../images/icon_search_database.svg';
+ import IconTakePhoto from '../images/icon_take_photo.svg';
+ import IconSearchImages from '../images/icon_search_images.svg';
+ import IconDownload from '../images/icon_download.svg';
++import IconAnalysis from '../images/icon_analysis.svg';
+ 
+ export const Icons = {
+   Water: IconWater,
+@@ -106,6 +107,7 @@ export const Icons = {
+   TakePhoto: IconTakePhoto,
+   SearchImages: IconSearchImages,
+   Download: IconDownload,
++  Analysis: IconAnalysis,
+ };
+ 
+ export {
+@@ -151,4 +153,5 @@ export {
+   IconSearchDatabase,
+   IconTakePhoto,
+   IconSearchImages,
++  IconAnalysis,
+ };
+diff --git a/src/assets/images/icon_analysis.svg b/src/assets/images/icon_analysis.svg
+new file mode 100644
+index 0000000..71d0ebd
+--- /dev/null
++++ b/src/assets/images/icon_analysis.svg
+@@ -0,0 +1,6 @@
++<svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
++<rect x="3" y="3" width="18" height="18" rx="4" stroke="currentColor" stroke-width="1.5"/>
++<path d="M8 16V11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
++<path d="M12 16V8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
++<path d="M16 16V13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
++</svg>
+diff --git a/src/navigation/AppNavigator.tsx b/src/navigation/AppNavigator.tsx
+index f9d62ee..f279682 100644
+--- a/src/navigation/AppNavigator.tsx
++++ b/src/navigation/AppNavigator.tsx
+@@ -20,6 +20,7 @@ import { View, StyleSheet } from 'react-native';
+ import { theme } from '../theme/theme';
+ import { MacgieLoader } from '../components/macgie';
+ import { WardrobeScreen } from '../screens/WardrobeScreen';
++import { WardrobeAnalysisScreen } from '../screens/WardrobeAnalysisScreen';
+ import { BodyScreen } from '../screens/BodyScreen';
+ import { SettingsScreen } from '../screens/SettingsScreen';
+ import { UpgradeScreen } from '../screens/UpgradeScreen';
+@@ -227,6 +228,13 @@ export const AppNavigator = () => {
+                 component={WardrobeScreen}
+                 options={{ gestureEnabled: false, animation: 'none' }}
+               />
++              {/* Pushed from the Wardrobe grid's Analysis chip. Keeps the
++                  default slide + back gesture — unlike Wardrobe itself, this is
++                  a genuine drill-down, not a tab swap. */}
++              <Stack.Screen
++                name="WardrobeAnalysis"
++                component={WardrobeAnalysisScreen}
++              />
+               <Stack.Screen name="Favourite" component={FavouriteScreen} />
+               <Stack.Screen
+                 name="Schedule"
+diff --git a/src/screens/FavouriteScreen.tsx b/src/screens/FavouriteScreen.tsx
+index eb7ac6e..3ee08bd 100644
+--- a/src/screens/FavouriteScreen.tsx
++++ b/src/screens/FavouriteScreen.tsx
+@@ -38,7 +38,11 @@ import {
+   HomeViewTogglePill,
+ } from '../components/features/HomeViewToggleFooter';
+ import { track } from '../services/analytics';
+-import { Favourite, favouriteService } from '../services/favouriteService';
++import {
++  FAVOURITES_QUERY_KEY,
++  Favourite,
++  favouriteService,
++} from '../services/favouriteService';
+ import { FavouriteEmptyState } from './favourite/EmptyState';
+ import { FavouriteActionBar } from './favourite/FavouriteActionBar';
+ import { FavouriteOutfitCard } from './favourite/FavouriteOutfitCard';
+@@ -52,8 +56,6 @@ import {
+ import { computeSnapOffsets } from './favourite/snap-offsets';
+ import { computeActiveIndex } from './favourite/active-index';
+ 
+-const FAVOURITES_QUERY_KEY = ['favourites'] as const;
+-
+ export const FavouriteScreen: React.FC = () => {
+   const { t } = useTranslation();
+   const navigation =
+diff --git a/src/screens/WardrobeAnalysisScreen.tsx b/src/screens/WardrobeAnalysisScreen.tsx
+new file mode 100644
+index 0000000..279c0d2
+--- /dev/null
++++ b/src/screens/WardrobeAnalysisScreen.tsx
+@@ -0,0 +1,293 @@
++import React, { useEffect, useMemo, useRef, useState } from 'react';
++import { ScrollView, StyleSheet, Text, View } from 'react-native';
++import { SafeAreaView } from 'react-native-safe-area-context';
++import { useIsFocused, useNavigation } from '@react-navigation/native';
++import { NativeStackNavigationProp } from '@react-navigation/native-stack';
++import { useTranslation } from 'react-i18next';
++import { useQuery } from '@tanstack/react-query';
++import { Header } from '../components/layout/Header';
++import { Shimmer } from '../components/features/Shimmer';
++import { theme } from '../theme/theme';
++import { track } from '../services/analytics';
++import { AppStackParamList } from '../types/navigation';
++import {
++  WardrobeItem,
++  wardrobeKeys,
++  wardrobeService,
++} from '../services/wardrobeService';
++import {
++  FAVOURITES_QUERY_KEY,
++  favouriteService,
++} from '../services/favouriteService';
++import {
++  CREATIONS_QUERY_KEY,
++  creationsService,
++} from '../services/creationsService';
++import { HORIZONTAL_PADDING } from './wardrobe/wardrobe-grid';
++import { buildCategoryBalance } from './wardrobe/analysis/wardrobe-analysis-category';
++import {
++  buildStyleProfile,
++  dominantStyle,
++} from './wardrobe/analysis/wardrobe-analysis-style';
++import { buildColorDistribution } from './wardrobe/analysis/wardrobe-analysis-color';
++import { pickWornItems } from './wardrobe/analysis/wardrobe-analysis-worn';
++import { AnalysisSummaryCard } from './wardrobe/analysis/AnalysisSummaryCard';
++import { CategoryBalanceDonut } from './wardrobe/analysis/CategoryBalanceDonut';
++import { StyleProfileBars } from './wardrobe/analysis/StyleProfileBars';
++import { StyleInsightCard } from './wardrobe/analysis/StyleInsightCard';
++import { ColorDistributionStrip } from './wardrobe/analysis/ColorDistributionStrip';
++import { WornItemsRow } from './wardrobe/analysis/WornItemsRow';
++
++type ScreenNavigation = NativeStackNavigationProp<
++  AppStackParamList,
++  'WardrobeAnalysis'
++>;
++
++const Section: React.FC<{ title: string; children: React.ReactNode }> = ({
++  title,
++  children,
++}) => (
++  <View style={styles.section}>
++    <Text style={styles.sectionTitle}>{title}</Text>
++    {children}
++  </View>
++);
++
++/**
++ * Wardrobe Analysis — reached from the "Analysis" chip on the wardrobe grid.
++ *
++ * Every figure on this page is DERIVED on the client from data the app already
++ * holds; there is no analysis endpoint. The item list is read from the same
++ * TanStack cache key the grid uses (`wardrobeKeys.list('All')`), so arriving
++ * from the grid paints instantly and never refetches.
++ */
++export const WardrobeAnalysisScreen: React.FC = () => {
++  const navigation = useNavigation<ScreenNavigation>();
++  const { t } = useTranslation();
++  const isFocused = useIsFocused();
++  const [insightExpanded, setInsightExpanded] = useState(false);
++
++  const wardrobeQuery = useQuery({
++    queryKey: wardrobeKeys.list('All'),
++    queryFn: () => wardrobeService.getWardrobeItems(),
++    staleTime: 60_000,
++  });
++
++  // Same key AND same call as the Favourite page, so the two share one cache
++  // entry. Only `total` is read here; narrowing the request to limit=1 would
++  // save nothing and would poison the Favourite page's list if this screen
++  // populated the cache first.
++  const favouritesQuery = useQuery({
++    queryKey: FAVOURITES_QUERY_KEY,
++    queryFn: () => favouriteService.listFavourites(),
++    staleTime: 60_000,
++  });
++
++  const creationsQuery = useQuery({
++    queryKey: CREATIONS_QUERY_KEY,
++    queryFn: () => creationsService.listCreations(),
++    staleTime: 60_000,
++  });
++
++  const items = useMemo(
++    () => wardrobeQuery.data ?? [],
++    [wardrobeQuery.data],
++  );
++
++  const categoryBalance = useMemo(
++    () => buildCategoryBalance(items),
++    [items],
++  );
++  const styleProfile = useMemo(() => buildStyleProfile(items), [items]);
++  const colorDistribution = useMemo(
++    () => buildColorDistribution(items),
++    [items],
++  );
++  const mostWorn = useMemo(() => pickWornItems(items, 'most'), [items]);
++  const leastWorn = useMemo(() => pickWornItems(items, 'least'), [items]);
++  const insightStyle = useMemo(
++    () => dominantStyle(styleProfile),
++    [styleProfile],
++  );
++
++  const loading = wardrobeQuery.isLoading;
++  const hasItems = items.length > 0;
++
++  // Screen view — fired ONCE per focus, carrying the wardrobe size so the
++  // funnel can separate "opened with 3 items" from "opened with 300".
++  //
++  // The ref is what makes it once-per-focus. `item_count` has to be read at
++  // fire time, but putting it in the dep array would re-fire the event every
++  // time the shared wardrobe cache updates underneath this screen (an upload
++  // completing on another screen, a background revalidate) — inflating the
++  // view count with events the user never caused. The ref latches instead, and
++  // resets when focus is lost so a genuine re-entry counts again.
++  const viewTrackedRef = useRef(false);
++  useEffect(() => {
++    if (!isFocused) {
++      viewTrackedRef.current = false;
++      return;
++    }
++    if (loading || viewTrackedRef.current) {
++      return;
++    }
++    viewTrackedRef.current = true;
++    track('wardrobe_analysis_viewed', { item_count: items.length });
++  }, [isFocused, loading, items.length]);
++
++  const handleToggleInsight = () => {
++    const next = !insightExpanded;
++    setInsightExpanded(next);
++    track('wardrobe_analysis_insight_toggled', {
++      expanded: next,
++      ...(insightStyle ? { style: insightStyle } : {}),
++    });
++  };
++
++  const handleOpenItem = (source: 'most_worn' | 'least_worn') => (
++    item: WardrobeItem,
++  ) => {
++    track('wardrobe_analysis_item_opened', { item_id: item.id, source });
++    navigation.navigate('ItemDetail', { itemId: item.id });
++  };
++
++  return (
++    <SafeAreaView style={styles.container} edges={['top']}>
++      <Header.BackTitle
++        title={t('wardrobe.analysis.title')}
++        leftTestID="wardrobe-analysis-back"
++        leftAccessibilityLabel={t('uac.common.back')}
++        onBack={() => navigation.goBack()}
++      />
++
++      <ScrollView
++        style={styles.scroll}
++        contentContainerStyle={styles.scrollContent}
++        showsVerticalScrollIndicator={false}
++      >
++        {loading ? (
++          <View style={styles.loading} testID="wardrobe-analysis-loading">
++            {/* No explicit width — the shimmers stretch to the padded content
++                column, so the skeleton matches the real sections on any device. */}
++            <Shimmer height={96} />
++            <Shimmer height={180} />
++            <Shimmer height={200} />
++          </View>
++        ) : (
++          <>
++            <AnalysisSummaryCard
++              totalItems={items.length}
++              totalFavourites={favouritesQuery.data?.total ?? 0}
++              totalCreations={creationsQuery.data?.creations.length ?? 0}
++              countsPending={
++                favouritesQuery.isLoading || creationsQuery.isLoading
++              }
++            />
++
++            {!hasItems ? (
++              <View style={styles.empty} testID="wardrobe-analysis-empty">
++                <Text style={styles.emptyTitle}>
++                  {t('wardrobe.analysis.empty_title')}
++                </Text>
++                <Text style={styles.emptyBody}>
++                  {t('wardrobe.analysis.empty_body')}
++                </Text>
++              </View>
++            ) : (
++              <>
++                <Section title={t('wardrobe.analysis.category_balance')}>
++                  <CategoryBalanceDonut
++                    slices={categoryBalance}
++                    total={items.length}
++                  />
++                </Section>
++
++                <Section title={t('wardrobe.analysis.style_profile')}>
++                  <StyleProfileBars profile={styleProfile} />
++                  {insightStyle ? (
++                    <View style={styles.insightWrap}>
++                      <StyleInsightCard
++                        style={insightStyle}
++                        expanded={insightExpanded}
++                        onToggle={handleToggleInsight}
++                      />
++                    </View>
++                  ) : null}
++                </Section>
++
++                {colorDistribution.length > 0 ? (
++                  <Section title={t('wardrobe.analysis.color_distribution')}>
++                    <ColorDistributionStrip
++                      distribution={colorDistribution}
++                    />
++                  </Section>
++                ) : null}
++
++                <Section title={t('wardrobe.analysis.most_worn')}>
++                  <WornItemsRow
++                    entries={mostWorn}
++                    onPressItem={handleOpenItem('most_worn')}
++                    testIDPrefix="wardrobe-analysis-most-worn"
++                  />
++                </Section>
++
++                <Section title={t('wardrobe.analysis.least_worn')}>
++                  <WornItemsRow
++                    entries={leastWorn}
++                    onPressItem={handleOpenItem('least_worn')}
++                    testIDPrefix="wardrobe-analysis-least-worn"
++                  />
++                </Section>
++              </>
++            )}
++          </>
++        )}
++      </ScrollView>
++    </SafeAreaView>
++  );
++};
++
++const styles = StyleSheet.create({
++  container: {
++    flex: 1,
++    backgroundColor: theme.colors.figmaBackground,
++  },
++  scroll: {
++    flex: 1,
++  },
++  scrollContent: {
++    paddingHorizontal: HORIZONTAL_PADDING,
++    paddingTop: 12,
++    paddingBottom: 40,
++  },
++  loading: {
++    gap: 16,
++  },
++  section: {
++    marginTop: 28,
++  },
++  sectionTitle: {
++    ...theme.typography.aliases.poppinsSemiboldSm,
++    color: theme.colors.figmaTextPrimary,
++    marginBottom: 16,
++  },
++  insightWrap: {
++    marginTop: 20,
++  },
++  empty: {
++    paddingTop: 56,
++    alignItems: 'center',
++  },
++  emptyTitle: {
++    ...theme.typography.aliases.poppinsSemiboldSm,
++    color: theme.colors.figmaTextPrimary,
++    textAlign: 'center',
++  },
++  emptyBody: {
++    ...theme.typography.aliases.poppinsBodySm,
++    color: theme.colors.figmaTextSecondary,
++    textAlign: 'center',
++    marginTop: 8,
++    maxWidth: 280,
++  },
++});
+diff --git a/src/screens/WardrobeScreen.tsx b/src/screens/WardrobeScreen.tsx
+index 6d82587..00932cb 100644
+--- a/src/screens/WardrobeScreen.tsx
++++ b/src/screens/WardrobeScreen.tsx
+@@ -312,6 +312,17 @@ export const WardrobeScreen = () => {
+     });
+   };
+ 
++  // Analysis chip → the derived-stats page. `item_count` rides along so the
++  // funnel can tell an exploratory open on a near-empty wardrobe apart from a
++  // genuine "read my stats" on a full one.
++  const handleOpenAnalysis = () => {
++    track('wardrobe_analysis_opened', {
++      item_count: items.length,
++      category: categoryParam,
++    });
++    navigation.navigate('WardrobeAnalysis');
++  };
++
+   const handleItemPress = (item: WardrobeItem) => {
+     // The optimistic web-import placeholder is display-only — there's no
+     // backend item to open yet.
+@@ -499,12 +510,15 @@ export const WardrobeScreen = () => {
+               t('common.categoryFilters.All'),
+             )}
+             sortLabel={t(SORT_OPTION_BY_VALUE[sortValue].labelKey)}
++            analysisLabel={t('wardrobe.analysis.chip')}
+             onOpenFilter={() => setTypeSheetVisible(true)}
+             onOpenSort={() => setSortSheetVisible(true)}
++            onOpenAnalysis={handleOpenAnalysis}
+             filterAccessibilityLabel={t('wardrobe.list.filter.a11y_open')}
+             sortAccessibilityLabel={t('wardrobe.list.sort.a11y_open', {
+               option: t(SORT_OPTION_BY_VALUE[sortValue].labelKey),
+             })}
++            analysisAccessibilityLabel={t('wardrobe.analysis.a11y_open')}
+           />
+         ) : null}
+ 
+diff --git a/src/screens/__tests__/WardrobeAnalysisScreen.test.tsx b/src/screens/__tests__/WardrobeAnalysisScreen.test.tsx
+new file mode 100644
+index 0000000..9bbc507
+--- /dev/null
++++ b/src/screens/__tests__/WardrobeAnalysisScreen.test.tsx
+@@ -0,0 +1,326 @@
++/**
++ * Wardrobe Analysis screen wiring.
++ *
++ * The derivation maths is covered exhaustively by the unit tests under
++ * `screens/wardrobe/analysis/__tests__/`. What THIS test protects is the wiring
++ * those pure functions hang off: that the screen mounts, that the three
++ * independently-resolving counters land in the right cells, that an empty
++ * wardrobe short-circuits to the empty state instead of dividing by zero, and
++ * that a worn tile navigates.
++ *
++ * Patterns follow WardrobeScreen.test.tsx (react-test-renderer, query by
++ * testID, flush microtasks inside act).
++ */
++import React from 'react';
++import TestRenderer, { act, ReactTestInstance } from 'react-test-renderer';
++import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
++import { WardrobeAnalysisScreen } from '../WardrobeAnalysisScreen';
++
++// ---- mocks ------------------------------------------------------------------
++
++const mockNavigate = jest.fn();
++
++jest.mock('@react-navigation/native', () => {
++  const navigation = {
++    navigate: (...args: unknown[]) => mockNavigate(...args),
++    // Header is stubbed out below, so the back button is never pressed here.
++    goBack: jest.fn(),
++  };
++  return {
++    useNavigation: () => navigation,
++    useIsFocused: () => true,
++  };
++});
++
++// Resolve t() against the real en-EN bundle so a missing analysis key fails
++// here rather than shipping a raw key to the user.
++jest.mock('react-i18next', () => {
++  const en = require('../../translations/en-EN.json').boilerplate;
++  const t = (key: string, opts?: Record<string, unknown>) => {
++    const value = key
++      .split('.')
++      .reduce<unknown>(
++        (acc, part) =>
++          acc && typeof acc === 'object'
++            ? (acc as Record<string, unknown>)[part]
++            : undefined,
++        en,
++      );
++    if (typeof value !== 'string') {
++      return key;
++    }
++    return value.replace(/\{\{(\w+)\}\}/g, (_m, name: string) =>
++      String(opts?.[name] ?? ''),
++    );
++  };
++  const translation = { t };
++  return { useTranslation: () => translation };
++});
++
++const mockGetWardrobeItems = jest.fn();
++const mockListFavourites = jest.fn();
++const mockListCreations = jest.fn();
++
++jest.mock('../../services/wardrobeService', () => {
++  const actual = jest.requireActual('../../services/wardrobeService');
++  return {
++    // The derivation modules call matchesCategoryFilter / getItemUsageFrequency
++    // for real — mocking those would test the mock, not the classification.
++    ...actual,
++    wardrobeService: {
++      getWardrobeItems: (...args: unknown[]) => mockGetWardrobeItems(...args),
++    },
++  };
++});
++
++jest.mock('../../services/favouriteService', () => ({
++  FAVOURITES_QUERY_KEY: ['favourites'],
++  favouriteService: {
++    listFavourites: (...args: unknown[]) => mockListFavourites(...args),
++  },
++}));
++
++jest.mock('../../services/creationsService', () => ({
++  CREATIONS_QUERY_KEY: ['creations'],
++  creationsService: {
++    listCreations: (...args: unknown[]) => mockListCreations(...args),
++  },
++}));
++
++// Cuts the utils/url → apiClient → react-native-keychain import chain.
++jest.mock('../../utils/url', () => ({
++  resolveItemImage: (item?: { image_png?: string | null; image_url?: string }) =>
++    item?.image_png || item?.image_url || null,
++}));
++
++jest.mock('../../services/analytics', () => ({ track: jest.fn() }));
++
++jest.mock('../../components/layout/Header', () => ({
++  Header: { BackTitle: () => null },
++}));
++
++jest.mock('../../components/features/LoadableRemoteImage', () => ({
++  LoadableRemoteImage: () => null,
++}));
++
++// ---- fixtures / helpers -----------------------------------------------------
++
++const ITEMS = [
++  {
++    id: 'a',
++    category: 'top',
++    color_hex: '#121212',
++    style_tags: ['minimal'],
++    exposure_count: 40,
++    image_url: 'https://cdn.example/a.jpg',
++  },
++  {
++    id: 'b',
++    category: 'jeans',
++    color_hex: '#2b3a67',
++    style_tags: ['casual'],
++    exposure_count: 2,
++    image_url: 'https://cdn.example/b.jpg',
++  },
++  {
++    id: 'c',
++    category: 'sneakers',
++    color_hex: '#fbfbfb',
++    style_tags: ['minimal'],
++    exposure_count: 9,
++    image_url: 'https://cdn.example/c.jpg',
++  },
++];
++
++// A single testID matches BOTH the composite element and the host element it
++// renders, so this always returns ≥2 entries for one on-screen node. Assert
++// presence with `.length > 0` and absence with `.length === 0` — never an exact
++// count. `[0]` is the composite, which is where prop handlers live.
++const byTestID = (root: ReactTestInstance, id: string): ReactTestInstance[] =>
++  root.findAll(n => n.props?.testID === id);
++
++/** The rendered string inside a testID'd node, deduped across that same pair. */
++const textOf = (root: ReactTestInstance, id: string): string | undefined => {
++  const node = byTestID(root, id)[0];
++  const text = node
++    ?.findAll(n => typeof n.props?.children === 'string')
++    .map(n => n.props.children as string);
++  return text?.[0];
++};
++
++const liveRenderers: TestRenderer.ReactTestRenderer[] = [];
++
++const makeTestClient = () =>
++  new QueryClient({
++    defaultOptions: {
++      queries: { retry: false, gcTime: 0 },
++      mutations: { retry: false, gcTime: 0 },
++    },
++  });
++
++const renderScreen = async () => {
++  let renderer!: TestRenderer.ReactTestRenderer;
++  await act(async () => {
++    renderer = TestRenderer.create(
++      <QueryClientProvider client={makeTestClient()}>
++        <WardrobeAnalysisScreen />
++      </QueryClientProvider>,
++    );
++  });
++  liveRenderers.push(renderer);
++  // Settle the three independent useQuery fetches plus chained schedulers.
++  await act(async () => {
++    await new Promise<void>(resolve => setTimeout(() => resolve(), 0));
++    await Promise.resolve();
++  });
++  return renderer;
++};
++
++beforeEach(() => {
++  jest.clearAllMocks();
++  mockGetWardrobeItems.mockResolvedValue(ITEMS);
++  mockListFavourites.mockResolvedValue({ total: 35, count: 0, favorites: [] });
++  mockListCreations.mockResolvedValue({ creations: [{ id: 'c1' }, { id: 'c2' }] });
++});
++
++afterEach(() => {
++  liveRenderers.splice(0).forEach(r => {
++    try {
++      act(() => r.unmount());
++    } catch {
++      // already unmounted
++    }
++  });
++});
++
++// =============================================================================
++
++describe('WardrobeAnalysisScreen', () => {
++  it('shows the three headline counters from their separate sources', async () => {
++    const root = (await renderScreen()).root;
++
++    expect(textOf(root, 'wardrobe-analysis-total-items')).toBe('3');
++    expect(textOf(root, 'wardrobe-analysis-total-favourites')).toBe('35');
++    expect(textOf(root, 'wardrobe-analysis-total-creations')).toBe('2');
++  });
++
++  it('renders every section with the donut centred on the item total', async () => {
++    const root = (await renderScreen()).root;
++
++    [
++      'wardrobe-analysis-donut',
++      'wardrobe-analysis-style-profile',
++      'wardrobe-analysis-color-strip',
++      'wardrobe-analysis-most-worn-row',
++      'wardrobe-analysis-least-worn-row',
++    ].forEach(id => {
++      expect(byTestID(root, id).length).toBeGreaterThan(0);
++    });
++
++    expect(textOf(root, 'wardrobe-analysis-donut-total')).toBe('3');
++  });
++
++  it('orders the worn rows by wear count, opposite ways', async () => {
++    const root = (await renderScreen()).root;
++
++    // 'a' is worn 40×, 'b' only 2×.
++    expect(
++      byTestID(root, 'wardrobe-analysis-most-worn-item-a').length,
++    ).toBeGreaterThan(0);
++    expect(
++      byTestID(root, 'wardrobe-analysis-least-worn-item-b').length,
++    ).toBeGreaterThan(0);
++  });
++
++  it('opens ItemDetail from a worn tile and reports which row it came from', async () => {
++    const { track } = require('../../services/analytics');
++    const root = (await renderScreen()).root;
++
++    await act(async () => {
++      byTestID(root, 'wardrobe-analysis-most-worn-item-a')[0].props.onPress();
++    });
++
++    expect(mockNavigate).toHaveBeenCalledWith('ItemDetail', { itemId: 'a' });
++    expect(track).toHaveBeenCalledWith('wardrobe_analysis_item_opened', {
++      item_id: 'a',
++      source: 'most_worn',
++    });
++  });
++
++  // A background refresh of the shared wardrobe cache must not inflate the
++  // view count with events the user never caused.
++  it('reports the screen view once per focus, not once per cache update', async () => {
++    const { track } = require('../../services/analytics');
++    const renderer = await renderScreen();
++
++    const viewEvents = () =>
++      (track as jest.Mock).mock.calls.filter(
++        ([event]: [string]) => event === 'wardrobe_analysis_viewed',
++      );
++
++    expect(viewEvents()).toHaveLength(1);
++    expect(viewEvents()[0][1]).toEqual({ item_count: 3 });
++
++    // Force a re-render with a changed item count, as a cache update would.
++    mockGetWardrobeItems.mockResolvedValue([...ITEMS, { id: 'd', category: 'hat' }]);
++    await act(async () => {
++      renderer.update(
++        <QueryClientProvider client={makeTestClient()}>
++          <WardrobeAnalysisScreen />
++        </QueryClientProvider>,
++      );
++      await Promise.resolve();
++    });
++
++    expect(viewEvents()).toHaveLength(1);
++  });
++
++  it('expands the style insight in place rather than navigating', async () => {
++    const { track } = require('../../services/analytics');
++    const root = (await renderScreen()).root;
++
++    expect(byTestID(root, 'wardrobe-analysis-insight-detail').length).toBe(0);
++
++    await act(async () => {
++      byTestID(root, 'wardrobe-analysis-insight')[0].props.onPress();
++    });
++
++    expect(
++      byTestID(root, 'wardrobe-analysis-insight-detail').length,
++    ).toBeGreaterThan(0);
++    expect(mockNavigate).not.toHaveBeenCalled();
++    expect(track).toHaveBeenCalledWith('wardrobe_analysis_insight_toggled', {
++      expanded: true,
++      style: 'minimal',
++    });
++  });
++
++  // Dividing by zero everywhere is the obvious failure mode for a stats page.
++  it('short-circuits to the empty state on an empty wardrobe', async () => {
++    mockGetWardrobeItems.mockResolvedValue([]);
++
++    const root = (await renderScreen()).root;
++
++    expect(byTestID(root, 'wardrobe-analysis-empty').length).toBeGreaterThan(0);
++    expect(byTestID(root, 'wardrobe-analysis-donut').length).toBe(0);
++    expect(byTestID(root, 'wardrobe-analysis-style-profile').length).toBe(0);
++    // The counters still render — favourites and creations exist independently
++    // of whether the wardrobe does.
++    expect(byTestID(root, 'wardrobe-analysis-summary').length).toBeGreaterThan(
++      0,
++    );
++  });
++
++  it('dashes out the async counters while they are still loading', async () => {
++    // Never resolves — leaves both counters pending past the render.
++    mockListFavourites.mockReturnValue(new Promise(() => {}));
++    mockListCreations.mockReturnValue(new Promise(() => {}));
++
++    const root = (await renderScreen()).root;
++
++    expect(textOf(root, 'wardrobe-analysis-total-favourites')).toBe('—');
++    expect(textOf(root, 'wardrobe-analysis-total-creations')).toBe('—');
++    // The item count comes from the settled wardrobe query, so it is real.
++    expect(textOf(root, 'wardrobe-analysis-total-items')).toBe('3');
++  });
++});
+diff --git a/src/screens/__tests__/WardrobeScreen.test.tsx b/src/screens/__tests__/WardrobeScreen.test.tsx
+index c127f61..39f3baa 100644
+--- a/src/screens/__tests__/WardrobeScreen.test.tsx
++++ b/src/screens/__tests__/WardrobeScreen.test.tsx
+@@ -346,3 +346,49 @@ describe('WardrobeScreen tile status tags', () => {
+     expect(byTestID(root, 'wardrobe-item-new-less-1').length).toBe(0);
+   });
+ });
++
++// =============================================================================
++// Analysis chip
++// =============================================================================
++describe('WardrobeScreen analysis chip', () => {
++  it('renders the labelled chip alongside the filter and sort chips', async () => {
++    mockGetWardrobeItems.mockResolvedValue([USER_ITEM]);
++
++    const root = (await renderScreen()).root;
++
++    const chip = byTestID(root, 'wardrobe-analysis-trigger');
++    expect(chip.length).toBeGreaterThan(0);
++    // Label resolves against the real en-EN bundle, so a missing i18n key fails
++    // here rather than shipping a raw key to the user.
++    expect(
++      chip[0].findAll(n => n.props?.children === 'Analysis').length,
++    ).toBeGreaterThan(0);
++  });
++
++  it('navigates to WardrobeAnalysis and reports the wardrobe size', async () => {
++    mockGetWardrobeItems.mockResolvedValue([USER_ITEM, USER_ITEM_2]);
++    const { track } = require('../../services/analytics');
++
++    const root = (await renderScreen()).root;
++
++    await act(async () => {
++      byTestID(root, 'wardrobe-analysis-trigger')[0].props.onPress();
++    });
++
++    expect(mockNavigate).toHaveBeenCalledWith('WardrobeAnalysis');
++    expect(track).toHaveBeenCalledWith(
++      'wardrobe_analysis_opened',
++      expect.objectContaining({ item_count: 2, category: 'All' }),
++    );
++  });
++
++  // The whole chip row is hidden on an empty wardrobe — there is nothing to
++  // filter, sort or analyse.
++  it('is absent when the wardrobe has no items', async () => {
++    mockGetWardrobeItems.mockResolvedValue([]);
++
++    const root = (await renderScreen()).root;
++
++    expect(byTestID(root, 'wardrobe-analysis-trigger').length).toBe(0);
++  });
++});
+diff --git a/src/screens/wardrobe/WardrobeFilterSortBar.tsx b/src/screens/wardrobe/WardrobeFilterSortBar.tsx
+index 4d83027..f3109bf 100644
+--- a/src/screens/wardrobe/WardrobeFilterSortBar.tsx
++++ b/src/screens/wardrobe/WardrobeFilterSortBar.tsx
+@@ -5,15 +5,23 @@ import { Icons } from '../../assets/icons';
+ import { theme } from '../../theme/theme';
+ import { HORIZONTAL_PADDING } from './wardrobe-grid';
+ 
+-// Wardrobe filter/sort summary chips (Figma "wardrobe" / "item(s) selected").
+-// Two pill chips at the top-right of the grid: the left one summarises the
+-// active type filter (multi-select), the right one the active sort. Each opens
+-// its own bottom sheet. A leading chevron-down signals "tap to open options".
++// Wardrobe filter/sort/analysis chips (Figma "wardrobe" / "item(s) selected").
++// Three pill chips at the top-right of the grid: the first summarises the
++// active type filter (multi-select), the second the active sort — each opens
++// its own bottom sheet, and a LEADING chevron-down signals "tap to open
++// options". The third opens the Wardrobe Analysis page; it navigates rather
++// than opening a sheet, so it carries no chevron and instead puts a TRAILING
++// chart glyph where the chevron would be — the asymmetry is what tells the two
++// interactions apart at a glance.
+ interface SummaryChipProps {
+   label: string;
+   onPress: () => void;
+   testID: string;
+   accessibilityLabel: string;
++  /** Rendered before the label. Used by the two sheet-opening chips. */
++  leadingIcon?: React.ReactNode;
++  /** Rendered after the label. Used by the navigating analysis chip. */
++  trailingIcon?: React.ReactNode;
+ }
+ 
+ const SummaryChip = ({
+@@ -21,6 +29,8 @@ const SummaryChip = ({
+   onPress,
+   testID,
+   accessibilityLabel,
++  leadingIcon,
++  trailingIcon,
+ }: SummaryChipProps) => (
+   <PressableScale
+     onPress={onPress}
+@@ -29,29 +39,36 @@ const SummaryChip = ({
+     testID={testID}
+     accessibilityLabel={accessibilityLabel}
+   >
+-    <Icons.ChevronDown width={16} height={16} />
++    {leadingIcon}
+     <Text style={styles.chipText} numberOfLines={1}>
+       {label}
+     </Text>
++    {trailingIcon}
+   </PressableScale>
+ );
+ 
+ interface WardrobeFilterSortBarProps {
+   filterLabel: string;
+   sortLabel: string;
++  analysisLabel: string;
+   onOpenFilter: () => void;
+   onOpenSort: () => void;
++  onOpenAnalysis: () => void;
+   filterAccessibilityLabel: string;
+   sortAccessibilityLabel: string;
++  analysisAccessibilityLabel: string;
+ }
+ 
+ export const WardrobeFilterSortBar = ({
+   filterLabel,
+   sortLabel,
++  analysisLabel,
+   onOpenFilter,
+   onOpenSort,
++  onOpenAnalysis,
+   filterAccessibilityLabel,
+   sortAccessibilityLabel,
++  analysisAccessibilityLabel,
+ }: WardrobeFilterSortBarProps) => (
+   <View style={styles.row}>
+     <SummaryChip
+@@ -59,12 +76,21 @@ export const WardrobeFilterSortBar = ({
+       onPress={onOpenFilter}
+       testID="wardrobe-filter-trigger"
+       accessibilityLabel={filterAccessibilityLabel}
++      leadingIcon={<Icons.ChevronDown width={16} height={16} />}
+     />
+     <SummaryChip
+       label={sortLabel}
+       onPress={onOpenSort}
+       testID="wardrobe-sort-trigger"
+       accessibilityLabel={sortAccessibilityLabel}
++      leadingIcon={<Icons.ChevronDown width={16} height={16} />}
++    />
++    <SummaryChip
++      label={analysisLabel}
++      onPress={onOpenAnalysis}
++      testID="wardrobe-analysis-trigger"
++      accessibilityLabel={analysisAccessibilityLabel}
++      trailingIcon={<Icons.Analysis width={16} height={16} />}
+     />
+   </View>
+ );
+diff --git a/src/screens/wardrobe/analysis/AnalysisSummaryCard.tsx b/src/screens/wardrobe/analysis/AnalysisSummaryCard.tsx
+new file mode 100644
+index 0000000..f04ee22
+--- /dev/null
++++ b/src/screens/wardrobe/analysis/AnalysisSummaryCard.tsx
+@@ -0,0 +1,98 @@
++import React from 'react';
++import { StyleSheet, Text, View } from 'react-native';
++import { useTranslation } from 'react-i18next';
++import { theme } from '../../../theme/theme';
++
++interface SummaryStat {
++  labelKey: string;
++  value: number;
++  testID: string;
++}
++
++interface AnalysisSummaryCardProps {
++  totalItems: number;
++  totalFavourites: number;
++  totalCreations: number;
++  /** Favourites + creations resolve independently of the item list. */
++  countsPending?: boolean;
++}
++
++/**
++ * The three headline counters at the top of the Wardrobe Analysis page.
++ *
++ * Renders an em dash while its counts are still loading rather than a
++ * placeholder zero, so a slow `/favorites` response never reads as "you have no
++ * favourites".
++ */
++export const AnalysisSummaryCard: React.FC<AnalysisSummaryCardProps> = ({
++  totalItems,
++  totalFavourites,
++  totalCreations,
++  countsPending = false,
++}) => {
++  const { t } = useTranslation();
++
++  const stats: SummaryStat[] = [
++    {
++      labelKey: 'wardrobe.analysis.total_items',
++      value: totalItems,
++      testID: 'wardrobe-analysis-total-items',
++    },
++    {
++      labelKey: 'wardrobe.analysis.total_favourites',
++      value: totalFavourites,
++      testID: 'wardrobe-analysis-total-favourites',
++    },
++    {
++      labelKey: 'wardrobe.analysis.total_creations',
++      value: totalCreations,
++      testID: 'wardrobe-analysis-total-creations',
++    },
++  ];
++
++  return (
++    <View style={styles.card} testID="wardrobe-analysis-summary">
++      {stats.map((stat, index) => (
++        <View
++          key={stat.labelKey}
++          style={[styles.cell, index === 0 && styles.cellFirst]}
++        >
++          <Text style={styles.label} numberOfLines={2}>
++            {t(stat.labelKey)}
++          </Text>
++          <Text style={styles.value} testID={stat.testID}>
++            {/* The item count comes from the already-loaded grid query, so it
++                is never pending — only the two async counters dash out. */}
++            {countsPending && index > 0 ? '—' : String(stat.value)}
++          </Text>
++        </View>
++      ))}
++    </View>
++  );
++};
++
++const styles = StyleSheet.create({
++  card: {
++    flexDirection: 'row',
++    backgroundColor: theme.ds.color.cream,
++    borderRadius: theme.ds.radius.sm,
++    paddingVertical: 16,
++    paddingHorizontal: 12,
++  },
++  cell: {
++    flex: 1,
++    paddingHorizontal: 4,
++  },
++  cellFirst: {
++    paddingLeft: 0,
++  },
++  label: {
++    ...theme.typography.aliases.uacBodyXsRegular,
++    color: theme.colors.figmaTextSecondary,
++  },
++  value: {
++    ...theme.typography.aliases.uacH4Bold,
++    color: theme.colors.figmaTextPrimary,
++    marginTop: 6,
++  },
++});
+diff --git a/src/screens/wardrobe/analysis/CategoryBalanceDonut.tsx b/src/screens/wardrobe/analysis/CategoryBalanceDonut.tsx
+new file mode 100644
+index 0000000..2145036
+--- /dev/null
++++ b/src/screens/wardrobe/analysis/CategoryBalanceDonut.tsx
+@@ -0,0 +1,140 @@
++import React from 'react';
++import { StyleSheet, Text, View } from 'react-native';
++import Svg, { Circle, G } from 'react-native-svg';
++import { useTranslation } from 'react-i18next';
++import { theme } from '../../../theme/theme';
++import { CategorySlice } from './wardrobe-analysis-category';
++
++const SIZE = 148;
++const STROKE = 26;
++const RADIUS = (SIZE - STROKE) / 2;
++const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
++
++const PALETTE = theme.ds.color.chart.category;
++
++/** Slice colour by position, wrapping if a wardrobe ever exceeds the ramp. */
++export const sliceColor = (index: number): string =>
++  PALETTE[index % PALETTE.length];
++
++interface CategoryBalanceDonutProps {
++  slices: CategorySlice[];
++  total: number;
++}
++
++/**
++ * Category-balance donut + legend.
++ *
++ * Arcs are drawn from raw COUNTS, not from the rounded percentages shown in the
++ * legend, so the ring always closes exactly even when the printed labels sum to
++ * 99 or 101.
++ */
++export const CategoryBalanceDonut: React.FC<CategoryBalanceDonutProps> = ({
++  slices,
++  total,
++}) => {
++  const { t } = useTranslation();
++
++  // Running offset so each arc starts where the previous one ended. Rotated
++  // -90° by the wrapping <G> so the first slice begins at 12 o'clock.
++  let consumed = 0;
++
++  return (
++    <View style={styles.row} testID="wardrobe-analysis-donut">
++      <View style={styles.chartWrap}>
++        <Svg width={SIZE} height={SIZE}>
++          <G rotation={-90} originX={SIZE / 2} originY={SIZE / 2}>
++            {slices.map((slice, index) => {
++              const length = (slice.count / total) * CIRCUMFERENCE;
++              const offset = -consumed;
++              consumed += length;
++              return (
++                <Circle
++                  key={slice.key}
++                  cx={SIZE / 2}
++                  cy={SIZE / 2}
++                  r={RADIUS}
++                  stroke={sliceColor(index)}
++                  strokeWidth={STROKE}
++                  fill="none"
++                  // Draw `length` of ring, then skip the rest.
++                  strokeDasharray={`${length} ${CIRCUMFERENCE - length}`}
++                  strokeDashoffset={offset}
++                />
++              );
++            })}
++          </G>
++        </Svg>
++        <View style={styles.centerLabel} pointerEvents="none">
++          <Text style={styles.centerValue} testID="wardrobe-analysis-donut-total">
++            {String(total)}
++          </Text>
++        </View>
++      </View>
++
++      <View style={styles.legend}>
++        {slices.map((slice, index) => (
++          <View key={slice.key} style={styles.legendRow}>
++            <View
++              style={[styles.legendDot, { backgroundColor: sliceColor(index) }]}
++            />
++            <Text style={styles.legendValue}>
++              {t('wardrobe.analysis.legend_value', {
++                percent: slice.percent,
++                count: slice.count,
++              })}
++            </Text>
++            <Text style={styles.legendLabel} numberOfLines={1}>
++              {t(`wardrobe.analysis.category.${slice.key}`)}
++            </Text>
++          </View>
++        ))}
++      </View>
++    </View>
++  );
++};
++
++const styles = StyleSheet.create({
++  row: {
++    flexDirection: 'row',
++    alignItems: 'center',
++  },
++  chartWrap: {
++    width: SIZE,
++    height: SIZE,
++    alignItems: 'center',
++    justifyContent: 'center',
++  },
++  centerLabel: {
++    ...StyleSheet.absoluteFillObject,
++    alignItems: 'center',
++    justifyContent: 'center',
++  },
++  centerValue: {
++    ...theme.typography.aliases.uacH4Bold,
++    color: theme.colors.figmaTextPrimary,
++  },
++  legend: {
++    flex: 1,
++    paddingLeft: 20,
++    gap: 10,
++  },
++  legendRow: {
++    flexDirection: 'row',
++    alignItems: 'center',
++    gap: 8,
++  },
++  legendDot: {
++    width: 8,
++    height: 8,
++    borderRadius: theme.borderRadius.round,
++  },
++  legendValue: {
++    ...theme.typography.aliases.uacBodyXsRegular,
++    color: theme.colors.figmaTextPrimary,
++  },
++  legendLabel: {
++    ...theme.typography.aliases.uacBodyXsRegular,
++    color: theme.colors.figmaTextSecondary,
++    flexShrink: 1,
++  },
++});
+diff --git a/src/screens/wardrobe/analysis/ColorDistributionStrip.tsx b/src/screens/wardrobe/analysis/ColorDistributionStrip.tsx
+new file mode 100644
+index 0000000..e934961
+--- /dev/null
++++ b/src/screens/wardrobe/analysis/ColorDistributionStrip.tsx
+@@ -0,0 +1,105 @@
++import React from 'react';
++import { ScrollView, StyleSheet, Text, View } from 'react-native';
++import { useTranslation } from 'react-i18next';
++import { theme } from '../../../theme/theme';
++import { ColorKey, ColorShare } from './wardrobe-analysis-color';
++
++const SWATCHES = theme.ds.color.swatch;
++
++/** Perceived brightness (ITU-R BT.601) of a `#rrggbb` token, 0–255. */
++const luminance = (hex: string): number => {
++  const r = parseInt(hex.slice(1, 3), 16);
++  const g = parseInt(hex.slice(3, 5), 16);
++  const b = parseInt(hex.slice(5, 7), 16);
++  return 0.299 * r + 0.587 * g + 0.114 * b;
++};
++
++/**
++ * Label colour for a swatch. Computed from the swatch token rather than
++ * hardcoded per bucket, so adding a colour to `ds.color.swatch` can't ship an
++ * unreadable tile.
++ */
++export const labelColorOn = (key: ColorKey): string =>
++  luminance(SWATCHES[key]) > 150
++    ? theme.colors.figmaTextPrimary
++    : theme.ds.color.white;
++
++/** Tile width scales with share so the strip reads as a distribution. */
++const tileWidth = (percent: number): number =>
++  Math.round(72 + Math.min(percent, 50) * 1.4);
++
++interface ColorDistributionStripProps {
++  distribution: ColorShare[];
++}
++
++/**
++ * Horizontally scrolling colour-distribution strip.
++ *
++ * Every bucket is rendered, however small — the long tail is the interesting
++ * part ("one yellow thing") and truncating it would hide exactly the items a
++ * user is most likely to have forgotten they own.
++ */
++export const ColorDistributionStrip: React.FC<ColorDistributionStripProps> = ({
++  distribution,
++}) => {
++  const { t } = useTranslation();
++
++  return (
++    <ScrollView
++      horizontal
++      showsHorizontalScrollIndicator={false}
++      contentContainerStyle={styles.strip}
++      testID="wardrobe-analysis-color-strip"
++    >
++      {distribution.map(share => {
++        const textColor = labelColorOn(share.key);
++        return (
++          <View
++            key={share.key}
++            testID={`wardrobe-analysis-color-${share.key}`}
++            style={[
++              styles.tile,
++              {
++                width: tileWidth(share.percent),
++                backgroundColor: SWATCHES[share.key],
++              },
++            ]}
++          >
++            <Text style={[styles.percent, { color: textColor }]}>
++              {t('wardrobe.analysis.percent', { percent: share.percent })}
++            </Text>
++            <Text
++              style={[styles.name, { color: textColor }]}
++              numberOfLines={1}
++            >
++              {t(`wardrobe.analysis.color.${share.key}`)}
++            </Text>
++          </View>
++        );
++      })}
++    </ScrollView>
++  );
++};
++
++const styles = StyleSheet.create({
++  strip: {
++    gap: 8,
++    paddingRight: 12,
++  },
++  tile: {
++    height: 96,
++    borderRadius: theme.borderRadius.m,
++    paddingHorizontal: 12,
++    paddingVertical: 10,
++    justifyContent: 'space-between',
++    // Hairline keeps the near-white swatch from vanishing into the page.
++    borderWidth: StyleSheet.hairlineWidth,
++    borderColor: theme.ds.line2,
++  },
++  percent: {
++    ...theme.typography.aliases.uacBodyXsRegular,
++  },
++  name: {
++    ...theme.typography.aliases.poppinsSemiboldXsSm,
++  },
++});
+diff --git a/src/screens/wardrobe/analysis/StyleInsightCard.tsx b/src/screens/wardrobe/analysis/StyleInsightCard.tsx
+new file mode 100644
+index 0000000..6dd5c2b
+--- /dev/null
++++ b/src/screens/wardrobe/analysis/StyleInsightCard.tsx
+@@ -0,0 +1,91 @@
++import React from 'react';
++import { StyleSheet, Text, View } from 'react-native';
++import { useTranslation } from 'react-i18next';
++import { PressableScale } from '../../../components/primitives/PressableScale';
++import { Icons } from '../../../assets/icons';
++import { theme } from '../../../theme/theme';
++import { StyleKey } from './wardrobe-analysis-style';
++
++interface StyleInsightCardProps {
++  style: StyleKey;
++  expanded: boolean;
++  onToggle: () => void;
++}
++
++/**
++ * The plain-language read on the style profile, sitting directly under the
++ * bars.
++ *
++ * The chevron expands a second paragraph in place instead of navigating: there
++ * is nowhere to navigate TO (the wardrobe grid has no style filter), and a
++ * chevron that opened a dead end would be worse than one that reveals the rest
++ * of the sentence.
++ */
++export const StyleInsightCard: React.FC<StyleInsightCardProps> = ({
++  style,
++  expanded,
++  onToggle,
++}) => {
++  const { t } = useTranslation();
++
++  return (
++    <PressableScale
++      onPress={onToggle}
++      style={styles.card}
++      activeOpacity={0.9}
++      testID="wardrobe-analysis-insight"
++      accessibilityLabel={
++        expanded
++          ? t('wardrobe.analysis.a11y_insight_collapse')
++          : t('wardrobe.analysis.a11y_insight_expand')
++      }
++    >
++      <View style={styles.textWrap}>
++        <Text style={styles.headline}>
++          {t(`wardrobe.analysis.insight.${style}`)}
++        </Text>
++        {expanded ? (
++          <Text style={styles.detail} testID="wardrobe-analysis-insight-detail">
++            {t(`wardrobe.analysis.insight_detail.${style}`)}
++          </Text>
++        ) : null}
++      </View>
++
++      <View style={[styles.chevron, expanded && styles.chevronExpanded]}>
++        <Icons.ChevronRight width={20} height={20} />
++      </View>
++    </PressableScale>
++  );
++};
++
++const styles = StyleSheet.create({
++  card: {
++    flexDirection: 'row',
++    alignItems: 'center',
++    gap: 12,
++    backgroundColor: theme.colors.figmaSurfaceSoft,
++    borderRadius: theme.ds.radius.sm,
++    paddingVertical: 14,
++    paddingHorizontal: 16,
++  },
++  textWrap: {
++    flex: 1,
++    gap: 6,
++  },
++  headline: {
++    ...theme.typography.aliases.poppinsBodySm,
++    color: theme.colors.figmaTextPrimary,
++  },
++  detail: {
++    ...theme.typography.aliases.uacBodyXsRegular,
++    color: theme.colors.figmaTextSecondary,
++  },
++  chevron: {
++    // Rotating the same chevron keeps one icon doing both states — no second
++    // asset, and the direction always matches what the tap will do.
++    transform: [{ rotate: '0deg' }],
++  },
++  chevronExpanded: {
++    transform: [{ rotate: '90deg' }],
++  },
++});
+diff --git a/src/screens/wardrobe/analysis/StyleProfileBars.tsx b/src/screens/wardrobe/analysis/StyleProfileBars.tsx
+new file mode 100644
+index 0000000..a82ac65
+--- /dev/null
++++ b/src/screens/wardrobe/analysis/StyleProfileBars.tsx
+@@ -0,0 +1,84 @@
++import React from 'react';
++import { StyleSheet, Text, View } from 'react-native';
++import { useTranslation } from 'react-i18next';
++import { theme } from '../../../theme/theme';
++import { StyleShare } from './wardrobe-analysis-style';
++
++interface StyleProfileBarsProps {
++  profile: StyleShare[];
++}
++
++/**
++ * The style-profile bar list.
++ *
++ * Each bar is keyed to its style's own colour (not to its rank), so a style
++ * keeps its identity as the ordering shifts when items are added.
++ */
++export const StyleProfileBars: React.FC<StyleProfileBarsProps> = ({
++  profile,
++}) => {
++  const { t } = useTranslation();
++
++  return (
++    <View style={styles.list} testID="wardrobe-analysis-style-profile">
++      {profile.map(share => (
++        <View key={share.key} style={styles.row}>
++          <Text style={styles.label} numberOfLines={1}>
++            {t(`wardrobe.analysis.style.${share.key}`)}
++          </Text>
++
++          <View style={styles.track}>
++            <View
++              testID={`wardrobe-analysis-style-bar-${share.key}`}
++              style={[
++                styles.fill,
++                {
++                  // Clamped so a malformed count can never overflow the track.
++                  width: `${Math.min(100, Math.max(0, share.percent))}%`,
++                  backgroundColor: theme.ds.color.chart.style[share.key],
++                },
++              ]}
++            />
++          </View>
++
++          <Text style={styles.percent}>
++            {t('wardrobe.analysis.percent', { percent: share.percent })}
++          </Text>
++        </View>
++      ))}
++    </View>
++  );
++};
++
++const styles = StyleSheet.create({
++  list: {
++    gap: 14,
++  },
++  row: {
++    flexDirection: 'row',
++    alignItems: 'center',
++    gap: 12,
++  },
++  label: {
++    ...theme.typography.aliases.poppinsBodySm,
++    color: theme.colors.figmaTextPrimary,
++    width: 68,
++  },
++  track: {
++    flex: 1,
++    height: 8,
++    borderRadius: theme.borderRadius.round,
++    backgroundColor: theme.ds.color.chart.track,
++    overflow: 'hidden',
++  },
++  fill: {
++    height: '100%',
++    borderRadius: theme.borderRadius.round,
++  },
++  percent: {
++    ...theme.typography.aliases.poppinsBodySm,
++    color: theme.colors.figmaTextPrimary,
++    width: 44,
++    textAlign: 'right',
++  },
++});
+diff --git a/src/screens/wardrobe/analysis/WornItemsRow.tsx b/src/screens/wardrobe/analysis/WornItemsRow.tsx
+new file mode 100644
+index 0000000..709eee7
+--- /dev/null
++++ b/src/screens/wardrobe/analysis/WornItemsRow.tsx
+@@ -0,0 +1,120 @@
++import React from 'react';
++import { ScrollView, StyleSheet, Text, View } from 'react-native';
++import { useTranslation } from 'react-i18next';
++import { LoadableRemoteImage } from '../../../components/features/LoadableRemoteImage';
++import { PressableScale } from '../../../components/primitives/PressableScale';
++import { WardrobeItem } from '../../../services/wardrobeService';
++import { theme } from '../../../theme/theme';
++import { resolveItemImage } from '../../../utils/url';
++import { WornEntry } from './wardrobe-analysis-worn';
++
++const TILE_WIDTH = 92;
++const TILE_HEIGHT = 118;
++
++interface WornItemsRowProps {
++  entries: WornEntry[];
++  onPressItem: (item: WardrobeItem) => void;
++  /** Disambiguates testIDs between the most- and least-worn rows. */
++  testIDPrefix: string;
++}
++
++/**
++ * A horizontally scrolling row of item tiles with their wear count above.
++ *
++ * Deliberately NOT `WardrobeGridTile`: that tile is sized off the 3-column grid
++ * maths and carries the new/less-used/common status pills, none of which mean
++ * anything in a row that is already sorted by wear.
++ */
++export const WornItemsRow: React.FC<WornItemsRowProps> = ({
++  entries,
++  onPressItem,
++  testIDPrefix,
++}) => {
++  const { t } = useTranslation();
++
++  return (
++    <ScrollView
++      horizontal
++      showsHorizontalScrollIndicator={false}
++      contentContainerStyle={styles.row}
++      testID={`${testIDPrefix}-row`}
++    >
++      {entries.map(({ item, count }) => {
++        const imageUrl = resolveItemImage({
++          image_studio: item.image_studio ?? null,
++          image_png: item.image_png ?? null,
++          image_url: item.image_url ?? '',
++        });
++
++        return (
++          <View key={item.id} style={styles.cell}>
++            <Text style={styles.count}>
++              {/* An absent exposure_count is not a zero — see wardrobe-analysis-worn. */}
++              {count === null ? '' : String(count)}
++            </Text>
++
++            <PressableScale
++              style={styles.tile}
++              activeOpacity={0.88}
++              onPress={() => onPressItem(item)}
++              testID={`${testIDPrefix}-item-${item.id}`}
++              accessibilityLabel={
++                item.name || t('wardrobe.list.a11y_item_fallback')
++              }
++            >
++              {imageUrl ? (
++                <LoadableRemoteImage
++                  uri={imageUrl}
++                  cache="force-cache"
++                  resizeMode="contain"
++                />
++              ) : (
++                <View style={styles.fallback}>
++                  <Text style={styles.fallbackText} numberOfLines={2}>
++                    {t('common.no_image')}
++                  </Text>
++                </View>
++              )}
++            </PressableScale>
++          </View>
++        );
++      })}
++    </ScrollView>
++  );
++};
++
++const styles = StyleSheet.create({
++  row: {
++    gap: 8,
++    paddingRight: 12,
++  },
++  cell: {
++    width: TILE_WIDTH,
++  },
++  count: {
++    ...theme.typography.aliases.uacBodyXsRegular,
++    color: theme.colors.figmaTextSecondary,
++    marginBottom: 6,
++    // Reserved even when blank so tiles in a row stay top-aligned whether or
++    // not the backend sent a count.
++    minHeight: 16,
++  },
++  tile: {
++    width: TILE_WIDTH,
++    height: TILE_HEIGHT,
++    borderRadius: theme.borderRadius.m,
++    backgroundColor: theme.colors.figmaCardSurface,
++    overflow: 'hidden',
++  },
++  fallback: {
++    flex: 1,
++    alignItems: 'center',
++    justifyContent: 'center',
++    paddingHorizontal: 8,
++  },
++  fallbackText: {
++    ...theme.typography.aliases.poppinsCaptionXxs,
++    color: theme.colors.figmaTextSecondary,
++    textAlign: 'center',
++  },
++});
+diff --git a/src/screens/wardrobe/analysis/__tests__/wardrobe-analysis-category.test.ts b/src/screens/wardrobe/analysis/__tests__/wardrobe-analysis-category.test.ts
+new file mode 100644
+index 0000000..cb00c46
+--- /dev/null
++++ b/src/screens/wardrobe/analysis/__tests__/wardrobe-analysis-category.test.ts
+@@ -0,0 +1,76 @@
++import { WardrobeItem } from '../../../../services/wardrobeService';
++import {
++  buildCategoryBalance,
++  classifyCategory,
++} from '../wardrobe-analysis-category';
++
++const item = (id: string, category?: string): WardrobeItem =>
++  ({ id, ...(category ? { category } : {}) } as WardrobeItem);
++
++describe('classifyCategory', () => {
++  test.each([
++    ['T-Shirt', 'top'],
++    ['blouse', 'top'],
++    ['Jeans', 'bottom'],
++    ['midi skirt', 'bottom'],
++    ['Summer Dress', 'one_piece'],
++    ['jumpsuit', 'one_piece'],
++    ['Denim Jacket', 'outerwear'],
++    ['wool coat', 'outerwear'],
++    ['Sneakers', 'shoes'],
++    ['leather belt', 'accessory'],
++  ])('%s → %s', (category, expected) => {
++    expect(classifyCategory(item('x', category))).toBe(expected);
++  });
++
++  test('unknown and missing categories fall through to other', () => {
++    expect(classifyCategory(item('a', 'umbrella'))).toBe('other');
++    expect(classifyCategory(item('b'))).toBe('other');
++  });
++
++  // The synonym lists overlap, so precedence is what keeps the donut summing
++  // to 100 — a blazer-dress must count once, not twice.
++  test('an item matching two families is counted once, most specific wins', () => {
++    expect(classifyCategory(item('c', 'dress coat'))).toBe('one_piece');
++  });
++});
++
++describe('buildCategoryBalance', () => {
++  test('empty wardrobe yields no slices', () => {
++    expect(buildCategoryBalance([])).toEqual([]);
++  });
++
++  test('counts and percentages are of the whole wardrobe, largest first', () => {
++    const items = [
++      item('1', 'shirt'),
++      item('2', 'top'),
++      item('3', 'jeans'),
++      item('4', 'sneakers'),
++    ];
++
++    expect(buildCategoryBalance(items)).toEqual([
++      { key: 'top', count: 2, percent: 50 },
++      { key: 'bottom', count: 1, percent: 25 },
++      { key: 'shoes', count: 1, percent: 25 },
++    ]);
++  });
++
++  test('slice counts always sum to the item total', () => {
++    const items = [
++      item('1', 'shirt'),
++      item('2', 'jacket'),
++      item('3', 'mystery'),
++      item('4', 'dress'),
++    ];
++    const total = buildCategoryBalance(items).reduce(
++      (sum, slice) => sum + slice.count,
++      0,
++    );
++    expect(total).toBe(items.length);
++  });
++
++  test('unrecognised categories surface as `other` rather than vanishing', () => {
++    const balance = buildCategoryBalance([item('1', 'umbrella')]);
++    expect(balance).toEqual([{ key: 'other', count: 1, percent: 100 }]);
++  });
++});
+diff --git a/src/screens/wardrobe/analysis/__tests__/wardrobe-analysis-color.test.ts b/src/screens/wardrobe/analysis/__tests__/wardrobe-analysis-color.test.ts
+new file mode 100644
+index 0000000..5583173
+--- /dev/null
++++ b/src/screens/wardrobe/analysis/__tests__/wardrobe-analysis-color.test.ts
+@@ -0,0 +1,101 @@
++import { WardrobeItem } from '../../../../services/wardrobeService';
++import {
++  buildColorDistribution,
++  classifyItemColor,
++  classifyRgb,
++} from '../wardrobe-analysis-color';
++
++const item = (id: string, fields: Partial<WardrobeItem> = {}): WardrobeItem =>
++  ({ id, ...fields } as WardrobeItem);
++
++describe('classifyRgb', () => {
++  test.each([
++    [[0, 0, 0], 'black'],
++    [[18, 18, 18], 'black'],
++    [[255, 255, 255], 'white'],
++    [[160, 160, 160], 'gray'],
++    [[200, 40, 40], 'red'],
++    [[240, 200, 40], 'yellow'],
++    [[40, 160, 60], 'green'],
++    [[40, 190, 200], 'teal'],
++    [[43, 58, 103], 'blue'],
++    [[125, 91, 166], 'purple'],
++  ])('%j → %s', (rgb, expected) => {
++    expect(classifyRgb(rgb[0], rgb[1], rgb[2])).toBe(expected);
++  });
++
++  // The whole point of testing lightness/saturation before hue: a near-neutral
++  // has a well-defined but visually meaningless hue.
++  test('near-neutrals stay neutral instead of leaking into a hue bucket', () => {
++    expect(classifyRgb(20, 21, 26)).toBe('black');
++    expect(classifyRgb(250, 249, 252)).toBe('white');
++    expect(classifyRgb(140, 142, 145)).toBe('gray');
++  });
++
++  test('warm and desaturated splits into brown when dark, beige when light', () => {
++    expect(classifyRgb(111, 78, 55)).toBe('brown');
++    expect(classifyRgb(227, 213, 195)).toBe('beige');
++  });
++});
++
++describe('classifyItemColor', () => {
++  test('reads color_hex first, with or without the leading hash', () => {
++    expect(classifyItemColor(item('a', { color_hex: '#121212' }))).toBe('black');
++    expect(classifyItemColor(item('b', { color_hex: '2b3a67' }))).toBe('blue');
++  });
++
++  test('expands 3-digit shorthand hex', () => {
++    expect(classifyItemColor(item('c', { color_hex: '#fff' }))).toBe('white');
++  });
++
++  test('falls back to colour NAMES when no hex is present', () => {
++    expect(classifyItemColor(item('d', { dominant_color: 'navy' }))).toBe('blue');
++    expect(classifyItemColor(item('e', { colors: ['burgundy'] }))).toBe('red');
++  });
++
++  test('a measured hex beats a catalog name', () => {
++    expect(
++      classifyItemColor(
++        item('f', { color_hex: '#121212', dominant_color: 'white' }),
++      ),
++    ).toBe('black');
++  });
++
++  test('unusable colour data yields null, not a guess', () => {
++    expect(classifyItemColor(item('g'))).toBeNull();
++    expect(classifyItemColor(item('h', { color_hex: 'not-a-colour' }))).toBeNull();
++    expect(classifyItemColor(item('i', { dominant_color: 'chartreusey' }))).toBeNull();
++  });
++});
++
++describe('buildColorDistribution', () => {
++  test('no classifiable colours yields an empty strip', () => {
++    expect(buildColorDistribution([item('a'), item('b')])).toEqual([]);
++  });
++
++  // Percentages are of the COLOURED population, so an untagged half of the
++  // wardrobe doesn't silently halve every share.
++  test('percentages are of classified items only', () => {
++    const distribution = buildColorDistribution([
++      item('1', { color_hex: '#121212' }),
++      item('2', { color_hex: '#121212' }),
++      item('3', { color_hex: '#fbfbfb' }),
++      item('4'),
++    ]);
++
++    expect(distribution).toEqual([
++      { key: 'black', count: 2, percent: 67 },
++      { key: 'white', count: 1, percent: 33 },
++    ]);
++  });
++
++  test('buckets are ordered largest first', () => {
++    const distribution = buildColorDistribution([
++      item('1', { dominant_color: 'white' }),
++      item('2', { dominant_color: 'black' }),
++      item('3', { dominant_color: 'black' }),
++      item('4', { dominant_color: 'black' }),
++    ]);
++    expect(distribution.map(share => share.key)).toEqual(['black', 'white']);
++  });
++});
+diff --git a/src/screens/wardrobe/analysis/__tests__/wardrobe-analysis-style.test.ts b/src/screens/wardrobe/analysis/__tests__/wardrobe-analysis-style.test.ts
+new file mode 100644
+index 0000000..cb1bd3e
+--- /dev/null
++++ b/src/screens/wardrobe/analysis/__tests__/wardrobe-analysis-style.test.ts
+@@ -0,0 +1,81 @@
++import { WardrobeItem } from '../../../../services/wardrobeService';
++import {
++  buildStyleProfile,
++  dominantStyle,
++  matchesStyle,
++} from '../wardrobe-analysis-style';
++
++const item = (
++  id: string,
++  style_tags: string[] = [],
++  formality_level?: string,
++): WardrobeItem =>
++  ({
++    id,
++    style_tags,
++    ...(formality_level ? { formality_level } : {}),
++  } as WardrobeItem);
++
++describe('matchesStyle', () => {
++  test('matches on substrings so backend variants still land', () => {
++    expect(matchesStyle(item('a', ['minimalist']), 'minimal')).toBe(true);
++    expect(matchesStyle(item('b', ['smart-casual']), 'casual')).toBe(true);
++    expect(matchesStyle(item('c', ['statement-piece']), 'bold')).toBe(true);
++  });
++
++  test('formality_level feeds the classic bucket', () => {
++    expect(matchesStyle(item('d', [], 'formal'), 'classic')).toBe(true);
++  });
++
++  test('matching is case-insensitive', () => {
++    expect(matchesStyle(item('e', ['MINIMAL']), 'minimal')).toBe(true);
++  });
++
++  // These tags describe the user's relationship to the item, not its style.
++  test('control tags never register as a style', () => {
++    expect(matchesStyle(item('f', ['fit:relaxed']), 'casual')).toBe(false);
++    expect(matchesStyle(item('g', ['favorite']), 'minimal')).toBe(false);
++    expect(matchesStyle(item('h', ['less-used']), 'casual')).toBe(false);
++  });
++});
++
++describe('buildStyleProfile', () => {
++  test('empty wardrobe yields no bars', () => {
++    expect(buildStyleProfile([])).toEqual([]);
++  });
++
++  test('always returns all five styles, strongest first', () => {
++    const profile = buildStyleProfile([
++      item('1', ['minimal']),
++      item('2', ['minimal', 'casual']),
++    ]);
++
++    expect(profile).toHaveLength(5);
++    expect(profile[0]).toEqual({ key: 'minimal', count: 2, percent: 100 });
++    expect(profile[1]).toEqual({ key: 'casual', count: 1, percent: 50 });
++    expect(profile.slice(2).every(share => share.count === 0)).toBe(true);
++  });
++
++  // Bars are independent shares, not a partition — one item can be two styles.
++  test('shares may sum past 100 because styles overlap', () => {
++    const profile = buildStyleProfile([item('1', ['minimal', 'casual'])]);
++    const sum = profile.reduce((acc, share) => acc + share.percent, 0);
++    expect(sum).toBe(200);
++  });
++});
++
++describe('dominantStyle', () => {
++  test('picks the strongest non-zero bar', () => {
++    const profile = buildStyleProfile([
++      item('1', ['casual']),
++      item('2', ['casual']),
++      item('3', ['bold']),
++    ]);
++    expect(dominantStyle(profile)).toBe('casual');
++  });
++
++  test('returns null when nothing carries a style signal', () => {
++    expect(dominantStyle(buildStyleProfile([item('1'), item('2')]))).toBeNull();
++    expect(dominantStyle([])).toBeNull();
++  });
++});
+diff --git a/src/screens/wardrobe/analysis/__tests__/wardrobe-analysis-worn.test.ts b/src/screens/wardrobe/analysis/__tests__/wardrobe-analysis-worn.test.ts
+new file mode 100644
+index 0000000..95916bd
+--- /dev/null
++++ b/src/screens/wardrobe/analysis/__tests__/wardrobe-analysis-worn.test.ts
+@@ -0,0 +1,56 @@
++import { WardrobeItem } from '../../../../services/wardrobeService';
++import { exposureCount, pickWornItems } from '../wardrobe-analysis-worn';
++
++const item = (id: string, fields: Partial<WardrobeItem> = {}): WardrobeItem =>
++  ({ id, ...fields } as WardrobeItem);
++
++const ids = (entries: { item: WardrobeItem }[]) =>
++  entries.map(entry => entry.item.id);
++
++describe('exposureCount', () => {
++  test('reads the numeric backend counter', () => {
++    expect(exposureCount(item('a', { exposure_count: 12 }))).toBe(12);
++    expect(exposureCount(item('b', { exposure_count: 0 }))).toBe(0);
++  });
++
++  // An absent count is not a zero — the row renders no badge rather than
++  // claiming the item has never been worn.
++  test('returns null for missing or non-finite values', () => {
++    expect(exposureCount(item('c'))).toBeNull();
++    expect(exposureCount(item('d', { exposure_count: NaN }))).toBeNull();
++    expect(exposureCount(item('e', { exposure_count: '7' }))).toBeNull();
++  });
++});
++
++describe('pickWornItems', () => {
++  const items = [
++    item('low', { exposure_count: 1 }),
++    item('high', { exposure_count: 99 }),
++    item('mid', { exposure_count: 40 }),
++  ];
++
++  test('most-worn is descending, least-worn ascending', () => {
++    expect(ids(pickWornItems(items, 'most'))).toEqual(['high', 'mid', 'low']);
++    expect(ids(pickWornItems(items, 'least'))).toEqual(['low', 'mid', 'high']);
++  });
++
++  test('respects the row limit', () => {
++    expect(pickWornItems(items, 'most', 2)).toHaveLength(2);
++  });
++
++  test('pairs each item with its count, null when absent', () => {
++    const entries = pickWornItems([item('x', { exposure_count: 5 }), item('y')], 'most');
++    expect(entries.find(e => e.item.id === 'x')?.count).toBe(5);
++    expect(entries.find(e => e.item.id === 'y')?.count).toBeNull();
++  });
++
++  test('does not mutate the input list', () => {
++    const input = [...items];
++    pickWornItems(input, 'most');
++    expect(input.map(i => i.id)).toEqual(items.map(i => i.id));
++  });
++
++  test('empty wardrobe yields no entries', () => {
++    expect(pickWornItems([], 'most')).toEqual([]);
++  });
++});
+diff --git a/src/screens/wardrobe/analysis/wardrobe-analysis-category.ts b/src/screens/wardrobe/analysis/wardrobe-analysis-category.ts
+new file mode 100644
+index 0000000..2b38341
+--- /dev/null
++++ b/src/screens/wardrobe/analysis/wardrobe-analysis-category.ts
+@@ -0,0 +1,81 @@
++import {
++  WardrobeItem,
++  matchesCategoryFilter,
++} from '../../../services/wardrobeService';
++
++/**
++ * Category balance — the donut on the Wardrobe Analysis page.
++ *
++ * Buckets are the six garment families the backend's category synonyms already
++ * understand (see `matchesCategoryFilter`), NOT the five user-selectable filter
++ * chips: the grid filter has no Outerwear chip, but a wardrobe full of jackets
++ * still needs to read as outerwear here.
++ */
++export const ANALYSIS_CATEGORY_KEYS = [
++  'one_piece',
++  'outerwear',
++  'top',
++  'bottom',
++  'shoes',
++  'accessory',
++] as const;
++
++export type AnalysisCategoryKey =
++  | (typeof ANALYSIS_CATEGORY_KEYS)[number]
++  | 'other';
++
++export interface CategorySlice {
++  key: AnalysisCategoryKey;
++  count: number;
++  /** Share of ALL items, 0–100, rounded for display. */
++  percent: number;
++}
++
++/**
++ * Classify one item into exactly one bucket. Order is precedence, and it is
++ * deliberate: the synonym lists overlap (a "denim jacket" contains neither
++ * "top" nor "bottom", but a "wrap dress jacket" would match both `one_piece`
++ * and `outerwear`), so the most specific families are tested first and the
++ * first hit wins. Without this an item would be double-counted and the donut
++ * would sum past 100%.
++ */
++export const classifyCategory = (item: WardrobeItem): AnalysisCategoryKey => {
++  const match = ANALYSIS_CATEGORY_KEYS.find(key =>
++    matchesCategoryFilter(item.category, key),
++  );
++  return match ?? 'other';
++};
++
++/**
++ * Count + percentage per bucket, largest first.
++ *
++ * Empty buckets are dropped so the legend only lists what the user actually
++ * owns. `other` (an unrecognised or missing category) is kept when non-empty
++ * rather than silently discarded — dropping it would make the visible slices
++ * sum to less than the centre total with no explanation.
++ *
++ * Percentages are rounded independently and can therefore sum to 99 or 101.
++ * That is intentional: the donut is drawn from raw counts, so the arcs stay
++ * exact and only the printed labels round.
++ */
++export const buildCategoryBalance = (
++  items: WardrobeItem[],
++): CategorySlice[] => {
++  if (items.length === 0) {
++    return [];
++  }
++
++  const counts = new Map<AnalysisCategoryKey, number>();
++  items.forEach(item => {
++    const key = classifyCategory(item);
++    counts.set(key, (counts.get(key) ?? 0) + 1);
++  });
++
++  return [...counts.entries()]
++    .map(([key, count]) => ({
++      key,
++      count,
++      percent: Math.round((count / items.length) * 100),
++    }))
++    .sort((a, b) => b.count - a.count || a.key.localeCompare(b.key));
++};
+diff --git a/src/screens/wardrobe/analysis/wardrobe-analysis-color.ts b/src/screens/wardrobe/analysis/wardrobe-analysis-color.ts
+new file mode 100644
+index 0000000..1cccf64
+--- /dev/null
++++ b/src/screens/wardrobe/analysis/wardrobe-analysis-color.ts
+@@ -0,0 +1,216 @@
++import { WardrobeItem } from '../../../services/wardrobeService';
++
++/**
++ * Colour distribution — the horizontal swatch strip on the Wardrobe Analysis
++ * page.
++ *
++ * Items carry colour in three inconsistent shapes depending on how they were
++ * added (`color_hex` from the auto-tagger, a `dominant_color` name from the
++ * catalog, or a free-form `colors[]` list). This module normalises all three
++ * into one of thirteen named buckets so "navy", "#2b3a67" and "midnight blue"
++ * all read as Blue instead of three one-item slivers.
++ */
++export const COLOR_KEYS = [
++  'black',
++  'white',
++  'gray',
++  'beige',
++  'brown',
++  'red',
++  'orange',
++  'yellow',
++  'green',
++  'teal',
++  'blue',
++  'purple',
++  'pink',
++] as const;
++
++export type ColorKey = (typeof COLOR_KEYS)[number];
++
++export interface ColorShare {
++  key: ColorKey;
++  count: number;
++  /** Share of the items that HAVE a resolvable colour, 0–100. */
++  percent: number;
++}
++
++/** Colour words the backend/catalog uses, mapped onto our buckets. */
++const COLOR_WORDS: Record<ColorKey, string[]> = {
++  black: ['black', 'charcoal', 'onyx'],
++  white: ['white', 'ivory', 'cream', 'off-white'],
++  gray: ['gray', 'grey', 'silver', 'slate'],
++  beige: ['beige', 'tan', 'sand', 'khaki', 'camel', 'nude', 'taupe'],
++  brown: ['brown', 'chocolate', 'coffee', 'mocha', 'espresso'],
++  red: ['red', 'burgundy', 'maroon', 'crimson', 'wine'],
++  orange: ['orange', 'rust', 'terracotta', 'apricot', 'peach'],
++  yellow: ['yellow', 'gold', 'mustard', 'lemon'],
++  green: ['green', 'olive', 'sage', 'emerald', 'mint'],
++  teal: ['teal', 'turquoise', 'aqua', 'cyan'],
++  blue: ['blue', 'navy', 'denim', 'indigo', 'cobalt'],
++  purple: ['purple', 'violet', 'lilac', 'lavender', 'plum'],
++  pink: ['pink', 'rose', 'blush', 'magenta', 'fuchsia'],
++};
++
++const HEX_PATTERN = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i;
++
++/** Expand `#abc` → `[170, 187, 204]`. Returns null for anything unparseable. */
++const parseHex = (raw: string): [number, number, number] | null => {
++  const match = HEX_PATTERN.exec(raw.trim());
++  if (!match) {
++    return null;
++  }
++  const digits = match[1];
++  const full =
++    digits.length === 3
++      ? digits
++          .split('')
++          .map(d => d + d)
++          .join('')
++      : digits;
++  return [
++    parseInt(full.slice(0, 2), 16),
++    parseInt(full.slice(2, 4), 16),
++    parseInt(full.slice(4, 6), 16),
++  ];
++};
++
++/** Below this chroma a colour is treated as a neutral, not a hue. */
++const NEUTRAL_CHROMA = 0.1;
++/** Warm hues below this chroma read as brown/beige rather than orange/yellow. */
++const EARTH_CHROMA = 0.35;
++
++/**
++ * Bucket an RGB triple: neutrals first, then by hue.
++ *
++ * The achromatic checks run FIRST and are what make the strip useful. Garment
++ * photography is full of near-grey pixels whose hue is numerically well-defined
++ * but visually meaningless (a black tee samples as a very dark blue), so
++ * testing hue first would scatter every neutral across the chromatic buckets
++ * and bury the black/white/grey majority most wardrobes actually have.
++ *
++ * The neutral test uses CHROMA (raw max−min), not HSL saturation. HSL
++ * saturation divides by the distance from the lightness extremes, so it
++ * explodes near black and white — `rgb(250,249,252)` is 1% chroma but 33% HSL
++ * saturation, and a saturation-gated test would call that off-white "purple".
++ * Chroma stays meaningful at every lightness.
++ */
++export const classifyRgb = (r: number, g: number, b: number): ColorKey => {
++  const max = Math.max(r, g, b);
++  const min = Math.min(r, g, b);
++  const delta = max - min;
++  const lightness = (max + min) / 2 / 255;
++  const chroma = delta / 255;
++
++  if (lightness <= 0.14) {
++    return 'black';
++  }
++  if (lightness >= 0.88 && chroma < NEUTRAL_CHROMA) {
++    return 'white';
++  }
++  if (chroma < NEUTRAL_CHROMA) {
++    return 'gray';
++  }
++
++  // Hue in degrees, 0 = red.
++  let hue: number;
++  if (max === r) {
++    hue = ((g - b) / delta) % 6;
++  } else if (max === g) {
++    hue = (b - r) / delta + 2;
++  } else {
++    hue = (r - g) / delta + 4;
++  }
++  hue = (hue * 60 + 360) % 360;
++
++  // Warm, muted and dark reads as brown; warm, muted and light reads as beige.
++  // Both would otherwise be mislabelled orange/yellow.
++  if (hue < 45 && chroma < EARTH_CHROMA) {
++    return lightness < 0.45 ? 'brown' : 'beige';
++  }
++  if (hue < 15 || hue >= 345) return 'red';
++  if (hue < 45) return 'orange';
++  if (hue < 70) return 'yellow';
++  if (hue < 160) return 'green';
++  if (hue < 200) return 'teal';
++  if (hue < 260) return 'blue';
++  if (hue < 310) return 'purple';
++  return 'pink';
++};
++
++const classifyWord = (raw: string): ColorKey | null => {
++  const word = raw.trim().toLowerCase();
++  if (!word) {
++    return null;
++  }
++  const hit = COLOR_KEYS.find(key =>
++    COLOR_WORDS[key].some(candidate => word.includes(candidate)),
++  );
++  return hit ?? null;
++};
++
++/**
++ * One item → one bucket, or null when it carries no usable colour.
++ *
++ * `color_hex` wins because it is measured from the actual image; the name
++ * fields are human/catalog labels and are only consulted as a fallback.
++ */
++export const classifyItemColor = (item: WardrobeItem): ColorKey | null => {
++  if (typeof item.color_hex === 'string') {
++    const rgb = parseHex(item.color_hex);
++    if (rgb) {
++      return classifyRgb(rgb[0], rgb[1], rgb[2]);
++    }
++  }
++
++  const names = [
++    item.dominant_color,
++    ...(Array.isArray(item.colors) ? item.colors : []),
++  ].filter((name): name is string => typeof name === 'string');
++
++  for (const name of names) {
++    const rgb = parseHex(name);
++    if (rgb) {
++      return classifyRgb(rgb[0], rgb[1], rgb[2]);
++    }
++    const word = classifyWord(name);
++    if (word) {
++      return word;
++    }
++  }
++
++  return null;
++};
++
++/**
++ * Buckets with at least one item, largest first.
++ *
++ * Percentages are of the COLOURED population, not of the whole wardrobe, so a
++ * user whose items are half untagged still sees shares that sum to ~100 rather
++ * than a strip that mysteriously only fills half the row.
++ */
++export const buildColorDistribution = (items: WardrobeItem[]): ColorShare[] => {
++  const counts = new Map<ColorKey, number>();
++  let classified = 0;
++
++  items.forEach(item => {
++    const key = classifyItemColor(item);
++    if (!key) {
++      return;
++    }
++    classified += 1;
++    counts.set(key, (counts.get(key) ?? 0) + 1);
++  });
++
++  if (classified === 0) {
++    return [];
++  }
++
++  return [...counts.entries()]
++    .map(([key, count]) => ({
++      key,
++      count,
++      percent: Math.round((count / classified) * 100),
++    }))
++    .sort((a, b) => b.count - a.count || a.key.localeCompare(b.key));
++};
+diff --git a/src/screens/wardrobe/analysis/wardrobe-analysis-style.ts b/src/screens/wardrobe/analysis/wardrobe-analysis-style.ts
+new file mode 100644
+index 0000000..1f3488e
+--- /dev/null
++++ b/src/screens/wardrobe/analysis/wardrobe-analysis-style.ts
+@@ -0,0 +1,119 @@
++import { WardrobeItem } from '../../../services/wardrobeService';
++
++/**
++ * Style profile — the five horizontal bars on the Wardrobe Analysis page.
++ *
++ * Unlike the category donut these are NOT a partition: one item can be both
++ * minimal and casual, so the bars are independent shares and are expected to
++ * sum past 100%. Each bar answers "what share of your wardrobe reads as X".
++ */
++export const STYLE_KEYS = [
++  'minimal',
++  'casual',
++  'classic',
++  'soft',
++  'bold',
++] as const;
++
++export type StyleKey = (typeof STYLE_KEYS)[number];
++
++export interface StyleShare {
++  key: StyleKey;
++  count: number;
++  /** Share of all items, 0–100, rounded for display. */
++  percent: number;
++}
++
++/**
++ * Substring keywords matched against an item's `style_tags` and
++ * `formality_level`. Substrings (not equality) so backend variants like
++ * "smart-casual", "minimalist" or "statement-piece" land in the right bucket
++ * without an exhaustive enum the backend never promised to honour.
++ */
++const STYLE_KEYWORDS: Record<StyleKey, string[]> = {
++  minimal: ['minimal', 'basic', 'simple', 'clean', 'neutral', 'essential'],
++  casual: ['casual', 'everyday', 'relaxed', 'sport', 'street', 'weekend'],
++  classic: [
++    'classic',
++    'formal',
++    'business',
++    'smart',
++    'timeless',
++    'elegant',
++    'tailored',
++  ],
++  soft: ['soft', 'romantic', 'feminine', 'pastel', 'cozy', 'delicate', 'flow'],
++  bold: [
++    'bold',
++    'statement',
++    'vibrant',
++    'edgy',
++    'print',
++    'pattern',
++    'bright',
++    'graphic',
++  ],
++};
++
++/**
++ * Control tags the app writes into `style_tags` for its own bookkeeping
++ * (favourite flag, less-used flag, `fit:*` sizing hints). They describe the
++ * user's relationship to the item, not its style, so they must never feed a
++ * style bar — `fit:relaxed` would otherwise register the item as casual.
++ */
++const CONTROL_TAG_PREFIXES = ['fit:'];
++const CONTROL_TAGS = ['favorite', 'favourite', 'less-used'];
++
++const isControlTag = (tag: string): boolean =>
++  CONTROL_TAGS.includes(tag) ||
++  CONTROL_TAG_PREFIXES.some(prefix => tag.startsWith(prefix));
++
++/** The lowercase style vocabulary an item contributes, control tags stripped. */
++const styleVocabulary = (item: WardrobeItem): string[] => {
++  const tags = Array.isArray(item.style_tags) ? item.style_tags : [];
++  const words = tags
++    .filter((tag): tag is string => typeof tag === 'string')
++    .map(tag => tag.trim().toLowerCase())
++    .filter(tag => tag.length > 0 && !isControlTag(tag));
++
++  const formality = item.formality_level?.trim().toLowerCase();
++  return formality ? [...words, formality] : words;
++};
++
++export const matchesStyle = (item: WardrobeItem, key: StyleKey): boolean => {
++  const vocabulary = styleVocabulary(item);
++  return vocabulary.some(word =>
++    STYLE_KEYWORDS[key].some(keyword => word.includes(keyword)),
++  );
++};
++
++/**
++ * All five shares, largest first. Zero-share styles are kept: "you own nothing
++ * bold" is itself a reading of the wardrobe, and dropping the row would make
++ * the chart's height jump around as items are added.
++ */
++export const buildStyleProfile = (items: WardrobeItem[]): StyleShare[] => {
++  if (items.length === 0) {
++    return [];
++  }
++
++  return STYLE_KEYS.map(key => {
++    const count = items.filter(item => matchesStyle(item, key)).length;
++    return {
++      key,
++      count,
++      percent: Math.round((count / items.length) * 100),
++    };
++  }).sort((a, b) => b.count - a.count || STYLE_KEYS.indexOf(a.key) - STYLE_KEYS.indexOf(b.key));
++};
++
++/**
++ * The style the insight card speaks to — the strongest bar, or `null` when no
++ * item carries any style signal at all (a wardrobe of untagged uploads). The
++ * caller renders no card in that case rather than asserting a style the data
++ * doesn't support.
++ */
++export const dominantStyle = (profile: StyleShare[]): StyleKey | null => {
++  const top = profile.find(share => share.count > 0);
++  return top ? top.key : null;
++};
+diff --git a/src/screens/wardrobe/analysis/wardrobe-analysis-worn.ts b/src/screens/wardrobe/analysis/wardrobe-analysis-worn.ts
+new file mode 100644
+index 0000000..f16f997
+--- /dev/null
++++ b/src/screens/wardrobe/analysis/wardrobe-analysis-worn.ts
+@@ -0,0 +1,43 @@
++import { WardrobeItem } from '../../../services/wardrobeService';
++import { sortWardrobeItems } from '../wardrobe-sort';
++
++/** How many tiles each of the two worn rows shows. */
++export const WORN_ROW_LIMIT = 8;
++
++export interface WornEntry {
++  item: WardrobeItem;
++  /**
++   * Times worn, or null when the backend hasn't sent `exposure_count` for this
++   * item. Null renders no badge — an absent count is not a zero, and printing
++   * "0" over a shirt the user wears weekly is worse than printing nothing.
++   */
++  count: number | null;
++}
++
++/**
++ * The backend's numeric wear counter. Reached through `WardrobeItem`'s index
++ * signature (so it arrives typed `unknown`) because the field is optional and
++ * not yet in the declared interface — see `wardrobe-sort.ts`, which orders the
++ * grid off the same value.
++ */
++export const exposureCount = (item: WardrobeItem): number | null => {
++  const raw = item.exposure_count;
++  return typeof raw === 'number' && Number.isFinite(raw) ? raw : null;
++};
++
++/**
++ * The most- / least-worn tiles.
++ *
++ * Ordering is delegated to `sortWardrobeItems` rather than re-implemented, so
++ * these rows and the grid's own "Most worn" sort can never disagree about what
++ * "most worn" means — including its fallback to the coarse `usage_frequency`
++ * enum when no numeric count exists.
++ */
++export const pickWornItems = (
++  items: WardrobeItem[],
++  direction: 'most' | 'least',
++  limit: number = WORN_ROW_LIMIT,
++): WornEntry[] =>
++  sortWardrobeItems(items, direction === 'most' ? 'worn_desc' : 'worn_asc')
++    .slice(0, limit)
++    .map(item => ({ item, count: exposureCount(item) }));
+diff --git a/src/services/favouriteService.ts b/src/services/favouriteService.ts
+index 50fc064..00182aa 100644
+--- a/src/services/favouriteService.ts
++++ b/src/services/favouriteService.ts
+@@ -9,6 +9,14 @@ import { Item } from '../types/item';
+ // of hanging, which is strictly better.
+ const SAVE_FAVOURITE_TIMEOUT_MS = 15000;
+ 
++/**
++ * Shared TanStack Query key for the saved-outfit list. Lives here (not in the
++ * screen) so every consumer — the Favourite page and the Wardrobe Analysis
++ * counter — reads ONE cache entry instead of each issuing its own
++ * `GET /favorites`, and so an invalidate after a remove refreshes both.
++ */
++export const FAVOURITES_QUERY_KEY = ['favourites'] as const;
++
+ export interface SaveFavouritePayload {
+   outfit_hash: string;
+   item_ids: string[];
+diff --git a/src/theme/theme.ts b/src/theme/theme.ts
+index 0cf428b..ce594e8 100644
+--- a/src/theme/theme.ts
++++ b/src/theme/theme.ts
+@@ -455,6 +455,62 @@ export const theme = {
+       // offset/opacity/radius. Replaces the raw `#000000`/`#000` shadowColor
+       // literals the token-lint flagged in dialog/sheet/floating components.
+       shadow: '#000000',
++      /**
++       * Wardrobe Analysis data-viz palette. Two distinct roles — don't mix them:
++       *
++       * `chart.category[]` is a CATEGORICAL series ramp: index N has no meaning
++       * beyond "not the neighbours". It is consumed positionally by the
++       * category-balance donut, so the order is load-bearing — appending is safe,
++       * reordering re-colours every user's chart.
++       *
++       * `chart.style` keys the style-profile bars by style name, so a style keeps
++       * its colour no matter where it lands in the sorted list.
++       *
++       * Warm-neutral family, sampled to stay legible on the `cream` card surface
++       * and to read as one system with the rest of the warm-paper palette.
++       */
++      chart: {
++        category: [
++          '#4d7c7c', // slate teal — first/largest slice
++          '#e09a5f', // warm ochre
++          '#e5d5a8', // sand
++          '#a85c4a', // terracotta
++          '#5f9ea0', // muted teal
++          '#efe4c4', // pale sand
++          '#9e968e', // warm gray — reserved tail / "Other"
++        ],
++        style: {
++          minimal: '#4d7c7c',
++          casual: '#5f9ea0',
++          classic: '#a85c4a',
++          soft: '#e5c98a',
++          bold: '#e09a5f',
++        },
++        /** Track behind a style-profile bar. */
++        track: '#e9e4de',
++      },
++      /**
++       * Representative swatches for the garment-colour buckets in the analysis
++       * colour distribution. These stand in for the CLASSIFIED bucket, not for
++       * any one item's own `color_hex` — a navy and a sky item both land in
++       * `blue` and the strip paints this single tone, so the row stays readable
++       * instead of becoming a gradient of near-duplicates.
++       */
++      swatch: {
++        black: '#121212',
++        white: '#fbfbfb',
++        gray: '#d4d4d4',
++        beige: '#e3d5c3',
++        brown: '#6f4e37',
++        red: '#c0392b',
++        orange: '#e08a3c',
++        yellow: '#f2d33c',
++        green: '#4f8a4b',
++        teal: '#2ec4b6',
++        blue: '#2b3a67',
++        purple: '#7d5ba6',
++        pink: '#e59bb0',
++      },
+     },
+     radius: {
+       xs: 2, // checkbox
+diff --git a/src/translations/en-EN.json b/src/translations/en-EN.json
+index 7fd4d0b..c307aee 100644
+--- a/src/translations/en-EN.json
++++ b/src/translations/en-EN.json
+@@ -324,6 +324,70 @@
+           "short_least_worn": "Least worn"
+         }
+       },
++      "analysis": {
++        "chip": "Analysis",
++        "title": "Wardrobe Analysis",
++        "a11y_open": "Open wardrobe analysis",
++        "total_items": "Total items",
++        "total_favourites": "Total favourite",
++        "total_creations": "Total creations",
++        "category_balance": "Category Balance",
++        "style_profile": "Your style profile",
++        "color_distribution": "Color Distribution",
++        "most_worn": "Most worn items",
++        "least_worn": "Least worn items",
++        "percent": "{{percent}}%",
++        "legend_value": "{{percent}}% ({{count}})",
++        "empty_title": "Nothing to analyse yet",
++        "empty_body": "Add a few pieces to your wardrobe and your style breakdown will appear here.",
++        "a11y_insight_expand": "Expand style insight",
++        "a11y_insight_collapse": "Collapse style insight",
++        "category": {
++          "top": "Tops",
++          "bottom": "Bottoms",
++          "one_piece": "One-Piece",
++          "outerwear": "Outerwear",
++          "shoes": "Shoes",
++          "accessory": "Accessories",
++          "other": "Other"
++        },
++        "style": {
++          "minimal": "Minimal",
++          "casual": "Casual",
++          "classic": "Classic",
++          "soft": "Soft",
++          "bold": "Bold"
++        },
++        "color": {
++          "black": "Black",
++          "white": "White",
++          "gray": "Grey",
++          "beige": "Beige",
++          "brown": "Brown",
++          "red": "Red",
++          "orange": "Orange",
++          "yellow": "Yellow",
++          "green": "Green",
++          "teal": "Teal",
++          "blue": "Blue",
++          "purple": "Purple",
++          "pink": "Pink"
++        },
++        "insight": {
++          "minimal": "You love minimal and neutral pieces. Perfect foundation for versatile outfits",
++          "casual": "Your wardrobe leans casual and easy. Built for days that move fast",
++          "classic": "You favour classic, tailored pieces. A wardrobe that always reads polished",
++          "soft": "Soft, gentle pieces lead your wardrobe. Comfort and warmth come first",
++          "bold": "You reach for bold, expressive pieces. Your wardrobe is anything but quiet"
++        },
++        "insight_detail": {
++          "minimal": "Minimal pieces mix with almost anything, so most of your items already work together. Adding one strong colour or texture gives you a focal point without breaking the balance.",
++          "casual": "Casual pieces carry your everyday. A couple of smarter items would let the same wardrobe stretch to occasions it currently can't cover.",
++          "classic": "Classic pieces age well and rarely date. Pairing them with something relaxed keeps outfits from reading formal when you don't want them to.",
++          "soft": "Soft pieces layer beautifully together. A firmer silhouette — structured shoulders, a defined waist — adds contrast where outfits feel flat.",
++          "bold": "Bold pieces are best one at a time. Quiet neutrals give each statement item room to be the thing people notice."
++        }
++      },
+       "database": {
+         "title": "Database",
+         "empty": "No items to select yet",
+diff --git a/src/translations/fr-FR.json b/src/translations/fr-FR.json
+index 07e3e26..36329b7 100644
+--- a/src/translations/fr-FR.json
++++ b/src/translations/fr-FR.json
+@@ -324,6 +324,70 @@
+           "short_least_worn": "Le moins porté"
+         }
+       },
++      "analysis": {
++        "chip": "Analyse",
++        "title": "Analyse de la garde-robe",
++        "a11y_open": "Ouvrir l'analyse de la garde-robe",
++        "total_items": "Total d'articles",
++        "total_favourites": "Total de favoris",
++        "total_creations": "Total de créations",
++        "category_balance": "Équilibre des catégories",
++        "style_profile": "Votre profil de style",
++        "color_distribution": "Répartition des couleurs",
++        "most_worn": "Articles les plus portés",
++        "least_worn": "Articles les moins portés",
++        "percent": "{{percent}} %",
++        "legend_value": "{{percent}} % ({{count}})",
++        "empty_title": "Rien à analyser pour l'instant",
++        "empty_body": "Ajoutez quelques pièces à votre garde-robe et votre profil de style apparaîtra ici.",
++        "a11y_insight_expand": "Développer l'analyse de style",
++        "a11y_insight_collapse": "Réduire l'analyse de style",
++        "category": {
++          "top": "Hauts",
++          "bottom": "Bas",
++          "one_piece": "Une pièce",
++          "outerwear": "Manteaux",
++          "shoes": "Chaussures",
++          "accessory": "Accessoires",
++          "other": "Autre"
++        },
++        "style": {
++          "minimal": "Minimal",
++          "casual": "Décontracté",
++          "classic": "Classique",
++          "soft": "Doux",
++          "bold": "Audacieux"
++        },
++        "color": {
++          "black": "Noir",
++          "white": "Blanc",
++          "gray": "Gris",
++          "beige": "Beige",
++          "brown": "Marron",
++          "red": "Rouge",
++          "orange": "Orange",
++          "yellow": "Jaune",
++          "green": "Vert",
++          "teal": "Turquoise",
++          "blue": "Bleu",
++          "purple": "Violet",
++          "pink": "Rose"
++        },
++        "insight": {
++          "minimal": "Vous aimez les pièces minimales et neutres. Une base parfaite pour des tenues polyvalentes",
++          "casual": "Votre garde-robe penche vers le décontracté. Pensée pour les journées qui vont vite",
++          "classic": "Vous privilégiez les pièces classiques et ajustées. Une garde-robe toujours soignée",
++          "soft": "Les pièces douces dominent votre garde-robe. Le confort passe avant tout",
++          "bold": "Vous choisissez des pièces audacieuses. Votre garde-robe ne passe pas inaperçue"
++        },
++        "insight_detail": {
++          "minimal": "Les pièces minimales se marient avec presque tout : la plupart de vos articles fonctionnent déjà ensemble. Une couleur ou une texture forte apporterait un point focal sans rompre l'équilibre.",
++          "casual": "Le décontracté porte votre quotidien. Quelques pièces plus habillées permettraient à la même garde-robe de couvrir des occasions qu'elle n'atteint pas encore.",
++          "classic": "Les pièces classiques vieillissent bien et se démodent peu. Les associer à quelque chose de relâché évite que les tenues paraissent formelles quand vous ne le souhaitez pas.",
++          "soft": "Les pièces douces se superposent très bien. Une silhouette plus structurée apporte du contraste là où les tenues manquent de relief.",
++          "bold": "Les pièces audacieuses se portent une à la fois. Des neutres discrets laissent à chaque pièce forte la place d'être remarquée."
++        }
++      },
+       "database": {
+         "title": "Base de données",
+         "empty": "Aucun article à sélectionner",
+diff --git a/src/translations/vi-VN.json b/src/translations/vi-VN.json
+index c89c19f..91f9939 100644
+--- a/src/translations/vi-VN.json
++++ b/src/translations/vi-VN.json
+@@ -324,6 +324,70 @@
+           "short_least_worn": "Mặc ít nhất"
+         }
+       },
++      "analysis": {
++        "chip": "Phân tích",
++        "title": "Phân tích tủ đồ",
++        "a11y_open": "Mở phân tích tủ đồ",
++        "total_items": "Tổng số món",
++        "total_favourites": "Tổng yêu thích",
++        "total_creations": "Tổng sáng tạo",
++        "category_balance": "Cân bằng danh mục",
++        "style_profile": "Hồ sơ phong cách của bạn",
++        "color_distribution": "Phân bố màu sắc",
++        "most_worn": "Món mặc nhiều nhất",
++        "least_worn": "Món mặc ít nhất",
++        "percent": "{{percent}}%",
++        "legend_value": "{{percent}}% ({{count}})",
++        "empty_title": "Chưa có gì để phân tích",
++        "empty_body": "Thêm vài món vào tủ đồ, phân tích phong cách của bạn sẽ hiện ở đây.",
++        "a11y_insight_expand": "Mở rộng nhận định phong cách",
++        "a11y_insight_collapse": "Thu gọn nhận định phong cách",
++        "category": {
++          "top": "Áo",
++          "bottom": "Quần & váy",
++          "one_piece": "Đầm liền",
++          "outerwear": "Áo khoác",
++          "shoes": "Giày",
++          "accessory": "Phụ kiện",
++          "other": "Khác"
++        },
++        "style": {
++          "minimal": "Tối giản",
++          "casual": "Thường ngày",
++          "classic": "Cổ điển",
++          "soft": "Nhẹ nhàng",
++          "bold": "Nổi bật"
++        },
++        "color": {
++          "black": "Đen",
++          "white": "Trắng",
++          "gray": "Xám",
++          "beige": "Be",
++          "brown": "Nâu",
++          "red": "Đỏ",
++          "orange": "Cam",
++          "yellow": "Vàng",
++          "green": "Xanh lá",
++          "teal": "Xanh ngọc",
++          "blue": "Xanh dương",
++          "purple": "Tím",
++          "pink": "Hồng"
++        },
++        "insight": {
++          "minimal": "Bạn yêu những món tối giản và trung tính. Nền tảng hoàn hảo cho nhiều cách phối",
++          "casual": "Tủ đồ của bạn nghiêng về thường ngày. Hợp với những ngày bận rộn",
++          "classic": "Bạn ưu tiên những món cổ điển, form chuẩn. Tủ đồ luôn chỉn chu",
++          "soft": "Những món nhẹ nhàng chiếm phần lớn tủ đồ. Sự thoải mái được đặt lên trước",
++          "bold": "Bạn chọn những món nổi bật. Tủ đồ của bạn không hề trầm lặng"
++        },
++        "insight_detail": {
++          "minimal": "Món tối giản dễ phối với hầu hết mọi thứ, nên phần lớn tủ đồ của bạn đã hợp nhau sẵn. Thêm một màu hoặc chất liệu mạnh sẽ tạo điểm nhấn mà không phá vỡ sự cân bằng.",
++          "casual": "Đồ thường ngày lo phần lớn lịch sinh hoạt của bạn. Vài món chỉn chu hơn sẽ giúp cùng tủ đồ đó phủ được những dịp hiện chưa đáp ứng.",
++          "classic": "Món cổ điển bền theo thời gian và ít lỗi mốt. Phối cùng thứ gì đó thoải mái sẽ tránh cho bộ đồ trông quá trang trọng khi bạn không muốn.",
++          "soft": "Món nhẹ nhàng layer rất hợp nhau. Một dáng đồ cứng cáp hơn sẽ tạo tương phản ở chỗ bộ đồ đang thiếu điểm nhấn.",
++          "bold": "Món nổi bật nên dùng mỗi lần một món. Những gam trung tính trầm sẽ chừa chỗ để món đó thực sự được chú ý."
++        }
++      },
+       "database": {
+         "title": "Cơ sở dữ liệu",
+         "empty": "Chưa có món nào để chọn",
+diff --git a/src/types/navigation.ts b/src/types/navigation.ts
+index c585290..053ef39 100644
+--- a/src/types/navigation.ts
++++ b/src/types/navigation.ts
+@@ -140,6 +140,12 @@ export type AppStackParamList = {
+   Wardrobe:
+     | { mode?: 'select'; excludeItemId?: string; pendingImportUrl?: string }
+     | undefined;
++  // Wardrobe Analysis — derived stats over the user's wardrobe (category
++  // balance, style profile, colour distribution, most/least worn). Reached from
++  // the "Analysis" chip on the wardrobe grid. Takes no params: every figure is
++  // computed from the shared wardrobe query cache, so the route carries no
++  // state of its own.
++  WardrobeAnalysis: undefined;
+   // `returnToSchedule` is set when the user reached this page via the Schedule
+   // "+" source picker — after scheduling an outfit we send them back to
+   // Schedule (focused on the chosen day) instead of staying here. `scheduleDate`
+-- 
+2.43.0
+
+
+From dd4720e0b5aa595ef5f2117b083c11af8eea0c73 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Thu, 30 Jul 2026 03:23:21 +0000
+Subject: [PATCH 2/2] feat(web-review): register wardrobe-analysis in the
+ shareable-screens picker
+
+The screen is param-free and lives in the App stack, so it meets the registry's
+v1 scope rule. Without the entry the sandbox picker can't reach it and there is
+no shareable ?screen= link for the designer to review it at.
+---
+ web/share/shareable-screens.ts | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/web/share/shareable-screens.ts b/web/share/shareable-screens.ts
+index c036d3a..f0a6b4b 100644
+--- a/web/share/shareable-screens.ts
++++ b/web/share/shareable-screens.ts
+@@ -94,6 +94,13 @@ export const SHAREABLE_SCREENS: ShareableScreen[] = [
+     authState: 'app',
+     target: { kind: 'app', name: 'Wardrobe' },
+   },
++  {
++    key: 'wardrobe-analysis',
++    label: 'Wardrobe · analysis',
++    group: 'App',
++    authState: 'app',
++    target: { kind: 'app', name: 'WardrobeAnalysis' },
++  },
+   {
+     key: 'favourite',
+     label: 'Favourite',
+-- 
+2.43.0
+
