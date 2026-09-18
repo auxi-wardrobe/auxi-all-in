@@ -208,3 +208,78 @@ original instead of a blank tile.
 3. Do SYSTEM items carry `image_studio` at all, or only `image_png`? Only the latter
    is covered by the backfill script; recovery for the former may need a new path.
 4. Is `auxi-web` affected by the same resolver precedence? Not checked.
+
+---
+
+# ADDENDUM — 2026-09-18: reproduced on a fresh account, fixes shipped
+
+CEO created a new account and saw **many** items with no image. Re-investigated
+against current `main` of each repo. Three things changed since the report above.
+
+## 1. The backend hole is already closed (not by this session)
+
+`auxi-backend` `ac9bd56` — *"fix: don't delete shared onboarding-clone image
+blobs on reset/delete account"*, **2026-09-17** — landed the §6.1 fix and went
+further:
+
+- `_wardrobe_urls` now collects `image_png`/`image_studio`/
+  `image_studio_candidate` **only** when `is_cloned_from_common` is false.
+- New `_key_still_referenced` gate in `delete_reset_storage_objects`: before
+  deleting any key, check whether another non-deleted wardrobe row (any owner,
+  SYSTEM included) still points at it. Defense in depth.
+- Both test suites' clone fixtures were rewritten to the real post-AU-437 shape
+  (`_onboarding_clone_item` + `_system_catalog_item` sharing one `processed/`
+  URL), so §3's blind-fixture problem is fixed too.
+
+That closes the §6.1 and §6.2 items. **Verdict: correct and well-tested.**
+
+## 2. But it is forward-looking only — which is why a NEW account is still broken
+
+Nothing restored the blobs already destroyed. SYSTEM rows still carry
+`image_png`/`image_studio` pointing at `processed/` keys that 404, and every new
+onboarding clone copies those dead URLs verbatim. So a brand-new account still
+renders blank tiles. **The §6.3 recovery step was never done.**
+
+Independently confirmed the fallback target is intact: 8/8 sampled catalog
+originals return **HTTP 200**:
+
+```
+HTTP 200 ct=image/png size=666124  .../common_items/OUTERWEAR_M_U/SYS_L3_BOM_GRN_PUF_01.png
+HTTP 200 ct=image/png size=558162  .../common_items/OUTERWEAR_M_U/SYS_L3_VES_BLK_PUF_01.png
+... (8/8)
+```
+
+So the original photo under every broken cutout is alive. That rules out a
+`S3_PUBLIC_DOMAIN` change (H3) for the `common_items/` prefix and makes the
+client-side fallback a complete fix for the symptom.
+
+## 3. Two shipped fixes
+
+| PR | What |
+|---|---|
+| [auxi-mobile#333](https://github.com/auxi-wardrobe/auxi-mobile/pull/333) | `resolveItemImageSources` (ordered chain) + `useImageFallback` (retire a candidate on load error, tracked by URL not index), wired into the wardrobe grid, Database grid and item detail. A dead cutout now degrades to the live original instead of a blank tile. |
+| `auxi-backend` `scripts/repair_dead_processed_images.py` | HEAD-probes every `processed/` URL in `wardrobe_items`, nulls only the ones that return 404/403/410, leaves inconclusive probes (timeout, 5xx) alone. One probe per distinct URL. `--dry-run`/`--limit`/`--batch-size`. After it runs, `backfill_cutout_images.py` regenerates `image_png` from the surviving original. |
+
+Why both: two independent bugs had to line up to blank a tile — the blobs were
+deleted (fixed) **and** the client had no fallback (fixed now). Repairing only
+the data leaves the app one deletion away from blank tiles again.
+
+## Corrections to the report above
+
+- §4 timeline: add `ac9bd56` (2026-09-17) — hole closed.
+- §6.1 and §6.2: **done**, by `ac9bd56`, not by this session.
+- §6.3: still open, now has a script; needs prod `DATABASE_URL` to run.
+- §6.4: **done** — auxi-mobile#333.
+- §5's "no commit touches `user_data_storage_cleanup.py` after 2026-07-27" is
+  no longer true.
+
+## Still unresolved
+
+1. Nobody has run the repair against prod. It needs `DATABASE_URL` + network to
+   R2; this session has neither. Until then every new signup keeps inheriting
+   dead URLs, and the mobile fallback only helps once auxi-mobile#333 ships.
+2. Exact damage count still unknown — `--dry-run` answers it in one pass.
+3. `image_studio` on SYSTEM rows: `backfill_cutout_images.py` only regenerates
+   `image_png`, so any nulled `image_studio` stays null (harmless — precedence
+   falls to `image_png`, then the original — but worth knowing).
+4. No simulator run on auxi-mobile#333 — no macOS/iOS sim in this environment.
