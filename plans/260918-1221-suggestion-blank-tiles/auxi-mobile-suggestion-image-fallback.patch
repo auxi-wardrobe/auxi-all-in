@@ -1,3 +1,23 @@
+diff --git a/docs/analytics/mixpanel-tracking-plan.md b/docs/analytics/mixpanel-tracking-plan.md
+index d347e80..bcde06d 100644
+--- a/docs/analytics/mixpanel-tracking-plan.md
++++ b/docs/analytics/mixpanel-tracking-plan.md
+@@ -143,6 +143,7 @@ Comprehensive instrumentation landed 2026-06-16 per `plans/260616-0950-mixpanel-
+ | `wardrobe_url_import_completed` (PR #215) | Web-image import created the wardrobe item | `WardrobeScreen.tsx:185` | `method` (`import_web`), `item_id?`, `category?` |
+ | `wardrobe_url_import_failed` (PR #215) | Web-image import threw (network / service) | `WardrobeScreen.tsx:192` | — |
+ | `add_item_method_selected` `import_web` | "Import from web" method picked in the add sheet | `WardrobeScreen.tsx:326` | `method` (`import_web`) |
++| `item_image_fallback_used` | A garment image URL failed to load and the ordered chain (`image_studio` → `image_png` → `image_url`) fell back to the next candidate. Fired from the single seam every garment surface walks — NOT at the ~14 render sites. Deduped per failed URL per session (Set pattern, mirrors `trackRecommendationViewedOnce`): one rotten catalog blob is shared by every clone and re-renders on every grid scroll, so without dedup it would drown the signal | `hooks/useImageFallback.ts` (`onError`) via `analytics.ts` `trackImageFallbackUsed` | `failed_bucket` / `recovered_bucket?` (storage-prefix token only — `common_items` \| `processed` \| `uploads` \| `tryon` \| `bodies` \| `other`, **never the URL**), `recovered` (boolean — `false` = every candidate dead, user sees a blank tile) |
+ 
+ ### 5.5 Favourite + try-on outcomes
+ 
+@@ -481,6 +482,7 @@ Note: these still don't flow in production until `SHOW_UPGRADE_PAYWALL` is flipp
+ - **Wardrobe-grow funnel (take-photo):** `add_item_opened` → `add_item_method_selected` (`take_photo`) → `add_item_upload_started` → `add_item_upload_succeeded` → `wardrobe_item_added` → `item_ready_toast_shown` (AU-361: background processing completed — tail of the take-photo funnel)
+ - **Wardrobe-grow funnel (database):** `wardrobe_search_initiated` → `wardrobe_search_result_selected` → `wardrobe_item_added`
+ - **Trending-drop funnel (AU-438):** `trending_drop_viewed` → `trending_drop_added` (vs `trending_drop_dismissed`). `trending_drop_added` ÷ `trending_drop_viewed` is the drop take-rate; `dismissed ÷ viewed` is the reject rate (the two are mutually exclusive per user per drop). Break down by `drop_id` to compare drop content performance. The `add` branch also emits `wardrobe_item_added { source: 'trending_drop' }`, so the drop's contribution to overall wardrobe growth is visible in the wardrobe-grow cuts by filtering `source`.
++- **Dead-image fallback rate (blank-tile P1, 2026-09-19):** `item_image_fallback_used` is not a funnel step — it is a **data-health gauge**. Segment by `failed_bucket`: a `processed` share that stays high means the rotten SYSTEM catalog blobs are still live in prod (`repair_dead_processed_images.py` + `backfill_cutout_images.py` not yet run), and every affected tile is still paying a failed request before it recovers. Watch `recovered: false` separately — that is the residual blank tile, the user-visible bug, and it should be ~0 once the chain is wired everywhere. Both should trend to zero after the backend repair lands; if `failed_bucket: processed` does not fall, the repair did not take.
+ - **Wardrobe load-error recovery (design-review F7):** `wardrobe_load_failed` → `wardrobe_load_retry_tapped` measures how often a failed wardrobe load is recovered via the error-state Retry (denominator: `wardrobe_load_failed`). A high failure rate with low retry signals a journey dead-end.
+ - **Wardrobe-browse engagement:** `wardrobe_filter_changed` and `wardrobe_sort_changed` are wardrobe browse-engagement signals — track them together to understand how users navigate and organise their grid (filtering by category vs reordering by date/name/worn).
+ - **Refine-engagement funnel:** `refine_modal_opened` → `refine_chip_selected` ×N → `refine_submitted` (vs `refine_cancelled`, or `refine_skipped` on the after-6 gate). `refine_skipped` ÷ `refine_modal_opened` (source `viewed_threshold`) measures defer rate on the progressive gate; rising `skipped_count` flags users repeatedly dodging refinement.
 diff --git a/src/components/features/OutfitCanvasSurface.tsx b/src/components/features/OutfitCanvasSurface.tsx
 index 41df1c2..2a49e86 100644
 --- a/src/components/features/OutfitCanvasSurface.tsx
@@ -148,10 +168,10 @@ index 8bc0af6..4b2aa58 100644
                <View style={[styles.itemImage, styles.itemImagePlaceholder]} />
 diff --git a/src/components/features/__tests__/canvas-image-fallback.test.tsx b/src/components/features/__tests__/canvas-image-fallback.test.tsx
 new file mode 100644
-index 0000000..517e72d
+index 0000000..60abc51
 --- /dev/null
 +++ b/src/components/features/__tests__/canvas-image-fallback.test.tsx
-@@ -0,0 +1,101 @@
+@@ -0,0 +1,108 @@
 +/* eslint-env jest */
 +/**
 + * Dead-cutout fallback on the collage/canvas surfaces.
@@ -219,7 +239,14 @@ index 0000000..517e72d
 +const renderSurface = (data: CanvasItemData) => {
 +  let r!: TestRenderer.ReactTestRenderer;
 +  act(() => {
-+    r = TestRenderer.create(<OutfitCanvasSurface items={[data]} />);
++    r = TestRenderer.create(
++      <OutfitCanvasSurface
++        items={[data]}
++        width={382}
++        height={509}
++        onPositionChange={() => {}}
++      />,
++    );
 +  });
 +  return r;
 +};
@@ -321,6 +348,45 @@ index a85c29f..71b501e 100644
 +      }),
      surfaceWidth,
    );
+diff --git a/src/hooks/useImageFallback.ts b/src/hooks/useImageFallback.ts
+index ff6a5e7..de4137e 100644
+--- a/src/hooks/useImageFallback.ts
++++ b/src/hooks/useImageFallback.ts
+@@ -1,4 +1,5 @@
+ import { useCallback, useState } from 'react';
++import { trackImageFallbackUsed } from '../services/analytics';
+ 
+ interface ImageFallback {
+   /** Best candidate not yet known to have failed; `undefined` once all failed. */
+@@ -21,6 +22,11 @@ interface ImageFallback {
+  * Failures are tracked BY URL, not by index, so the state stays correct when
+  * `sources` changes identity between renders (a fresh URL is simply not in
+  * the failed set) without needing a reset effect.
++ *
++ * ANALYTICS: this hook is the single seam every garment-image surface walks
++ * its chain through, so `item_image_fallback_used` is fired here once rather
++ * than at ~14 render sites. See `.claude/rules/analytics-tracking-required.md`
++ * and tracking-plan §5.4.
+  */
+ export const useImageFallback = (sources: string[]): ImageFallback => {
+   const [failed, setFailed] = useState<Record<string, true>>({});
+@@ -29,8 +35,15 @@ export const useImageFallback = (sources: string[]): ImageFallback => {
+ 
+   const onError = useCallback(() => {
+     if (!uri) return;
++    // The candidate this error retires us to — undefined when the chain is
++    // exhausted (blank tile). Computed before the state update so the event
++    // records the actual outcome, not the pre-error state.
++    const recovered = sources.find(source => source !== uri && !failed[source]);
++    // Deduped per failed URL per session inside the analytics seam: one rotten
++    // catalog blob is shared by every clone and re-renders on every scroll.
++    trackImageFallbackUsed(uri, recovered);
+     setFailed(prev => (prev[uri] ? prev : { ...prev, [uri]: true }));
+-  }, [uri]);
++  }, [uri, sources, failed]);
+ 
+   return { uri, allFailed: sources.length > 0 && uri === undefined, onError };
+ };
 diff --git a/src/screens/HomeScreen/__tests__/garment-preview.render.test.tsx b/src/screens/HomeScreen/__tests__/garment-preview.render.test.tsx
 index 3d925f8..0807d73 100644
 --- a/src/screens/HomeScreen/__tests__/garment-preview.render.test.tsx
@@ -884,6 +950,176 @@ index 2a1af1b..7eb184d 100644
          />
        ) : null}
      </TouchableOpacity>
+diff --git a/src/services/__tests__/image-fallback-analytics.test.ts b/src/services/__tests__/image-fallback-analytics.test.ts
+new file mode 100644
+index 0000000..59b89ef
+--- /dev/null
++++ b/src/services/__tests__/image-fallback-analytics.test.ts
+@@ -0,0 +1,101 @@
++/* eslint-env jest */
++/**
++ * `item_image_fallback_used` — the rate at which a garment image chain has to
++ * recover from a dead URL. This is the signal that says whether the rotten
++ * SYSTEM `processed/` catalog blobs are still costing a failed request per
++ * tile, so its hygiene matters:
++ *   - NO PII: the URL is never shipped, only its storage-prefix token,
++ *   - deduped per failed URL per session, because one rotten catalog blob is
++ *     shared by every clone and re-renders on every grid scroll.
++ *
++ * Asserts through the `console.info` dev log, the same seam
++ * `analytics.test.ts` uses to read event name + props.
++ */
++type AnalyticsModule = typeof import('../analytics');
++
++const DEAD = 'https://cdn.test/processed/abc123.png';
++const ALIVE = 'https://cdn.test/common_items/TOP_W_U/SYS_L2_TEE.png';
++
++let consoleSpy: jest.SpyInstance;
++
++// Fresh singleton per test — the dedup Set lives in module scope.
++const loadAnalytics = (): AnalyticsModule => require('../analytics');
++
++const fallbackCalls = () =>
++  consoleSpy.mock.calls.filter(
++    call => call[0] === 'analytics.track' && call[1] === 'item_image_fallback_used',
++  );
++
++beforeEach(() => {
++  jest.resetModules();
++  consoleSpy = jest.spyOn(console, 'info').mockImplementation();
++});
++
++afterEach(() => {
++  consoleSpy.mockRestore();
++});
++
++describe('trackImageFallbackUsed', () => {
++  it('reports the storage buckets, never the URL', () => {
++    loadAnalytics().trackImageFallbackUsed(DEAD, ALIVE);
++
++    expect(fallbackCalls()).toHaveLength(1);
++    expect(fallbackCalls()[0][2]).toEqual({
++      failed_bucket: 'processed',
++      recovered: true,
++      recovered_bucket: 'common_items',
++    });
++
++    // The URL itself must not leak through any property.
++    const props = JSON.stringify(fallbackCalls()[0][2]);
++    expect(props).not.toContain('cdn.test');
++    expect(props).not.toContain('abc123');
++    expect(props).not.toContain('SYS_L2_TEE');
++  });
++
++  it('marks the blank-tile case — nothing in the chain loaded', () => {
++    loadAnalytics().trackImageFallbackUsed(DEAD);
++
++    expect(fallbackCalls()[0][2]).toEqual({
++      failed_bucket: 'processed',
++      recovered: false,
++    });
++    // `recovered_bucket` is omitted, never null / undefined / "".
++    expect(fallbackCalls()[0][2]).not.toHaveProperty('recovered_bucket');
++  });
++
++  it('fires once per failed URL per session — a shared rotten blob cannot flood', () => {
++    const { trackImageFallbackUsed } = loadAnalytics();
++    trackImageFallbackUsed(DEAD, ALIVE);
++    trackImageFallbackUsed(DEAD, ALIVE);
++    trackImageFallbackUsed(DEAD, ALIVE);
++
++    expect(fallbackCalls()).toHaveLength(1);
++  });
++
++  it('still counts a different dead URL', () => {
++    const { trackImageFallbackUsed } = loadAnalytics();
++    trackImageFallbackUsed(DEAD, ALIVE);
++    trackImageFallbackUsed('https://cdn.test/processed/other.png', ALIVE);
++
++    expect(fallbackCalls()).toHaveLength(2);
++  });
++
++  it('classifies a user upload distinctly from the catalog', () => {
++    loadAnalytics().trackImageFallbackUsed(
++      'https://cdn.test/uploads/mine.png',
++      'https://cdn.test/nowhere/x.png',
++    );
++
++    expect(fallbackCalls()[0][2]).toMatchObject({
++      failed_bucket: 'uploads',
++      recovered_bucket: 'other',
++    });
++  });
++
++  it('ignores an empty URL', () => {
++    loadAnalytics().trackImageFallbackUsed('', ALIVE);
++
++    expect(fallbackCalls()).toHaveLength(0);
++  });
++});
+diff --git a/src/services/analytics.ts b/src/services/analytics.ts
+index f0efdc7..7a26382 100644
+--- a/src/services/analytics.ts
++++ b/src/services/analytics.ts
+@@ -591,3 +591,58 @@ export const trackTrendingDropDismissed = (
+ ): void => {
+   track('trending_drop_dismissed', { drop_id: dropId, item_id: itemId });
+ };
++
++// ── Garment image fallback (dead `processed/` blob recovery) ───────────────
++// A wardrobe item's display image is an ORDERED chain (studio → cutout →
++// original). An onboarding clone copies the SYSTEM catalog item's `processed/`
++// blob URLs, and those blobs can be dead while the `common_items/` original
++// still loads — so the chain is walked on load error (`useImageFallback`).
++//
++// This event is the rate at which that recovery fires. It is the signal that
++// says whether the rotten SYSTEM `processed/` catalog data is still costing a
++// failed request per tile — i.e. whether the backend repair
++// (`repair_dead_processed_images.py` + `backfill_cutout_images.py`) has
++// actually landed in prod. `recovered: false` is the worse case: nothing in
++// the chain loaded, so the user sees a blank tile.
++//
++// NO PII: the URL is NEVER shipped. Only the storage-prefix token is sent, and
++// the URL is used solely as the per-session dedup key.
++
++/** Coarse storage bucket for an image URL — a path token, never the URL. */
++const storageBucket = (url: string): string => {
++  if (url.includes('/common_items/')) return 'common_items';
++  if (url.includes('/processed/')) return 'processed';
++  if (url.includes('/uploads/')) return 'uploads';
++  if (url.includes('/tryon/')) return 'tryon';
++  if (url.includes('/bodies/')) return 'bodies';
++  return 'other';
++};
++
++/**
++ * Per-session dedup. The same dead URL is shared by every clone of a catalog
++ * item and re-renders on every grid scroll, so without this one rotten blob
++ * would fire hundreds of events per session and drown the signal. Module-level
++ * so it spans re-mounts and resets on app restart (per-session semantics),
++ * mirroring `seenRecommendations`.
++ */
++const seenFailedImages = new Set<string>();
++
++/**
++ * A garment image URL failed to load and the chain fell back. Fire at most
++ * once per failed URL per session — never call `track('item_image_fallback_used')`
++ * directly. `recoveredUri` is undefined when every candidate is exhausted.
++ */
++export const trackImageFallbackUsed = (
++  failedUri: string,
++  recoveredUri?: string,
++): void => {
++  if (!failedUri || seenFailedImages.has(failedUri)) {
++    return;
++  }
++  seenFailedImages.add(failedUri);
++  track('item_image_fallback_used', {
++    failed_bucket: storageBucket(failedUri),
++    recovered: !!recoveredUri,
++    ...(recoveredUri ? { recovered_bucket: storageBucket(recoveredUri) } : {}),
++  });
++};
 diff --git a/src/types/navigation.ts b/src/types/navigation.ts
 index 54d3943..c723481 100644
 --- a/src/types/navigation.ts

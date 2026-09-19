@@ -123,11 +123,11 @@ no behaviour change, no migration.
 
   | | Baseline `a00f98b` | With patch |
   |---|---|---|
-  | Passing | 869 | **878** |
+  | Passing | 869 | **884** |
   | Failing | 33 | **31** |
-  | Total | 902 | 909 |
+  | Total | 902 | 915 |
 
-  +7 new tests, +2 previously-failing now pass. Diffed the `FAIL` lists: the **only**
+  +13 new tests, +2 previously-failing now pass. Diffed the `FAIL` lists: the **only**
   difference is `todays-picks.test.ts` moving failing → passing. Nothing regressed.
 - The 10 still-failing suites all fail with **"Test suite failed to run"** — a jest
   transform/ESM error on bundled native deps (`react-native-purchases`, a
@@ -138,7 +138,7 @@ no behaviour change, no migration.
   binds to the behaviour rather than passing vacuously.
 - **No simulator run** — no macOS/iOS sim in this environment.
 
-### Tests added (7)
+### Tests added (13)
 
 `__tests__/canvas-image-fallback.test.tsx` (5) — seed layer carries the chain
 through; layout geometry unchanged by the extra field; the surface retires a dead
@@ -147,6 +147,12 @@ fallback-less item still renders.
 
 `garment-preview.render.test.tsx` (2) — the suggestion tile degrades to the live
 original; all-candidates-dead falls through to the blank tile.
+
+`services/__tests__/image-fallback-analytics.test.ts` (6) — the event ships storage
+buckets and never the URL; the blank-tile case sets `recovered: false` and omits
+`recovered_bucket` (never null/empty); dedup fires once per failed URL per session;
+a different dead URL still counts; an upload is classified distinctly from the
+catalog; an empty URL is ignored.
 
 ### Bonus: 2 unrelated failing tests fixed
 
@@ -158,6 +164,54 @@ stopped being "today" the next day. Froze the clock with
 `jest.useFakeTimers().setSystemTime(NOW)`.
 
 ---
+
+## 5b. Tech-lead review round (2026-09-19)
+
+PR #49 review: **Clean, 0 BLOCKER / 0 MAJOR**, no PII or secrets, no contract
+drift. Two MINOR findings + one NIT. Disposition:
+
+1. **Analytics gap (MINOR) — fixed.** Per `.claude/rules/analytics-tracking-required.md`,
+   the new fallback path is a user-recoverable failure surface and shipped with no
+   `track()` call. Correct finding, and the product argument is the strongest part
+   of it: the fallback rate is precisely the metric that says whether the rotten
+   SYSTEM `processed/` blobs are still live in prod. Now wired:
+   - `analytics.ts` `trackImageFallbackUsed` — event `item_image_fallback_used`,
+     literal name, fired through the single analytics seam.
+   - Wired in **`useImageFallback`**, not at the ~14 render sites: every garment
+     surface now walks its chain through that one hook, so one call covers all of
+     them (DRY) and cannot drift as surfaces are added.
+   - **No PII**: the URL is never shipped. Properties are the storage-prefix token
+     only (`failed_bucket` / `recovered_bucket`: `common_items` | `processed` |
+     `uploads` | `tryon` | `bodies` | `other`) plus `recovered` (boolean). The URL
+     is used *solely* as the dedup key.
+   - **Deduped per failed URL per session** (module-level Set, mirrors
+     `trackRecommendationViewedOnce`). This is load-bearing, not polish: one rotten
+     catalog blob is shared by every clone and re-renders on every grid scroll, so
+     undeduped it would fire hundreds of events per session and drown the signal.
+   - Tracking plan updated: §5.4 shipped row, §10 as a data-health gauge (not a
+     funnel step) — segment by `failed_bucket`; a `processed` share that stays high
+     means the backend repair never landed, and `recovered: false` is the residual
+     blank tile.
+
+2. **Unreviewed patch-as-artifact (MINOR) — agreed, no code change.** Whoever
+   `git am`s this into `auxi-mobile` re-runs the gates; it must not land as
+   "already reviewed". One correction to the framing: the gates were not merely
+   asserted — they were executed against a real `auxi-mobile` clone at `a00f98b`
+   (deps installed, tsc/eslint/jest run, fix mutation-tested). The reviewer's point
+   stands regardless, since none of that is verifiable from *this* repo.
+
+3. **NIT (umbrella CI red)** — already established and commented; no action.
+
+### Correction to the verification claimed before this round
+
+The earlier "tsc clean" claim was **overstated**. `canvas-image-fallback.test.tsx`
+was created *after* the last full typecheck of that round, so it was never
+typechecked — and it did in fact carry an error (`TS2739`: `OutfitCanvasSurface`
+requires `width` / `height` / `onPositionChange`, which the test's render helper
+omitted). Jest passes on it regardless because Babel strips types. Fixed, and the
+full typecheck is now back to exactly the 3 pre-existing `see-this-on-me` errors.
+The lesson generalises: run the typecheck *after* the last file is written, not
+before.
 
 ## 6. What is still open
 
