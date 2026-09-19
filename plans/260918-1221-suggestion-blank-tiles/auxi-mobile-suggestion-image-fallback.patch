@@ -1,0 +1,1138 @@
+diff --git a/docs/analytics/mixpanel-tracking-plan.md b/docs/analytics/mixpanel-tracking-plan.md
+index d347e80..bcde06d 100644
+--- a/docs/analytics/mixpanel-tracking-plan.md
++++ b/docs/analytics/mixpanel-tracking-plan.md
+@@ -143,6 +143,7 @@ Comprehensive instrumentation landed 2026-06-16 per `plans/260616-0950-mixpanel-
+ | `wardrobe_url_import_completed` (PR #215) | Web-image import created the wardrobe item | `WardrobeScreen.tsx:185` | `method` (`import_web`), `item_id?`, `category?` |
+ | `wardrobe_url_import_failed` (PR #215) | Web-image import threw (network / service) | `WardrobeScreen.tsx:192` | — |
+ | `add_item_method_selected` `import_web` | "Import from web" method picked in the add sheet | `WardrobeScreen.tsx:326` | `method` (`import_web`) |
++| `item_image_fallback_used` | A garment image URL failed to load and the ordered chain (`image_studio` → `image_png` → `image_url`) fell back to the next candidate. Fired from the single seam every garment surface walks — NOT at the ~14 render sites. Deduped per failed URL per session (Set pattern, mirrors `trackRecommendationViewedOnce`): one rotten catalog blob is shared by every clone and re-renders on every grid scroll, so without dedup it would drown the signal | `hooks/useImageFallback.ts` (`onError`) via `analytics.ts` `trackImageFallbackUsed` | `failed_bucket` / `recovered_bucket?` (storage-prefix token only — `common_items` \| `processed` \| `uploads` \| `tryon` \| `bodies` \| `other`, **never the URL**), `recovered` (boolean — `false` = every candidate dead, user sees a blank tile) |
+ 
+ ### 5.5 Favourite + try-on outcomes
+ 
+@@ -481,6 +482,7 @@ Note: these still don't flow in production until `SHOW_UPGRADE_PAYWALL` is flipp
+ - **Wardrobe-grow funnel (take-photo):** `add_item_opened` → `add_item_method_selected` (`take_photo`) → `add_item_upload_started` → `add_item_upload_succeeded` → `wardrobe_item_added` → `item_ready_toast_shown` (AU-361: background processing completed — tail of the take-photo funnel)
+ - **Wardrobe-grow funnel (database):** `wardrobe_search_initiated` → `wardrobe_search_result_selected` → `wardrobe_item_added`
+ - **Trending-drop funnel (AU-438):** `trending_drop_viewed` → `trending_drop_added` (vs `trending_drop_dismissed`). `trending_drop_added` ÷ `trending_drop_viewed` is the drop take-rate; `dismissed ÷ viewed` is the reject rate (the two are mutually exclusive per user per drop). Break down by `drop_id` to compare drop content performance. The `add` branch also emits `wardrobe_item_added { source: 'trending_drop' }`, so the drop's contribution to overall wardrobe growth is visible in the wardrobe-grow cuts by filtering `source`.
++- **Dead-image fallback rate (blank-tile P1, 2026-09-19):** `item_image_fallback_used` is not a funnel step — it is a **data-health gauge**. Segment by `failed_bucket`: a `processed` share that stays high means the rotten SYSTEM catalog blobs are still live in prod (`repair_dead_processed_images.py` + `backfill_cutout_images.py` not yet run), and every affected tile is still paying a failed request before it recovers. Watch `recovered: false` separately — that is the residual blank tile, the user-visible bug, and it should be ~0 once the chain is wired everywhere. Both should trend to zero after the backend repair lands; if `failed_bucket: processed` does not fall, the repair did not take.
+ - **Wardrobe load-error recovery (design-review F7):** `wardrobe_load_failed` → `wardrobe_load_retry_tapped` measures how often a failed wardrobe load is recovered via the error-state Retry (denominator: `wardrobe_load_failed`). A high failure rate with low retry signals a journey dead-end.
+ - **Wardrobe-browse engagement:** `wardrobe_filter_changed` and `wardrobe_sort_changed` are wardrobe browse-engagement signals — track them together to understand how users navigate and organise their grid (filtering by category vs reordering by date/name/worn).
+ - **Refine-engagement funnel:** `refine_modal_opened` → `refine_chip_selected` ×N → `refine_submitted` (vs `refine_cancelled`, or `refine_skipped` on the after-6 gate). `refine_skipped` ÷ `refine_modal_opened` (source `viewed_threshold`) measures defer rate on the progressive gate; rising `skipped_count` flags users repeatedly dodging refinement.
+diff --git a/src/components/features/OutfitCanvasSurface.tsx b/src/components/features/OutfitCanvasSurface.tsx
+index 41df1c2..2a49e86 100644
+--- a/src/components/features/OutfitCanvasSurface.tsx
++++ b/src/components/features/OutfitCanvasSurface.tsx
+@@ -1,4 +1,4 @@
+-import React, { useEffect, useRef } from 'react';
++import React, { useEffect, useMemo, useRef } from 'react';
+ import {
+   Animated,
+   Image,
+@@ -17,6 +17,7 @@ import { motion } from '../../theme/motion';
+ import { getItemHitArea } from './canvas-hit-area';
+ import { TileStatus } from '../../utils/tile-status';
+ import { TileStatusBadge } from './TileStatusBadge';
++import { useImageFallback } from '../../hooks/useImageFallback';
+ 
+ // Shared drag-drop canvas surface. Extracted from OutfitCanvasScreen so both
+ // the full Remix editor (with toolbar/undo/tags, owned by the screen) and the
+@@ -37,6 +38,15 @@ export type CanvasItemData = {
+   // Accepts both require()'d local images and remote { uri } sources, so real
+   // outfit item image URLs map straight to imageSource: { uri }.
+   imageSource: ImageSourcePropType;
++  // Lower-precedence image URLs to fall back to, in order, when
++  // `imageSource` fails to load. An onboarding clone copies the SYSTEM
++  // catalog item's `processed/` blob URLs, and those blobs can be dead while
++  // the `common_items/` original still loads — without a fallback the piece
++  // is simply missing from the collage. Carried through from the seed layer
++  // (`collage-seed-layout.ts`), never derived here. Only consulted when
++  // `imageSource` is a remote `{ uri }` — a require()'d local asset cannot
++  // 404, so it has nothing to fall back to.
++  imageFallbackUris?: string[];
+   x: number;
+   y: number;
+   zIndex: number;
+@@ -155,6 +165,27 @@ const DraggableItem: React.FC<DraggableItemProps> = ({
+   enablePinchZoom = false,
+   showStatusBadge = false,
+ }) => {
++  // Walk `imageSource` → `imageFallbackUris` on load error, so a dead
++  // `processed/` cutout degrades to the still-alive `common_items/` original
++  // instead of leaving a hole in the collage. A require()'d local asset (a
++  // number, not a `{ uri }` object) cannot 404 — it has no chain, so it is
++  // rendered as-is and `onError` is a no-op.
++  const remoteUri =
++    item.imageSource && typeof item.imageSource === 'object' &&
++    !Array.isArray(item.imageSource)
++      ? item.imageSource.uri
++      : undefined;
++  const chain = useMemo(
++    () =>
++      remoteUri ? [remoteUri, ...(item.imageFallbackUris ?? [])] : [],
++    [remoteUri, item.imageFallbackUris],
++  );
++  const { uri: activeUri, onError: retireUri } = useImageFallback(chain);
++  const imageSource = remoteUri
++    ? { ...(item.imageSource as object), uri: activeUri }
++    : item.imageSource;
++  const onImageError = remoteUri ? retireUri : undefined;
++
+   const dragOffset = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
+   // 0 → 1 "lifted" cue (scale up) while an armed drag is in progress.
+   const lift = useRef(new Animated.Value(0)).current;
+@@ -410,10 +441,11 @@ const DraggableItem: React.FC<DraggableItemProps> = ({
+     >
+       <View pointerEvents="none">
+         <Image
+-          source={item.imageSource}
++          source={imageSource}
+           style={{ width: item.width, height: item.height }}
+           resizeMode="contain"
+           onLoadEnd={() => onImageLoad?.(item.id)}
++          onError={onImageError}
+         />
+       </View>
+       {showStatusBadge && item.status ? (
+diff --git a/src/components/features/PinConfirmModal.tsx b/src/components/features/PinConfirmModal.tsx
+index 8bc0af6..4b2aa58 100644
+--- a/src/components/features/PinConfirmModal.tsx
++++ b/src/components/features/PinConfirmModal.tsx
+@@ -14,7 +14,7 @@
+ // `isPressed` so a double-tap can't fire two dispatches before the parent
+ // reducer flips `outfit==='generating'`.
+ 
+-import React, { useEffect, useRef, useState } from 'react';
++import React, { useEffect, useMemo, useRef, useState } from 'react';
+ import {
+   Animated,
+   Dimensions,
+@@ -31,6 +31,7 @@ import IconHomePin from '../../assets/images/icon_home_pin.svg';
+ import { theme } from '../../theme/theme';
+ import { motion, useReducedMotion } from '../../theme/motion';
+ import { useBackgroundScale } from '../../context/BackgroundScaleContext';
++import { useImageFallback } from '../../hooks/useImageFallback';
+ 
+ const { height: screenHeight } = Dimensions.get('window');
+ 
+@@ -40,6 +41,10 @@ export interface PinConfirmModalProps {
+   visible: boolean;
+   variant: PinConfirmModalVariant;
+   itemImageUrl?: string | null;
++  /** Lower-precedence image URLs, in order, for when `itemImageUrl` fails to
++   *  load — a clone's `processed/` cutout can be dead while the
++   *  `common_items/` original still resolves. */
++  itemImageFallbackUrls?: string[];
+   itemLabel?: string;
+   /** Whether the pinned item is a system "common" essential (shows badge). */
+   isCommonItem?: boolean;
+@@ -54,6 +59,7 @@ export const PinConfirmModal: React.FC<PinConfirmModalProps> = ({
+   visible,
+   variant,
+   itemImageUrl,
++  itemImageFallbackUrls,
+   itemLabel,
+   isCommonItem = false,
+   dontShowAgain,
+@@ -62,6 +68,15 @@ export const PinConfirmModal: React.FC<PinConfirmModalProps> = ({
+   onCancel,
+ }) => {
+   const { t } = useTranslation();
++  // Walk the candidate chain on load error rather than showing the placeholder
++  // the moment the best URL 404s.
++  const imageChain = useMemo(
++    () =>
++      itemImageUrl ? [itemImageUrl, ...(itemImageFallbackUrls ?? [])] : [],
++    [itemImageUrl, itemImageFallbackUrls],
++  );
++  const { uri: activeImageUri, onError: retireImageUri } =
++    useImageFallback(imageChain);
+   const reduceMotion = useReducedMotion();
+   const [shouldRender, setShouldRender] = useState(visible);
+   const { pushSheet, popSheet } = useBackgroundScale();
+@@ -165,13 +180,14 @@ export const PinConfirmModal: React.FC<PinConfirmModalProps> = ({
+           </View>
+ 
+           <View style={styles.itemPreview}>
+-            {itemImageUrl ? (
++            {activeImageUri ? (
+               <Image
+                 testID="pin-confirm-modal-image"
+-                source={{ uri: itemImageUrl }}
++                source={{ uri: activeImageUri }}
+                 style={styles.itemImage}
+                 resizeMode="cover"
+                 accessibilityLabel={itemLabel}
++                onError={retireImageUri}
+               />
+             ) : (
+               <View style={[styles.itemImage, styles.itemImagePlaceholder]} />
+diff --git a/src/components/features/__tests__/canvas-image-fallback.test.tsx b/src/components/features/__tests__/canvas-image-fallback.test.tsx
+new file mode 100644
+index 0000000..60abc51
+--- /dev/null
++++ b/src/components/features/__tests__/canvas-image-fallback.test.tsx
+@@ -0,0 +1,108 @@
++/* eslint-env jest */
++/**
++ * Dead-cutout fallback on the collage/canvas surfaces.
++ *
++ * An onboarding clone copies the SYSTEM catalog item's `processed/` blob URLs.
++ * Those blobs can be dead while the `common_items/` original is still alive, so
++ * picking the display image on string presence alone leaves a HOLE in the
++ * collage — the piece is silently missing from the outfit. Locks the two halves
++ * of the fix: the seed layer carries the ordered chain through untouched, and
++ * the surface walks it on load error.
++ */
++import React from 'react';
++import TestRenderer, { act } from 'react-test-renderer';
++import { seedCanvasLayout, type CollageSeedItem } from '../collage-seed-layout';
++import { OutfitCanvasSurface, type CanvasItemData } from '../OutfitCanvasSurface';
++
++jest.mock('react-i18next', () => ({
++  useTranslation: () => ({ t: (k: string) => k }),
++}));
++
++const DEAD = 'https://x/processed/dead.png';
++const ALIVE = 'https://x/common_items/original.png';
++
++describe('seedCanvasLayout — fallback passthrough', () => {
++  it('carries imageFallbackUris from seed item to output node', () => {
++    const seed: CollageSeedItem = {
++      id: 'tee',
++      imageUri: DEAD,
++      imageFallbackUris: [ALIVE],
++      category: 'Top',
++    };
++    const [out] = seedCanvasLayout([seed], 382);
++
++    expect(out.imageSource).toEqual({ uri: DEAD });
++    expect(out.imageFallbackUris).toEqual([ALIVE]);
++  });
++
++  it('layout geometry is unchanged by the extra field', () => {
++    const withFallback = seedCanvasLayout(
++      [{ id: 'tee', imageUri: DEAD, imageFallbackUris: [ALIVE], category: 'Top' }],
++      382,
++    );
++    const without = seedCanvasLayout(
++      [{ id: 'tee', imageUri: DEAD, category: 'Top' }],
++      382,
++    );
++
++    const geometry = (o: (typeof withFallback)[number]) => [o.x, o.y, o.width, o.height, o.zIndex];
++    expect(geometry(withFallback[0])).toEqual(geometry(without[0]));
++  });
++});
++
++const item = (overrides: Partial<CanvasItemData> = {}): CanvasItemData => ({
++  id: 'i1',
++  imageSource: { uri: DEAD },
++  imageFallbackUris: [ALIVE],
++  x: 0,
++  y: 0,
++  zIndex: 1,
++  width: 100,
++  height: 100,
++  ...overrides,
++});
++
++const renderSurface = (data: CanvasItemData) => {
++  let r!: TestRenderer.ReactTestRenderer;
++  act(() => {
++    r = TestRenderer.create(
++      <OutfitCanvasSurface
++        items={[data]}
++        width={382}
++        height={509}
++        onPositionChange={() => {}}
++      />,
++    );
++  });
++  return r;
++};
++
++const imageNode = (r: TestRenderer.ReactTestRenderer) =>
++  r.root.find(n => typeof n.props?.source?.uri === 'string');
++
++describe('OutfitCanvasSurface — dead cutout does not leave a hole', () => {
++  it('retires the dead cutout and renders the live original', () => {
++    const r = renderSurface(item());
++    expect(imageNode(r).props.source.uri).toBe(DEAD);
++
++    act(() => {
++      imageNode(r).props.onError();
++    });
++    expect(imageNode(r).props.source.uri).toBe(ALIVE);
++  });
++
++  it('a require()d local asset is rendered as-is with no onError handler', () => {
++    // A bundled asset resolves to a number, not a { uri } object — it cannot
++    // 404, so it must not be routed through the fallback chain.
++    const local = 42 as unknown as CanvasItemData['imageSource'];
++    const r = renderSurface(item({ imageSource: local, imageFallbackUris: undefined }));
++
++    const img = r.root.find(n => n.props?.source === local);
++    expect(img.props.onError).toBeUndefined();
++  });
++
++  it('no fallbacks supplied → still renders the single source', () => {
++    const r = renderSurface(item({ imageFallbackUris: undefined }));
++    expect(imageNode(r).props.source.uri).toBe(DEAD);
++  });
++});
+diff --git a/src/components/features/collage-seed-layout.ts b/src/components/features/collage-seed-layout.ts
+index a85c29f..71b501e 100644
+--- a/src/components/features/collage-seed-layout.ts
++++ b/src/components/features/collage-seed-layout.ts
+@@ -1,5 +1,5 @@
+ import { Item } from '../../types/item';
+-import { resolveItemImage } from '../../utils/url';
++import { resolveItemImageSources } from '../../utils/url';
+ import { resolveTileStatus, TileStatus } from '../../utils/tile-status';
+ import type { CanvasItemData } from './OutfitCanvasSurface';
+ 
+@@ -181,6 +181,11 @@ const ACCESSORY_ZONE: Record<Exclude<AccessoryRole, 'BAG'>, string> = {
+ export type CollageSeedItem = {
+   id: string;
+   imageUri: string;
++  /** Lower-precedence image URLs, in order, for when `imageUri` fails to
++   *  load (a clone's `processed/` cutout can be dead while the
++   *  `common_items/` original still resolves). Carried straight through to
++   *  the output node; the layout math never reads it. */
++  imageFallbackUris?: string[];
+   category?: string;
+   status?: TileStatus;
+ };
+@@ -244,6 +249,7 @@ const classifyRole = (raw?: string): Role => {
+ interface Node {
+   id: string;
+   imageUri: string;
++  imageFallbackUris?: string[]; // carried through, never read by layout math
+   role: Role;
+   category?: string; // raw category, carried through so the editor can re-seed
+   status?: TileStatus; // AU-392: carried through, never read by layout math
+@@ -450,6 +456,7 @@ export const seedCanvasLayout = (
+   const nodes: Node[] = items.map(it => ({
+     id: it.id,
+     imageUri: it.imageUri,
++    imageFallbackUris: it.imageFallbackUris,
+     role: classifyRole(it.category),
+     category: it.category,
+     status: it.status,
+@@ -573,6 +580,7 @@ export const seedCanvasLayout = (
+   return placed.map(p => ({
+     id: p.id,
+     imageSource: { uri: p.imageUri },
++    imageFallbackUris: p.imageFallbackUris,
+     x: p.cx - p.size / 2,
+     y: p.cy - p.size / 2,
+     width: p.size,
+@@ -625,13 +633,17 @@ export const seedFromOutfit = (
+   seedCanvasLayout(
+     items
+       .filter((it): it is Item => !!it)
+-      .map(it => ({
++      .map(it => {
++        const [imageUri, ...imageFallbackUris] = resolveItemImageSources(it);
++        return {
+         id: it.id,
+-        imageUri: resolveItemImage(it) || '',
++        imageUri: imageUri || '',
++        imageFallbackUris,
+         category: it.category,
+         // AU-392 D1: Home collage-play now shows the same 4-state badge as the
+         // grid — `Item` satisfies `TileStatusInput` structurally, no cast.
+         status: resolveTileStatus(it),
+-      })),
++        };
++      }),
+     surfaceWidth,
+   );
+diff --git a/src/hooks/useImageFallback.ts b/src/hooks/useImageFallback.ts
+index ff6a5e7..de4137e 100644
+--- a/src/hooks/useImageFallback.ts
++++ b/src/hooks/useImageFallback.ts
+@@ -1,4 +1,5 @@
+ import { useCallback, useState } from 'react';
++import { trackImageFallbackUsed } from '../services/analytics';
+ 
+ interface ImageFallback {
+   /** Best candidate not yet known to have failed; `undefined` once all failed. */
+@@ -21,6 +22,11 @@ interface ImageFallback {
+  * Failures are tracked BY URL, not by index, so the state stays correct when
+  * `sources` changes identity between renders (a fresh URL is simply not in
+  * the failed set) without needing a reset effect.
++ *
++ * ANALYTICS: this hook is the single seam every garment-image surface walks
++ * its chain through, so `item_image_fallback_used` is fired here once rather
++ * than at ~14 render sites. See `.claude/rules/analytics-tracking-required.md`
++ * and tracking-plan §5.4.
+  */
+ export const useImageFallback = (sources: string[]): ImageFallback => {
+   const [failed, setFailed] = useState<Record<string, true>>({});
+@@ -29,8 +35,15 @@ export const useImageFallback = (sources: string[]): ImageFallback => {
+ 
+   const onError = useCallback(() => {
+     if (!uri) return;
++    // The candidate this error retires us to — undefined when the chain is
++    // exhausted (blank tile). Computed before the state update so the event
++    // records the actual outcome, not the pre-error state.
++    const recovered = sources.find(source => source !== uri && !failed[source]);
++    // Deduped per failed URL per session inside the analytics seam: one rotten
++    // catalog blob is shared by every clone and re-renders on every scroll.
++    trackImageFallbackUsed(uri, recovered);
+     setFailed(prev => (prev[uri] ? prev : { ...prev, [uri]: true }));
+-  }, [uri]);
++  }, [uri, sources, failed]);
+ 
+   return { uri, allFailed: sources.length > 0 && uri === undefined, onError };
+ };
+diff --git a/src/screens/HomeScreen/__tests__/garment-preview.render.test.tsx b/src/screens/HomeScreen/__tests__/garment-preview.render.test.tsx
+index 3d925f8..0807d73 100644
+--- a/src/screens/HomeScreen/__tests__/garment-preview.render.test.tsx
++++ b/src/screens/HomeScreen/__tests__/garment-preview.render.test.tsx
+@@ -128,3 +128,45 @@ test('pinned item resolved from the wardrobe (R5 path) still resolves its status
+   });
+   expect(badgeTestIDs(r)).toEqual([]);
+ });
++
++/**
++ * The suggestion tile rendered blank while item detail showed the same garment
++ * fine: an onboarding clone copies the SYSTEM catalog item's `processed/` blob
++ * URLs, those blobs were deleted, and this tile picked the winner on string
++ * presence with no `onError` recovery. Item detail already walked the ordered
++ * chain, hence the asymmetry the CEO saw. Locks the chain + retire-on-error.
++ */
++const imageNode = (r: TestRenderer.ReactTestRenderer) =>
++  r.root.find(
++    n => typeof n.props?.source?.uri === 'string' && !!n.props.onError,
++  );
++
++test('dead cutout falls back to the still-alive original instead of rendering blank', () => {
++  const r = render({
++    ...baseItem,
++    image_url: 'https://x/common_items/original.png',
++    image_png: 'https://x/processed/dead.png',
++  });
++
++  // Best candidate first.
++  expect(imageNode(r).props.source.uri).toBe('https://x/processed/dead.png');
++
++  // It 404s — the tile retires it and shows the original, not a blank View.
++  act(() => {
++    imageNode(r).props.onError();
++  });
++  expect(imageNode(r).props.source.uri).toBe(
++    'https://x/common_items/original.png',
++  );
++});
++
++test('every candidate dead → no image node left, falls through to the blank tile', () => {
++  const r = render({ ...baseItem, image_url: 'https://x/only.png' });
++
++  act(() => {
++    imageNode(r).props.onError();
++  });
++  expect(
++    r.root.findAll(n => typeof n.props?.source?.uri === 'string'),
++  ).toHaveLength(0);
++});
+diff --git a/src/screens/HomeScreen/components/GarmentPreview.tsx b/src/screens/HomeScreen/components/GarmentPreview.tsx
+index 6c9e87c..ac9f9d8 100644
+--- a/src/screens/HomeScreen/components/GarmentPreview.tsx
++++ b/src/screens/HomeScreen/components/GarmentPreview.tsx
+@@ -1,7 +1,8 @@
+ import React from 'react';
+ import { Image, View } from 'react-native';
+ import { Item } from '../../../types/item';
+-import { resolveItemImage } from '../../../utils/url';
++import { resolveItemImageSources } from '../../../utils/url';
++import { useImageFallback } from '../../../hooks/useImageFallback';
+ import { resolveTileStatus } from '../../../utils/tile-status';
+ import { TileStatusBadge } from '../../../components/features/TileStatusBadge';
+ import { styles } from '../styles';
+@@ -11,7 +12,13 @@ import { styles } from '../styles';
+ // for precedence; pre-phase-03 backend responses (fields absent) degrade to
+ // "common" on every tile, matching today's behaviour.
+ export const GarmentPreview = ({ item }: { item: Item }) => {
+-  const imageUrl = resolveItemImage(item);
++  // Ordered chain, not a single winner: an onboarding clone copies the SYSTEM
++  // catalog item's `processed/` blob URLs, and those blobs can be dead while
++  // the `common_items/` original still loads. Picking on string presence alone
++  // rendered a blank suggestion tile even though the item opened fine in item
++  // detail (which already walks the chain).
++  const sources = resolveItemImageSources(item);
++  const { uri: imageUrl, onError } = useImageFallback(sources);
+   const status = resolveTileStatus(item);
+ 
+   return (
+@@ -21,6 +28,7 @@ export const GarmentPreview = ({ item }: { item: Item }) => {
+           source={{ uri: imageUrl }}
+           style={styles.cardImage}
+           resizeMode="contain"
++          onError={onError}
+         />
+       ) : (
+         <View style={styles.cardFallback} />
+diff --git a/src/screens/HomeScreen/index.tsx b/src/screens/HomeScreen/index.tsx
+index 78d9c02..3066578 100644
+--- a/src/screens/HomeScreen/index.tsx
++++ b/src/screens/HomeScreen/index.tsx
+@@ -56,7 +56,7 @@ import {
+   classifyRecommendationError,
+   getApiErrorCode,
+ } from '../../utils/aiError';
+-import { resolveItemImage } from '../../utils/url';
++import { resolveItemImageSources } from '../../utils/url';
+ import {
+   markAiLimitReached,
+   clearAiLimit,
+@@ -1161,9 +1161,13 @@ export const HomeScreen = () => {
+     }
+     return null;
+   }, [listOutfits, pinState.pendingPinnedItemId, pinState.pinReplaceCandidate]);
+-  const pinDialogImageUrl = pinDialogItem
+-    ? resolveItemImage(pinDialogItem) ?? null
+-    : null;
++  const [pinDialogImageUrl, pinDialogImageFallbackUrls] = useMemo(() => {
++    if (!pinDialogItem) {
++      return [null, [] as string[]] as const;
++    }
++    const [best, ...rest] = resolveItemImageSources(pinDialogItem);
++    return [best ?? null, rest] as const;
++  }, [pinDialogItem]);
+ 
+   useEffect(() => {
+     pinDialogItemRef.current = pinDialogItem;
+@@ -1552,9 +1556,12 @@ export const HomeScreen = () => {
+     const current = listOutfitsRef.current[activeIndexRef.current];
+     const items = (current?.items ?? [])
+       .filter((it): it is Item => !!it)
+-      .map(it => ({
++      .map(it => {
++        const [imageUrl, ...imageFallbackUrls] = resolveItemImageSources(it);
++        return {
+         id: it.id,
+-        imageUrl: resolveItemImage(it) || it.image_url,
++        imageUrl: imageUrl || it.image_url,
++        imageFallbackUrls,
+         category: it.category,
+         // AU-392 D1: carry the status fields through so the Remix editor can
+         // resolve the same badge shown on the Home tile being remixed.
+@@ -1562,7 +1569,8 @@ export const HomeScreen = () => {
+         user_id: it.user_id,
+         is_new: it.is_new,
+         usage_frequency: it.usage_frequency,
+-      }));
++        };
++      });
+     navigation.navigate(
+       'OutfitCanvas',
+       items.length ? { items, entry: 'remix' } : { entry: 'remix' },
+@@ -1857,6 +1865,7 @@ export const HomeScreen = () => {
+         visible={pinState.modal !== 'closed'}
+         variant={pinState.modal === 'replace' ? 'replace' : 'confirm'}
+         itemImageUrl={pinDialogImageUrl}
++        itemImageFallbackUrls={pinDialogImageFallbackUrls}
+         itemLabel={pinDialogItem?.name ?? undefined}
+         // AU-392 D4: read the tile-status contract field, not `isSystem`
+         // (which means `source==='common_essential'` and previously mislabeled
+diff --git a/src/screens/OutfitCanvasScreen.tsx b/src/screens/OutfitCanvasScreen.tsx
+index 91f3366..d30a1d3 100644
+--- a/src/screens/OutfitCanvasScreen.tsx
++++ b/src/screens/OutfitCanvasScreen.tsx
+@@ -88,6 +88,7 @@ export const OutfitCanvasScreen: React.FC<Props> = ({ navigation }) => {
+           route.params.items.map(it => ({
+             id: it.id,
+             imageUri: it.imageUrl,
++            imageFallbackUris: it.imageFallbackUrls,
+             category: it.category,
+             // AU-392 D1 (2026-07-30): Remix is in scope for the status badge —
+             // `it` carries the same wire-shape fields as `TileStatusInput`.
+diff --git a/src/screens/canvas/useCanvasAddItems.ts b/src/screens/canvas/useCanvasAddItems.ts
+index 0ff6ddd..328c27c 100644
+--- a/src/screens/canvas/useCanvasAddItems.ts
++++ b/src/screens/canvas/useCanvasAddItems.ts
+@@ -13,7 +13,7 @@ import { ImageSourcePropType } from 'react-native';
+ import { WardrobeItem } from '../../services/wardrobeService';
+ import { CanvasItemData } from '../../components/features/OutfitCanvasSurface';
+ import { addSeededItems } from '../../components/features/collage-seed-layout';
+-import { getImageUrl } from '../../utils/url';
++import { resolveItemImageSources } from '../../utils/url';
+ import { resolveTileStatus } from '../../utils/tile-status';
+ import { CANVAS_WIDTH } from './canvas-dimensions';
+ import {
+@@ -67,12 +67,18 @@ export function useCanvasAddItems({
+       const stamp = Date.now();
+       const prepared = picked.map((item, i) => {
+         // Precedence: accepted AI studio shot → bg-removed cutout → original
+-        // photo (matches resolveItemImage in utils/url.ts; inlined here
+-        // because WardrobeItem's image_url is optional, unlike Item's).
+-        const uri = getImageUrl(
+-          item.image_studio || item.image_png || item.image_url,
+-        );
++        // photo. The ORDERED chain, not just the winner: a clone's
++        // `processed/` cutout URL can be dead while the `common_items/`
++        // original still loads, so the canvas falls back down the chain on
++        // error instead of dropping the piece. (`WardrobeItem`'s `image_url`
++        // is optional, unlike `Item`'s — hence the coercion.)
++        const [uri, ...imageFallbackUris] = resolveItemImageSources({
++          image_studio: item.image_studio ?? null,
++          image_png: item.image_png ?? null,
++          image_url: item.image_url ?? '',
++        });
+         return {
++          imageFallbackUris,
+           id: `item-${item.id}-${stamp}-${i}`,
+           // The real wardrobe id, carried so a saved creation can launch try-on.
+           wardrobeItemId: item.id,
+@@ -120,6 +126,7 @@ export function useCanvasAddItems({
+           return {
+             id: p.id,
+             imageUri: p.uri ?? '',
++            imageFallbackUris: p.imageFallbackUris,
+             category: p.category,
+             status: p.status,
+           };
+diff --git a/src/screens/capsule/CapsuleItemDetailScreen.tsx b/src/screens/capsule/CapsuleItemDetailScreen.tsx
+index 2faf2d2..00bc572 100644
+--- a/src/screens/capsule/CapsuleItemDetailScreen.tsx
++++ b/src/screens/capsule/CapsuleItemDetailScreen.tsx
+@@ -15,7 +15,8 @@ import {
+ import type { CapsuleChangeScope } from '../../services/capsuleService';
+ import type { AppStackParamList } from '../../types/navigation';
+ import { useCapsule, useChangeCapsuleItem, useRemoveCapsuleItem } from './hooks';
+-import { resolveWardrobeItemImage } from './capsule-format';
++import { resolveWardrobeItemImageSources } from './capsule-format';
++import { useImageFallback } from '../../hooks/useImageFallback';
+ import { toastCapsuleNetworkError } from './capsule-toast';
+ import { ChangeScopeDialog } from './components/ChangeScopeDialog';
+ import { capsuleStyles as s } from './styles';
+@@ -113,7 +114,9 @@ export const CapsuleItemDetailScreen: React.FC = () => {
+     );
+   };
+ 
+-  const uri = item ? resolveWardrobeItemImage(item) : undefined;
++  const { uri, onError } = useImageFallback(
++    item ? resolveWardrobeItemImageSources(item) : [],
++  );
+ 
+   return (
+     <SafeAreaView style={s.screen} edges={['top']}>
+@@ -134,7 +137,11 @@ export const CapsuleItemDetailScreen: React.FC = () => {
+           showsVerticalScrollIndicator={false}
+         >
+           {uri ? (
+-            <Image source={{ uri }} style={s.itemDetailImage} />
++            <Image
++              source={{ uri }}
++              style={s.itemDetailImage}
++              onError={onError}
++            />
+           ) : (
+             <View style={s.itemDetailImage} />
+           )}
+diff --git a/src/screens/capsule/CapsuleSelectOutfitsScreen.tsx b/src/screens/capsule/CapsuleSelectOutfitsScreen.tsx
+index d112b3f..ae5961f 100644
+--- a/src/screens/capsule/CapsuleSelectOutfitsScreen.tsx
++++ b/src/screens/capsule/CapsuleSelectOutfitsScreen.tsx
+@@ -13,7 +13,8 @@ import { theme } from '../../theme/theme';
+ import { trackCapsuleItemsAdded } from '../../services/analytics';
+ import { favouriteService } from '../../services/favouriteService';
+ import { creationsService } from '../../services/creationsService';
+-import { resolveItemImage } from '../../utils/url';
++import { resolveItemImageSources } from '../../utils/url';
++import { useImageFallback } from '../../hooks/useImageFallback';
+ import type { AddItemsResult } from '../../services/capsuleService';
+ import type { AppStackParamList } from '../../types/navigation';
+ import { useAddCapsuleItems, useAddFromOutfits } from './hooks';
+@@ -24,10 +25,30 @@ import { capsuleStyles as s } from './styles';
+ type Nav = NativeStackNavigationProp<AppStackParamList, 'CapsuleSelectOutfits'>;
+ type Rt = RouteProp<AppStackParamList, 'CapsuleSelectOutfits'>;
+ 
++/** One outfit thumbnail. Its own component so it can hold the fallback
++ *  state — walks the candidate chain and retires each URL that 404s. */
++const OutfitThumb: React.FC<{ sources: string[] }> = ({ sources }) => {
++  const { uri, onError } = useImageFallback(sources);
++  if (!uri) {
++    return <View style={styles.thumb} />;
++  }
++  return (
++    <Image
++      source={{ uri }}
++      style={styles.thumb}
++      resizeMode="cover"
++      onError={onError}
++    />
++  );
++};
++
+ /** Normalised selectable-outfit row (favourite or creation). */
+ interface OutfitRow {
+   id: string;
+-  thumbUris: string[];
++  /** One ordered candidate chain PER thumbnail (studio → cutout → original),
++   *  not one URL per thumbnail: a clone's `processed/` cutout can be dead
++   *  while the `common_items/` original still loads. */
++  thumbSources: string[][];
+   /** Wardrobe item ids behind the outfit — empty ⇒ nothing addable. */
+   itemIds: string[];
+ }
+@@ -69,16 +90,19 @@ export const CapsuleSelectOutfitsScreen: React.FC = () => {
+         const res = await favouriteService.listFavourites();
+         return res.favorites.map(fav => ({
+           id: fav.id,
+-          thumbUris: fav.outfit_items
+-            .map(item => resolveItemImage(item))
+-            .filter((u): u is string => !!u),
++          thumbSources: fav.outfit_items
++            .map(item => resolveItemImageSources(item))
++            .filter(sources => sources.length > 0),
+           itemIds: fav.outfit_items.map(item => item.id).filter(Boolean),
+         }));
+       }
+       const res = await creationsService.listCreations();
+       return res.creations.map(creation => ({
+         id: creation.id,
+-        thumbUris: creation.items.map(i => i.imageUri).filter(Boolean),
++        thumbSources: creation.items
++          .map(i => i.imageUri)
++          .filter(Boolean)
++          .map(uri => [uri]),
+         itemIds: creationWardrobeItemIds(creation),
+       }));
+     },
+@@ -197,13 +221,8 @@ export const CapsuleSelectOutfitsScreen: React.FC = () => {
+                   unusable && styles.rowUnusable,
+                 ]}
+               >
+-                {row.thumbUris.slice(0, 4).map((uri, i) => (
+-                  <Image
+-                    key={`${row.id}-${i}`}
+-                    source={{ uri }}
+-                    style={styles.thumb}
+-                    resizeMode="cover"
+-                  />
++                {row.thumbSources.slice(0, 4).map((sources, i) => (
++                  <OutfitThumb key={`${row.id}-${i}`} sources={sources} />
+                 ))}
+                 {unusable && (
+                   <Text style={styles.rowUnusableText}>
+diff --git a/src/screens/capsule/capsule-format.ts b/src/screens/capsule/capsule-format.ts
+index 7fedbe2..bf69582 100644
+--- a/src/screens/capsule/capsule-format.ts
++++ b/src/screens/capsule/capsule-format.ts
+@@ -11,17 +11,23 @@ import {
+   resolveWardrobeItemId,
+   type CreationItem,
+ } from '../../services/creationsService';
+-import { resolveItemImage } from '../../utils/url';
++import { resolveItemImageSources } from '../../utils/url';
+ 
+ /**
+- * Best display image for a WardrobeItem (studio → png → url). Coerces the
+- * optional WardrobeItem image fields to the shape `resolveItemImage` expects
+- * (its `image_url` is required), mirroring WardrobeGridTile.
++ * Ordered display-image candidates for a WardrobeItem (studio → png → url).
++ * Coerces the optional WardrobeItem image fields to the shape
++ * `resolveItemImageSources` expects (its `image_url` is required), mirroring
++ * WardrobeGridTile.
++ *
++ * A CHAIN, not a single winner: a clone's `processed/` cutout URL can be dead
++ * while the `common_items/` original still loads, so picking on string
++ * presence renders a blank tile even though a live image exists underneath.
++ * Callers walk this on load error (see `useImageFallback`).
+  */
+-export const resolveWardrobeItemImage = (
++export const resolveWardrobeItemImageSources = (
+   item: WardrobeItem,
+-): string | undefined =>
+-  resolveItemImage({
++): string[] =>
++  resolveItemImageSources({
+     image_studio: item.image_studio ?? null,
+     image_png: item.image_png ?? null,
+     image_url: item.image_url ?? '',
+diff --git a/src/screens/capsule/components/CapsuleItemTile.tsx b/src/screens/capsule/components/CapsuleItemTile.tsx
+index 57ea767..d486747 100644
+--- a/src/screens/capsule/components/CapsuleItemTile.tsx
++++ b/src/screens/capsule/components/CapsuleItemTile.tsx
+@@ -2,7 +2,11 @@ import React from 'react';
+ import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+ import { theme } from '../../../theme/theme';
+ import type { WardrobeItem } from '../../../services/wardrobeService';
+-import { capsuleTileHeight, resolveWardrobeItemImage } from '../capsule-format';
++import {
++  capsuleTileHeight,
++  resolveWardrobeItemImageSources,
++} from '../capsule-format';
++import { useImageFallback } from '../../../hooks/useImageFallback';
+ 
+ interface CapsuleItemTileProps {
+   item: WardrobeItem;
+@@ -35,7 +39,9 @@ export const CapsuleItemTile: React.FC<CapsuleItemTileProps> = ({
+   testID,
+   accessibilityLabel,
+ }) => {
+-  const uri = resolveWardrobeItemImage(item);
++  const { uri, onError } = useImageFallback(
++    resolveWardrobeItemImageSources(item),
++  );
+   return (
+     <Pressable
+       onPress={disabled ? undefined : onPress}
+@@ -52,7 +58,12 @@ export const CapsuleItemTile: React.FC<CapsuleItemTileProps> = ({
+       ]}
+     >
+       {uri ? (
+-        <Image source={{ uri }} style={styles.image} resizeMode="cover" />
++        <Image
++          source={{ uri }}
++          style={styles.image}
++          resizeMode="cover"
++          onError={onError}
++        />
+       ) : (
+         <View style={styles.image} />
+       )}
+diff --git a/src/screens/favourite/FavouriteOutfitCard.tsx b/src/screens/favourite/FavouriteOutfitCard.tsx
+index 9fc2ac2..791dc1b 100644
+--- a/src/screens/favourite/FavouriteOutfitCard.tsx
++++ b/src/screens/favourite/FavouriteOutfitCard.tsx
+@@ -14,7 +14,7 @@ import { TFunction } from 'i18next';
+ import { useTranslation } from 'react-i18next';
+ import { theme } from '../../theme/theme';
+ import { LoadableRemoteImage } from '../../components/features/LoadableRemoteImage';
+-import { resolveItemImage } from '../../utils/url';
++import { resolveItemImageSources } from '../../utils/url';
+ import { HomeView } from '../../components/features/HomeViewToggleFooter';
+ import {
+   COLLAGE_ASPECT,
+@@ -145,7 +145,10 @@ const Tile: React.FC<{
+   style?: StyleProp<ViewStyle>;
+ }> = ({ item, testIDPrefix, onItemPress, style }) => {
+   const { t } = useTranslation();
+-  const imageUrl = resolveItemImage(item);
++  // Ordered chain: a clone's `processed/` cutout URL can be dead while the
++  // `common_items/` original still loads, so hand the lower-precedence URLs
++  // to the tile as fallbacks instead of rendering blank on the first 404.
++  const [imageUrl, ...imageFallbacks] = resolveItemImageSources(item);
+   const status = resolveTileStatus(item);
+ 
+   return (
+@@ -161,6 +164,7 @@ const Tile: React.FC<{
+       {imageUrl ? (
+         <LoadableRemoteImage
+           uri={imageUrl}
++          fallbackUris={imageFallbacks}
+           resizeMode="cover"
+           skeletonTestID={`${testIDPrefix}-image-skeleton-${item.id}`}
+         />
+@@ -286,12 +290,17 @@ const CollageView: React.FC<{
+     () =>
+       surfaceWidth > 0
+         ? seedCanvasLayout(
+-            items.map(item => ({
+-              id: item.id,
+-              imageUri: resolveItemImage(item) || '',
+-              category: item.category,
+-              status: resolveTileStatus(item),
+-            })),
++            items.map(item => {
++              const [imageUri, ...imageFallbackUris] =
++                resolveItemImageSources(item);
++              return {
++                id: item.id,
++                imageUri: imageUri || '',
++                imageFallbackUris,
++                category: item.category,
++                status: resolveTileStatus(item),
++              };
++            }),
+             surfaceWidth,
+           )
+         : [],
+diff --git a/src/screens/home/HomeLandingScreen.tsx b/src/screens/home/HomeLandingScreen.tsx
+index d66ecba..7f4157b 100644
+--- a/src/screens/home/HomeLandingScreen.tsx
++++ b/src/screens/home/HomeLandingScreen.tsx
+@@ -9,7 +9,7 @@ import { useSidebar } from '../../context/SidebarContext';
+ import { track } from '../../services/analytics';
+ import { useDiscoveryOutfits } from '../../hooks/useDiscovery';
+ import type { DiscoveryOutfitCard } from '../../services/discoveryService';
+-import { resolveItemImage } from '../../utils/url';
++import { resolveItemImageSources } from '../../utils/url';
+ import type { Item } from '../../types/item';
+ import type { OutfitSheet } from '../HomeScreen/types';
+ import { AppNavFooter } from '../../components/features/AppNavFooter';
+@@ -85,15 +85,20 @@ export const HomeLandingScreen = () => {
+     navigation.navigate('OutfitCanvas', {
+       entry: 'remix',
+       items: sheet.items
+-        .map(item => ({
++        .map(item => {
++          const [imageUrl, ...imageFallbackUrls] =
++            resolveItemImageSources(item);
++          return {
+           id: item.id,
+-          imageUrl: resolveItemImage(item) ?? '',
++          imageUrl: imageUrl ?? '',
++          imageFallbackUrls,
+           category: item.category,
+           is_common_item: item.is_common_item,
+           user_id: item.user_id,
+           is_new: item.is_new,
+           usage_frequency: item.usage_frequency,
+-        }))
++          };
++        })
+         .filter(item => !!item.imageUrl),
+     });
+   };
+diff --git a/src/screens/home/__tests__/todays-picks.test.ts b/src/screens/home/__tests__/todays-picks.test.ts
+index 9e6ddff..6225d75 100644
+--- a/src/screens/home/__tests__/todays-picks.test.ts
++++ b/src/screens/home/__tests__/todays-picks.test.ts
+@@ -31,6 +31,21 @@ const NOW = new Date('2026-09-12T09:00:00');
+ const TODAY = new Date('2026-09-12T07:30:00').getTime();
+ const YESTERDAY = new Date('2026-09-11T23:59:00').getTime();
+ 
++// `shouldColdStart` / `pickTodaysSheets` reach the clock through
++// `isPersistedStale`'s `now = new Date()` default — they take no `now`
++// parameter to thread `NOW` into. Without a frozen clock the fixtures above
++// are "today" only on 2026-09-12, so the two tests that exercise the
++// persisted-blob branch through those two functions started failing the day
++// after they were written. Freeze the clock to `NOW` so this suite asserts
++// the precedence rules, not the calendar.
++beforeAll(() => {
++  jest.useFakeTimers().setSystemTime(NOW);
++});
++
++afterAll(() => {
++  jest.useRealTimers();
++});
++
+ const input = (over: Partial<TodaysPicksInput> = {}): TodaysPicksInput => ({
+   scheduled: [],
+   deck: [],
+diff --git a/src/screens/home/components/TodaysPicksSection.tsx b/src/screens/home/components/TodaysPicksSection.tsx
+index 2a1af1b..7eb184d 100644
+--- a/src/screens/home/components/TodaysPicksSection.tsx
++++ b/src/screens/home/components/TodaysPicksSection.tsx
+@@ -11,7 +11,8 @@ import {
+ } from 'react-native';
+ import { useTranslation } from 'react-i18next';
+ import { Icons } from '../../../assets/icons';
+-import { resolveItemImage } from '../../../utils/url';
++import { resolveItemImageSources } from '../../../utils/url';
++import { useImageFallback } from '../../../hooks/useImageFallback';
+ import type { Item } from '../../../types/item';
+ import type { OutfitSheet } from '../../HomeScreen/types';
+ import type { TodaysPicksFailure, TodaysPicksSource } from '../todays-picks';
+@@ -43,7 +44,11 @@ const PickTile: React.FC<{
+   index: number;
+   onPress: () => void;
+ }> = ({ item, index, onPress }) => {
+-  const imageUrl = resolveItemImage(item);
++  // Ordered chain + retire-on-error: a clone's `processed/` cutout URL can be
++  // dead while the `common_items/` original still loads.
++  const { uri: imageUrl, onError } = useImageFallback(
++    resolveItemImageSources(item),
++  );
+   return (
+     <TouchableOpacity
+       style={styles.pickTile}
+@@ -58,6 +63,7 @@ const PickTile: React.FC<{
+           source={{ uri: imageUrl }}
+           style={styles.pickTileImage}
+           resizeMode="contain"
++          onError={onError}
+         />
+       ) : null}
+     </TouchableOpacity>
+diff --git a/src/services/__tests__/image-fallback-analytics.test.ts b/src/services/__tests__/image-fallback-analytics.test.ts
+new file mode 100644
+index 0000000..59b89ef
+--- /dev/null
++++ b/src/services/__tests__/image-fallback-analytics.test.ts
+@@ -0,0 +1,101 @@
++/* eslint-env jest */
++/**
++ * `item_image_fallback_used` — the rate at which a garment image chain has to
++ * recover from a dead URL. This is the signal that says whether the rotten
++ * SYSTEM `processed/` catalog blobs are still costing a failed request per
++ * tile, so its hygiene matters:
++ *   - NO PII: the URL is never shipped, only its storage-prefix token,
++ *   - deduped per failed URL per session, because one rotten catalog blob is
++ *     shared by every clone and re-renders on every grid scroll.
++ *
++ * Asserts through the `console.info` dev log, the same seam
++ * `analytics.test.ts` uses to read event name + props.
++ */
++type AnalyticsModule = typeof import('../analytics');
++
++const DEAD = 'https://cdn.test/processed/abc123.png';
++const ALIVE = 'https://cdn.test/common_items/TOP_W_U/SYS_L2_TEE.png';
++
++let consoleSpy: jest.SpyInstance;
++
++// Fresh singleton per test — the dedup Set lives in module scope.
++const loadAnalytics = (): AnalyticsModule => require('../analytics');
++
++const fallbackCalls = () =>
++  consoleSpy.mock.calls.filter(
++    call => call[0] === 'analytics.track' && call[1] === 'item_image_fallback_used',
++  );
++
++beforeEach(() => {
++  jest.resetModules();
++  consoleSpy = jest.spyOn(console, 'info').mockImplementation();
++});
++
++afterEach(() => {
++  consoleSpy.mockRestore();
++});
++
++describe('trackImageFallbackUsed', () => {
++  it('reports the storage buckets, never the URL', () => {
++    loadAnalytics().trackImageFallbackUsed(DEAD, ALIVE);
++
++    expect(fallbackCalls()).toHaveLength(1);
++    expect(fallbackCalls()[0][2]).toEqual({
++      failed_bucket: 'processed',
++      recovered: true,
++      recovered_bucket: 'common_items',
++    });
++
++    // The URL itself must not leak through any property.
++    const props = JSON.stringify(fallbackCalls()[0][2]);
++    expect(props).not.toContain('cdn.test');
++    expect(props).not.toContain('abc123');
++    expect(props).not.toContain('SYS_L2_TEE');
++  });
++
++  it('marks the blank-tile case — nothing in the chain loaded', () => {
++    loadAnalytics().trackImageFallbackUsed(DEAD);
++
++    expect(fallbackCalls()[0][2]).toEqual({
++      failed_bucket: 'processed',
++      recovered: false,
++    });
++    // `recovered_bucket` is omitted, never null / undefined / "".
++    expect(fallbackCalls()[0][2]).not.toHaveProperty('recovered_bucket');
++  });
++
++  it('fires once per failed URL per session — a shared rotten blob cannot flood', () => {
++    const { trackImageFallbackUsed } = loadAnalytics();
++    trackImageFallbackUsed(DEAD, ALIVE);
++    trackImageFallbackUsed(DEAD, ALIVE);
++    trackImageFallbackUsed(DEAD, ALIVE);
++
++    expect(fallbackCalls()).toHaveLength(1);
++  });
++
++  it('still counts a different dead URL', () => {
++    const { trackImageFallbackUsed } = loadAnalytics();
++    trackImageFallbackUsed(DEAD, ALIVE);
++    trackImageFallbackUsed('https://cdn.test/processed/other.png', ALIVE);
++
++    expect(fallbackCalls()).toHaveLength(2);
++  });
++
++  it('classifies a user upload distinctly from the catalog', () => {
++    loadAnalytics().trackImageFallbackUsed(
++      'https://cdn.test/uploads/mine.png',
++      'https://cdn.test/nowhere/x.png',
++    );
++
++    expect(fallbackCalls()[0][2]).toMatchObject({
++      failed_bucket: 'uploads',
++      recovered_bucket: 'other',
++    });
++  });
++
++  it('ignores an empty URL', () => {
++    loadAnalytics().trackImageFallbackUsed('', ALIVE);
++
++    expect(fallbackCalls()).toHaveLength(0);
++  });
++});
+diff --git a/src/services/analytics.ts b/src/services/analytics.ts
+index f0efdc7..7a26382 100644
+--- a/src/services/analytics.ts
++++ b/src/services/analytics.ts
+@@ -591,3 +591,58 @@ export const trackTrendingDropDismissed = (
+ ): void => {
+   track('trending_drop_dismissed', { drop_id: dropId, item_id: itemId });
+ };
++
++// ── Garment image fallback (dead `processed/` blob recovery) ───────────────
++// A wardrobe item's display image is an ORDERED chain (studio → cutout →
++// original). An onboarding clone copies the SYSTEM catalog item's `processed/`
++// blob URLs, and those blobs can be dead while the `common_items/` original
++// still loads — so the chain is walked on load error (`useImageFallback`).
++//
++// This event is the rate at which that recovery fires. It is the signal that
++// says whether the rotten SYSTEM `processed/` catalog data is still costing a
++// failed request per tile — i.e. whether the backend repair
++// (`repair_dead_processed_images.py` + `backfill_cutout_images.py`) has
++// actually landed in prod. `recovered: false` is the worse case: nothing in
++// the chain loaded, so the user sees a blank tile.
++//
++// NO PII: the URL is NEVER shipped. Only the storage-prefix token is sent, and
++// the URL is used solely as the per-session dedup key.
++
++/** Coarse storage bucket for an image URL — a path token, never the URL. */
++const storageBucket = (url: string): string => {
++  if (url.includes('/common_items/')) return 'common_items';
++  if (url.includes('/processed/')) return 'processed';
++  if (url.includes('/uploads/')) return 'uploads';
++  if (url.includes('/tryon/')) return 'tryon';
++  if (url.includes('/bodies/')) return 'bodies';
++  return 'other';
++};
++
++/**
++ * Per-session dedup. The same dead URL is shared by every clone of a catalog
++ * item and re-renders on every grid scroll, so without this one rotten blob
++ * would fire hundreds of events per session and drown the signal. Module-level
++ * so it spans re-mounts and resets on app restart (per-session semantics),
++ * mirroring `seenRecommendations`.
++ */
++const seenFailedImages = new Set<string>();
++
++/**
++ * A garment image URL failed to load and the chain fell back. Fire at most
++ * once per failed URL per session — never call `track('item_image_fallback_used')`
++ * directly. `recoveredUri` is undefined when every candidate is exhausted.
++ */
++export const trackImageFallbackUsed = (
++  failedUri: string,
++  recoveredUri?: string,
++): void => {
++  if (!failedUri || seenFailedImages.has(failedUri)) {
++    return;
++  }
++  seenFailedImages.add(failedUri);
++  track('item_image_fallback_used', {
++    failed_bucket: storageBucket(failedUri),
++    recovered: !!recoveredUri,
++    ...(recoveredUri ? { recovered_bucket: storageBucket(recoveredUri) } : {}),
++  });
++};
+diff --git a/src/types/navigation.ts b/src/types/navigation.ts
+index 54d3943..c723481 100644
+--- a/src/types/navigation.ts
++++ b/src/types/navigation.ts
+@@ -328,6 +328,11 @@ export type AppStackParamList = {
+         items?: Array<{
+           id: string;
+           imageUrl: string;
++          /** Lower-precedence image URLs, in order, for when `imageUrl`
++           *  fails to load — a clone's `processed/` cutout can be dead while
++           *  the `common_items/` original still resolves. Optional: callers
++           *  that pass only `imageUrl` keep working (no fallback). */
++          imageFallbackUrls?: string[];
+           category?: string;
+           // AU-392 D1 (2026-07-30): tile-status fields, same wire shape as
+           // `Item`/`TileStatusInput` (src/utils/tile-status.ts) so the Remix
