@@ -58,3 +58,15 @@ plans/**/*.gif
 plans/**/*.webp
 plans/**/*.mp4
 plans/**/*.mov
+
+# Python bytecode from .claude/scripts/* helpers
+__pycache__/
+*.pyc
+
+# Hook run logs — per-session machine state, rewritten on every run.
+# Same category as the already-ignored .claude/logs/; versioning it guarantees
+# a dirty tree and a conflict on every merge.
+.codex/hooks/.logs/
+
+# Agent-team completion logs (written by the team-coordination hook per run)
+plans/reports/*-team-completions.md
