@@ -71,5 +71,5 @@ Root causes (verified in code):
 
 ## Tracking (mobile)
 - `wardrobe_direction_changed` {from, to} (Settings)
-- `recommendation_exhausted` {occasion, climate_bucket, outfits_seen}
+- `recommendation_exhausted` {occasion, outfits_seen}
 - `recommendation_seen_reset` {occasion}
